@@ -597,20 +597,62 @@ class Component extends DesignComponent {
       ...section,
       items: section.items.map((m) => ({
         ...m,
-        numbers: m.numbers.map((n) => ({
-          ...n,
-          onCall: () => {
-            const number = "+91" + dg(n.phone);
-            navigator.clipboard?.writeText(number).catch(() => {});
-            window.location.href = "tel:" + number;
-          },
-          onWhats: () => {
-            const url = "https://wa.me/91" + dg(n.phone);
-            if (navigator.userAgent.includes("MVPMlAndroid"))
-              window.location.href = url;
-            else window.open(url, "_blank", "noopener,noreferrer");
-          },
-        })),
+        numbers: m.numbers.map((n) => {
+          const links = contactLinks(
+            n.phone,
+            navigator.userAgent.includes("MVPMlAndroid"),
+          );
+          const contact = (kind, event) => {
+            if (!links) {
+              event?.preventDefault();
+              this.flash("નંબર બરાબર નથી.", "This phone number is invalid.");
+              return;
+            }
+            // Clipboard access can be denied or throw synchronously in embedded browsers.
+            // It must never prevent the link's default action.
+            if (kind === "call") {
+              try {
+                Promise.resolve(
+                  navigator.clipboard?.writeText(links.number),
+                ).catch(() => {});
+              } catch {}
+            }
+            this.setState({
+              dial: {
+                icon:
+                  kind === "call"
+                    ? "ph-duotone ph-phone-call"
+                    : "ph-duotone ph-whatsapp-logo",
+                name: s.lang === "gu" ? m.nameGu : m.name,
+                phone: links.number,
+                href: links[kind],
+                target: links.target,
+                gu:
+                  kind === "call"
+                    ? "ડાયલર ખોલવાની વિનંતી મોકલી છે. ન ખૂલે તો ઉપરના નંબરને ટૅપ કરો અથવા ફોનમાં જાતે દાખલ કરો. કમ્પ્યુટર પર ફોન એપ જરૂરી છે; પ્રિવ્યૂમાં બહારની એપ અવરોધિત હોઈ શકે."
+                    : "વોટ્સએપ ખોલવાની વિનંતી મોકલી છે. ન ખૂલે તો ઉપરના નંબરને ટૅપ કરો. પ્રિવ્યૂ અથવા પોપ-અપ અવરોધક અટકાવે તો એપને અલગ ટૅબમાં ખોલો.",
+                en:
+                  kind === "call"
+                    ? "Requested your dialer. If nothing opens, tap the number above or enter it in your phone. A computer needs a calling app; an embedded preview may block external apps."
+                    : "Requested WhatsApp. If nothing opens, tap the number above. If the preview or popup blocker prevents opening, open the directory in a separate tab. WhatsApp or WhatsApp Web must be available.",
+              },
+            });
+          };
+          return {
+            ...n,
+            callHref: links?.call,
+            whatsHref: links?.whatsapp,
+            externalTarget: links?.target,
+            onContactKey: (event) => {
+              if (event.key === " ") {
+                event.preventDefault();
+                event.currentTarget.click();
+              }
+            },
+            onCall: (event) => contact("call", event),
+            onWhats: (event) => contact("whatsapp", event),
+          };
+        }),
       })),
     }));
     v.exports = v.exports.map((x, i) => ({

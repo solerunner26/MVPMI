@@ -1,3 +1,4 @@
+import { checkContactActions } from "./contact-checks.mjs";
 import { chromium } from "playwright";
 import chrome from "@sparticuz/chromium";
 import { brotliDecompressSync } from "node:zlib";
@@ -84,6 +85,7 @@ try {
   await page.getByRole("button", { name: /All Members/ }).click();
   await page.getByTitle("Call", { exact: true }).waitFor();
   await page.screenshot({ path: "test-results/directory.png" });
+  await checkContactActions(browser, context, url);
   await page.getByPlaceholder("નામ કે નંબર શોધો").fill("900");
   assert.equal(await page.getByTitle("Call", { exact: true }).count(), 1);
   await page.reload();

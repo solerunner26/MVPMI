@@ -57,6 +57,29 @@ template = template.replace(
   'type="password" placeholder="At least 10 characters"',
   'type="password" value="{{ resetPassword }}" onInput="{{ setResetPassword }}" placeholder="At least 10 characters"',
 );
+// Keep the supplied button styling, but use real user-activated external links.
+for (const [handler, href] of [
+  ["onCall", "callHref"],
+  ["onWhats", "whatsHref"],
+]) {
+  template = template.replace(
+    new RegExp(
+      '<button onClick="\\{\\{ n\\.' +
+        handler +
+        ' \\}\\}"([^>]+)>([\\s\\S]*?)</button>',
+    ),
+    '<a role="button" href="{{ n.' +
+      href +
+      ' }}" target="{{ n.externalTarget }}" rel="noopener noreferrer" onKeyDown="{{ n.onContactKey }}" onClick="{{ n.' +
+      handler +
+      ' }}"$1>$2</a>',
+  );
+}
+// Reuse the original dial sheet. Its number is a retry link, not a new screen.
+template = template.replace(
+  "{{ dial.phone }}</div>",
+  '<sc-if value="{{ dial.href }}"><a href="{{ dial.href }}" target="{{ dial.target }}" rel="noopener noreferrer" style="color:inherit">{{ dial.phone }}</a></sc-if><sc-if value="{{ !dial.href }}">{{ dial.phone }}</sc-if></div>',
+);
 const resetStart = template.indexOf('<sc-if value="{{ isAdminForgot }}">'),
   resetEnd = template.indexOf('<sc-if value="{{ isAdmin }}">');
 let reset = template.slice(resetStart, resetEnd);
@@ -169,8 +192,14 @@ logic = logic.replace(
   '\'<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Gujarati:wght@400;700&display=swap">\'',
   '\'<link rel="stylesheet" href="/vendor/noto-sans-gujarati/400.css">\'',
 );
+logic +=
+  "\n" +
+  read("web/contact-actions.mjs", "utf8").replace(
+    "export function",
+    "function",
+  );
 logic += "\n" + read("web/controller.js", "utf8");
-const extra = `<style>html,body{height:100%}body{background:#17100E}.app{margin:0 auto;width:100%;max-width:412px}.screen-frame{height:100vh;height:100dvh;min-height:480px;overflow:hidden;position:relative;background:var(--page)}@media(min-width:600px){.app{padding:24px 0}.screen-frame{height:892px;max-height:calc(100dvh - 48px);border-radius:18px;box-shadow:0 30px 80px #0004}}button:focus-visible,input:focus-visible{outline:2px solid var(--ind);outline-offset:3px}@media(prefers-reduced-motion:reduce){.app *{animation:none!important;scroll-behavior:auto!important}}.app button{touch-action:manipulation}.noscroll>div,.noscroll>button{flex-shrink:0}</style>`;
+const extra = `<style>html,body{height:100%}body{background:#17100E}.app{margin:0 auto;width:100%;max-width:412px}.screen-frame{height:100vh;height:100dvh;min-height:480px;overflow:hidden;position:relative;background:var(--page)}@media(min-width:600px){.app{padding:24px 0}.screen-frame{height:892px;max-height:calc(100dvh - 48px);border-radius:18px;box-shadow:0 30px 80px #0004}}a[role="button"]:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--ind);outline-offset:3px}@media(prefers-reduced-motion:reduce){.app *{animation:none!important;scroll-behavior:auto!important}}.app button{touch-action:manipulation}.noscroll>div,.noscroll>button{flex-shrink:0}</style>`;
 write(
   "dist/index.html",
   `<!doctype html><html lang="gu"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#B2402C"><title>MVPMl · Community Directory</title><script src="/vendor/react.js"></script><script src="/vendor/react-dom.js"></script><script src="/support.js"></script></head><body><x-dc><helmet><link rel="stylesheet" href="/vendor/icons/style.css">${["manrope", "noto-sans-gujarati"].flatMap((f) => [400, 500, 600, 700, 800].map((w) => `<link rel="stylesheet" href="/vendor/${f}/${w}.css">`)).join("")}${helmet}${extra}</helmet>${template}</x-dc><script type="text/x-dc" data-dc-script>${logic}</script></body></html>`,

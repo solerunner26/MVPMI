@@ -160,8 +160,11 @@ class MainActivity : Activity() {
         when (NavigationPolicy.classify(uri.toString(), serverUrl, mainFrame, BuildConfig.DEBUG)) {
             NavigationPolicy.Destination.INTERNAL -> return false
             NavigationPolicy.Destination.DIAL -> {
-                (getSystemService(CLIPBOARD_SERVICE) as ClipboardManager)
-                    .setPrimaryClip(ClipData.newPlainText("Phone", uri.schemeSpecificPart))
+                // Optional convenience: managed-device clipboard restrictions must not block dialing.
+                try {
+                    (getSystemService(CLIPBOARD_SERVICE) as ClipboardManager)
+                        .setPrimaryClip(ClipData.newPlainText("Phone", uri.schemeSpecificPart))
+                } catch (_: SecurityException) { /* Continue to the dialer. */ }
                 open(Intent(Intent.ACTION_DIAL, uri))
             }
             NavigationPolicy.Destination.WHATSAPP -> open(Intent(Intent.ACTION_VIEW, uri))
@@ -191,6 +194,7 @@ class MainActivity : Activity() {
     private fun open(intent: Intent) {
         try { startActivity(intent) }
         catch (_: ActivityNotFoundException) { message("એપ ઉપલબ્ધ નથી · No compatible app is installed") }
+        catch (_: SecurityException) { message("ઉપકરણની નીતિએ એપ ખોલવા દીધી નથી · Device policy blocked opening this app") }
     }
     private fun message(text: String) = Toast.makeText(this, text, Toast.LENGTH_LONG).show()
 

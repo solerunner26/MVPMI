@@ -90,6 +90,23 @@ try {
   await page.getByRole("button", { name: /All Members/ }).click();
   await page.getByTitle("Call", { exact: true }).waitFor();
   await scan("directory-list");
+  // Do not launch external apps while scanning the original contact sheets.
+  await page.evaluate(() =>
+    document.addEventListener(
+      "click",
+      (e) => {
+        if (e.target.closest('a[href^="tel:"],a[href^="https://wa.me/"]'))
+          e.preventDefault();
+      },
+      true,
+    ),
+  );
+  for (const title of ["Call", "WhatsApp"]) {
+    await page.getByTitle(title, { exact: true }).click();
+    await page.getByRole("dialog").waitFor();
+    await scan("contact-" + title);
+    await page.getByRole("button", { name: /OK/ }).click();
+  }
   await page.getByTitle("My profile", { exact: true }).click();
   await page.getByRole("button", { name: /Edit my details/ }).waitFor();
   await scan("profile");
