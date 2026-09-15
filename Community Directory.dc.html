@@ -51,10 +51,10 @@
            linear-gradient(180deg,#1B0F0D 0%,#140A09 100%);
   }
   .en { font-family:'Manrope',-apple-system,system-ui,sans-serif; }
-  .bi { display:block; min-width:0; }
-  .bi > span { display:inline; white-space:normal; overflow-wrap:break-word; }
-  .bi > span + span { margin-left:9px; }
-  .bi[style*="align-items:center"], .bi[style*="justify-content:center"] { text-align:center; }
+  .bi { display:flex; flex-direction:row; flex-wrap:wrap; align-items:baseline; column-gap:7px; row-gap:1px; min-width:0; }
+  .bi.row { column-gap:7px; }
+  .bi > span { white-space:nowrap; }
+  .bi { column-gap:9px; }
   .bi > .en, .app[data-lang="en"] .bi > .gu { opacity:.8; font-weight:inherit; }
   .bi[style*="text-wrap"] { flex-direction:column; flex-wrap:nowrap; }
   .bi[style*="text-wrap"] > span { white-space:normal; }
@@ -106,7 +106,7 @@
   <div style="width:100%;max-width:1060px;display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between;color:#F7EDE4">
     <div>
       <div class="en" style="font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#93786C;font-weight:700">Android prototype · liquid glass</div>
-      <div style="font-size:27px;font-weight:700;margin-top:6px;line-height:1.25">સમાજ સંપર્ક યાદી</div>
+      <div style="font-size:27px;font-weight:700;margin-top:6px">સમાજ સંપર્ક યાદી</div>
       <div class="en" style="font-size:14px;color:#B79D92;margin-top:2px;max-width:60ch;text-wrap:pretty">Gujarati-first bilingual directory. Validated entry, two numbers per member, filtered directory, live font sizing, hidden admin panel with PDF/Excel export.</div>
     </div>
     <a class="en" href="Handoff Spec.dc.html" style="font-size:13px;font-weight:700;text-decoration:none;border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:11px 15px;color:#F7EDE4;background:rgba(255,255,255,.06)">Handoff spec →</a>
@@ -131,8 +131,8 @@
 
           <sc-if value="{{ isSignup }}" hint-placeholder-val="{{ true }}">
             <div style="flex:1;display:flex;flex-direction:column;min-height:0">
-              <div style="padding:14px 16px 10px;display:flex;align-items:center;gap:12px;flex:0 0 auto;background:var(--g2);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border-bottom:1px solid var(--gbd)">
-                <button onClick="{{ secretTap }}" aria-label="MVPMl" title="MVPMl" style="width:48px;height:48px;border:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;flex:0 0 auto;filter:drop-shadow(0 5px 12px rgba(178,64,44,.42))">
+              <div style="padding:16px 20px 10px;display:flex;align-items:center;gap:12px">
+                <button onClick="{{ secretTap }}" title="MVPMl" style="width:46px;height:46px;border:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;flex:0 0 auto;filter:drop-shadow(0 5px 12px rgba(178,64,44,.42))">
                   <dc-import name="SunMark" hint-size="42px,42px" style="width:42px;height:42px"></dc-import>
                 </button>
                 <div style="flex:1;min-width:0">
@@ -140,7 +140,7 @@
                   <div class="bi" style="font-size:var(--f-xs);color:var(--ink2)"><span class="gu">સમાજ સંપર્ક યાદી</span><span class="en">Community directory</span></div>
                 </div>
               </div>
-              <div class="noscroll" style="flex:1;overflow:auto;padding:14px 16px 130px;display:flex;flex-direction:column;gap:14px">
+              <div class="noscroll" style="flex:1;overflow:auto;padding:6px 18px 130px;display:flex;flex-direction:column;gap:14px">
 
                 <div class="bi" style="padding:2px 4px 6px;font-weight:700;font-size:var(--f-2xl);letter-spacing:-.01em">
                   <span class="gu">તમારી વિગત ભરો</span>
@@ -191,7 +191,7 @@
                       </div>
                       <div style="display:flex;gap:8px">
                         <sc-for list="{{ labelOpts }}" as="o" hint-placeholder-count="2">
-                          <button onClick="{{ o.onClick }}" style="flex:1;min-height:38px;padding:6px 8px;border-radius:12px;border:1px solid {{ o.bd }};background:{{ o.bg }};color:{{ o.fg }};font:inherit;font-size:var(--f-xs);font-weight:700;cursor:pointer">{{ o.label }}</button>
+                          <button onClick="{{ o.onClick }}" style="flex:1;height:38px;border-radius:12px;border:1px solid {{ o.bd }};background:{{ o.bg }};color:{{ o.fg }};font:inherit;font-size:var(--f-xs);font-weight:700;cursor:pointer">{{ o.label }}</button>
                         </sc-for>
                       </div>
                       <div style="display:flex;align-items:center;gap:10px;height:var(--tap);border-radius:16px;border:1px solid {{ bd.phone2 }};background:var(--field);padding:0 15px">
@@ -203,7 +203,7 @@
                     </label>
                   </sc-if>
                   <sc-if value="{{ canAddPhone2 }}">
-                    <button onClick="{{ addPhone2 }}" style="align-self:flex-start;min-height:48px;padding:7px 14px;border-radius:14px;border:1px dashed var(--fieldBd);background:none;color:var(--ind);font:inherit;font-size:var(--f-sm);font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px" style-hover="background:var(--chip)">
+                    <button onClick="{{ addPhone2 }}" style="align-self:flex-start;height:40px;padding:0 14px;border-radius:14px;border:1px dashed var(--fieldBd);background:none;color:var(--ind);font:inherit;font-size:var(--f-sm);font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px" style-hover="background:var(--chip)">
                       <i class="ph-duotone ph-plus-circle" style="font-size:18px"></i>
                       <div class="bi"><span class="gu">બીજો નંબર ઉમેરો</span><span class="en">Add second number</span></div>
                     </button>
@@ -240,7 +240,7 @@
                   </label>
                 </div>
 
-                <button onClick="{{ sendRequest }}" style="position:relative;overflow:hidden;min-height:max(var(--tap), 52px);padding:8px 14px;width:100%;border:0;border-radius:20px;background:var(--grad);color:#fff;font:inherit;font-weight:700;font-size:var(--f-md);display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;box-shadow:0 10px 26px rgba(178,64,44,.36)" style-active="transform:translateY(1px)">
+                <button onClick="{{ sendRequest }}" style="position:relative;overflow:hidden;height:var(--tap);min-height:52px;width:100%;border:0;border-radius:20px;background:var(--grad);color:#fff;font:inherit;font-weight:700;font-size:var(--f-md);display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;box-shadow:0 10px 26px rgba(178,64,44,.36)" style-active="transform:translateY(1px)">
                   <i class="ph-duotone ph-paper-plane-tilt" style="font-size:21px"></i>
                   <div class="bi row"><span class="gu">રિક્વેસ્ટ મોકલો</span><span class="en">Send request</span></div>
                 </button>
@@ -255,8 +255,8 @@
 
           <sc-if value="{{ isPending }}">
             <div style="flex:1;display:flex;flex-direction:column;min-height:0">
-              <div style="padding:14px 16px 10px;display:flex;align-items:center;gap:12px;flex:0 0 auto;background:var(--g2);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border-bottom:1px solid var(--gbd)">
-                <button onClick="{{ secretTap }}" aria-label="MVPMl" title="MVPMl" style="width:48px;height:48px;border:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;flex:0 0 auto;filter:drop-shadow(0 4px 10px rgba(178,64,44,.4))">
+              <div style="padding:16px 20px 0;display:flex;align-items:center;gap:12px">
+                <button onClick="{{ secretTap }}" title="MVPMl" style="width:42px;height:42px;border:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;flex:0 0 auto;filter:drop-shadow(0 4px 10px rgba(178,64,44,.4))">
                   <dc-import name="SunMark" hint-size="38px,38px" style="width:38px;height:38px"></dc-import>
                 </button>
                 <div style="flex:1;min-width:0">
@@ -264,7 +264,7 @@
                   <div class="bi" style="font-size:var(--f-xs);color:var(--ink2)"><span class="gu">સમાજ સંપર્ક યાદી</span><span class="en">Community directory</span></div>
                 </div>
               </div>
-              <div class="noscroll" style="flex:1;overflow:auto;padding:14px 16px 130px;display:flex;flex-direction:column;gap:16px;justify-content:center">
+              <div class="noscroll" style="flex:1;overflow:auto;padding:10px 18px 130px;display:flex;flex-direction:column;gap:16px;justify-content:center">
 
                 <div style="background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--gbd);border-radius:30px;padding:26px 20px 24px;box-shadow:var(--shadow);display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center;position:relative;overflow:hidden">
                   <div style="position:absolute;top:0;left:0;width:60%;height:100%;background:linear-gradient(100deg,rgba(255,255,255,0),rgba(255,255,255,.5),rgba(255,255,255,0));animation:sheen 3.4s ease-in-out infinite"></div>
@@ -306,11 +306,11 @@
                 </div>
 
                 <div style="display:flex;gap:10px">
-                  <button onClick="{{ editRequest }}" style="flex:1;min-height:max(var(--tap), 48px);padding:8px 12px;border:1px solid var(--gbd);border-radius:18px;background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);color:var(--ink);font:inherit;font-size:var(--f-sm);font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer" style-hover="border-color:var(--ind);color:var(--ind)">
+                  <button onClick="{{ editRequest }}" style="flex:1;height:var(--tap);min-height:48px;border:1px solid var(--gbd);border-radius:18px;background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);color:var(--ink);font:inherit;font-size:var(--f-sm);font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer" style-hover="border-color:var(--ind);color:var(--ind)">
                     <i class="ph-duotone ph-pencil-simple" style="font-size:18px"></i>
                     <div class="bi"><span class="gu">ડિટેલ બદલો</span><span class="en">Edit</span></div>
                   </button>
-                  <button onClick="{{ askWithdraw }}" style="flex:1;min-height:max(var(--tap), 48px);padding:8px 12px;border:1px solid var(--gbd);border-radius:18px;background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);color:var(--dan);font:inherit;font-size:var(--f-sm);font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer" style-hover="background:var(--danBg)">
+                  <button onClick="{{ askWithdraw }}" style="flex:1;height:var(--tap);min-height:48px;border:1px solid var(--gbd);border-radius:18px;background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);color:var(--dan);font:inherit;font-size:var(--f-sm);font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer" style-hover="background:var(--danBg)">
                     <i class="ph-duotone ph-x-circle" style="font-size:18px"></i>
                     <div class="bi"><span class="gu">કેન્સલ કરો</span><span class="en">Withdraw</span></div>
                   </button>
@@ -323,14 +323,14 @@
             <div style="flex:1;display:flex;flex-direction:column;min-height:0">
               <div style="padding:14px 16px 10px;display:flex;flex-direction:column;gap:12px;background:var(--g2);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border-bottom:1px solid var(--gbd)">
                 <div style="display:flex;align-items:center;gap:11px">
-                  <button onClick="{{ secretTap }}" aria-label="MVPMl" title="MVPMl" style="width:48px;height:48px;border:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;flex:0 0 auto;filter:drop-shadow(0 4px 10px rgba(178,64,44,.4))">
+                  <button onClick="{{ secretTap }}" title="MVPMl" style="width:42px;height:42px;border:0;background:none;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;flex:0 0 auto;filter:drop-shadow(0 4px 10px rgba(178,64,44,.4))">
                     <dc-import name="SunMark" hint-size="38px,38px" style="width:38px;height:38px"></dc-import>
                   </button>
                   <div style="flex:1;min-width:0">
                     <div class="en" style="font-size:var(--f-lg);font-weight:800;line-height:1.1">MVPMl</div>
                     <div class="bi" style="font-size:var(--f-xs);color:var(--ink2)"><span class="gu">સંપર્ક યાદી</span><span class="en">Directory</span></div>
                   </div>
-                  <button onClick="{{ goMyProfile }}" aria-label="{{ a11y.profile }}" title="{{ a11y.profile }}" style="width:48px;height:48px;border-radius:50%;border:1px solid var(--gbd);background:var(--g);color:var(--ind);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto" style-hover="border-color:var(--ind)">
+                  <button onClick="{{ goMyProfile }}" title="My profile" style="width:44px;height:44px;border-radius:50%;border:1px solid var(--gbd);background:var(--g);color:var(--ind);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto" style-hover="border-color:var(--ind)">
                     <i class="ph-duotone ph-user-circle" style="font-size:25px"></i>
                   </button>
                 </div>
@@ -338,17 +338,17 @@
                   <i class="ph-duotone ph-magnifying-glass" style="font-size:21px;color:var(--ind)"></i>
                   <input value="{{ query }}" onInput="{{ setQuery }}" placeholder="{{ ph.search }}" style="flex:1;min-width:0;border:0;background:none;color:var(--ink);font:inherit;font-size:var(--f-md);outline:none">
                   <sc-if value="{{ hasQuery }}">
-                    <button onClick="{{ clearQuery }}" aria-label="{{ a11y.clear }}" title="{{ a11y.clear }}" style="border:0;background:none;color:var(--ink2);cursor:pointer;display:flex;align-items:center;justify-content:center;width:44px;height:44px;margin-right:-8px"><i class="ph-duotone ph-x-circle" style="font-size:19px"></i></button>
+                    <button onClick="{{ clearQuery }}" style="border:0;background:none;color:var(--ink2);cursor:pointer;display:flex;padding:5px"><i class="ph-duotone ph-x-circle" style="font-size:19px"></i></button>
                   </sc-if>
                 </div>
                 <div style="display:flex;align-items:center;gap:9px">
                   <sc-if value="{{ inVillageView }}">
-                    <button onClick="{{ backToTiles }}" style="min-height:48px;padding:7px 12px;border-radius:14px;border:1px solid var(--gbd);background:var(--g);color:var(--ink);font:inherit;font-size:var(--f-xs);font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;flex:0 1 auto;max-width:45%" style-hover="border-color:var(--ind);color:var(--ind)">
+                    <button onClick="{{ backToTiles }}" style="height:40px;padding:0 13px;border-radius:14px;border:1px solid var(--gbd);background:var(--g);color:var(--ink);font:inherit;font-size:var(--f-xs);font-weight:700;cursor:pointer;display:flex;align-items:center;gap:7px;flex:0 0 auto" style-hover="border-color:var(--ind);color:var(--ind)">
                       <i class="ph-duotone ph-arrow-left" style="font-size:16px"></i>
                       <span class="bi"><span class="gu">ગામ</span><span class="en">Villages</span></span>
                     </button>
                   </sc-if>
-                  <button onClick="{{ showAllMembers }}" style="flex:1;min-width:0;min-height:48px;border-radius:14px;border:1px solid {{ allBtn.bd }};background:{{ allBtn.bg }};color:{{ allBtn.fg }};font:inherit;font-size:var(--f-xs);font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 10px">
+                  <button onClick="{{ showAllMembers }}" style="flex:1;min-width:0;height:40px;border-radius:14px;border:1px solid {{ allBtn.bd }};background:{{ allBtn.bg }};color:{{ allBtn.fg }};font:inherit;font-size:var(--f-xs);font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 10px">
                     <i class="ph-duotone ph-users-three" style="font-size:17px"></i>
                     <span class="bi"><span class="gu">બધા સભ્યો</span><span class="en">All Members</span></span>
                     <span class="en" style="font-weight:800;opacity:.75">{{ statTotal }}</span>
@@ -360,7 +360,7 @@
                 </div>
               </div>
 
-              <div class="noscroll" style="flex:1;overflow:auto;padding:8px 16px 130px">
+              <div class="noscroll" style="flex:1;overflow:auto;padding:6px 14px 130px">
                 <sc-if value="{{ shortQuery }}">
                   <div style="padding:18px 12px;display:flex;gap:10px;align-items:center;color:var(--ink2);font-size:var(--f-sm)">
                     <i class="ph-duotone ph-keyboard" style="font-size:22px;color:var(--aqua)"></i>
@@ -421,8 +421,8 @@
                                 <div class="bi" style="font-size:var(--f-xs);color:var(--ink2);font-weight:700"><span class="gu">{{ n.labelGu }}</span><span class="en">{{ n.labelEn }}</span></div>
                                 <div class="en" style="font-size:var(--f-md);font-weight:600;letter-spacing:.05em">{{ n.phone }}</div>
                               </div>
-                              <button onClick="{{ n.onCall }}" aria-label="{{ n.callLabel }}" title="{{ n.callLabel }}" style="width:48px;height:48px;flex:0 0 auto;border-radius:14px;border:0;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 6px 14px rgba(178,64,44,.3)" style-active="transform:translateY(1px)"><i class="ph-duotone ph-phone-call" style="font-size:20px"></i></button>
-                              <button onClick="{{ n.onWhats }}" aria-label="{{ n.whatsLabel }}" title="{{ n.whatsLabel }}" style="width:48px;height:48px;flex:0 0 auto;border-radius:14px;border:1px solid var(--gbd);background:var(--g);color:var(--ok);display:flex;align-items:center;justify-content:center;cursor:pointer" style-hover="border-color:var(--ok)"><i class="ph-duotone ph-whatsapp-logo" style="font-size:20px"></i></button>
+                              <button onClick="{{ n.onCall }}" title="Call" style="width:42px;height:42px;flex:0 0 auto;border-radius:14px;border:0;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 6px 14px rgba(178,64,44,.3)" style-active="transform:translateY(1px)"><i class="ph-duotone ph-phone-call" style="font-size:20px"></i></button>
+                              <button onClick="{{ n.onWhats }}" title="WhatsApp" style="width:42px;height:42px;flex:0 0 auto;border-radius:14px;border:1px solid var(--gbd);background:var(--g);color:var(--ok);display:flex;align-items:center;justify-content:center;cursor:pointer" style-hover="border-color:var(--ok)"><i class="ph-duotone ph-whatsapp-logo" style="font-size:20px"></i></button>
                             </div>
                           </sc-for>
                         </div>
@@ -430,13 +430,6 @@
                     </div>
                   </div>
                 </sc-for>
-                <sc-if value="{{ emptyList }}">
-                  <div style="padding:52px 20px;display:flex;flex-direction:column;align-items:center;gap:13px;text-align:center">
-                    <i class="ph-duotone ph-users-three" style="font-size:44px;color:var(--ind)"></i>
-                    <div class="bi" style="align-items:center;justify-content:center;font-size:var(--f-md);font-weight:700;text-wrap:pretty"><span class="gu">{{ emptyTitleGu }}</span><span class="en">{{ emptyTitleEn }}</span></div>
-                    <div class="bi" style="align-items:center;justify-content:center;font-size:var(--f-sm);color:var(--ink2);text-wrap:pretty"><span class="gu">{{ emptyBodyGu }}</span><span class="en">{{ emptyBodyEn }}</span></div>
-                  </div>
-                </sc-if>
                 <sc-if value="{{ noResults }}">
                   <div style="padding:44px 16px;text-align:center;color:var(--ink2);display:flex;flex-direction:column;align-items:center;gap:12px">
                     <i class="ph-duotone ph-user-search" style="font-size:42px;color:var(--ind)"></i>
@@ -450,7 +443,7 @@
           <sc-if value="{{ isMyProfile }}">
             <div style="flex:1;display:flex;flex-direction:column;min-height:0">
               <div style="padding:14px 16px;display:flex;align-items:center;gap:12px;background:var(--g2);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border-bottom:1px solid var(--gbd)">
-                <button onClick="{{ goDirectory }}" aria-label="{{ a11y.back }}" title="{{ a11y.back }}" style="width:48px;height:48px;border-radius:13px;border:1px solid var(--gbd);background:var(--g);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer" style-hover="border-color:var(--ind);color:var(--ind)"><i class="ph-duotone ph-arrow-left" style="font-size:20px"></i></button>
+                <button onClick="{{ goDirectory }}" style="width:40px;height:40px;border-radius:13px;border:1px solid var(--gbd);background:var(--g);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer" style-hover="border-color:var(--ind);color:var(--ind)"><i class="ph-duotone ph-arrow-left" style="font-size:20px"></i></button>
                 <div class="bi" style="font-weight:700;font-size:var(--f-lg)"><span class="gu">મારી પ્રોફાઇલ</span><span class="en">My profile</span></div>
               </div>
               <div class="noscroll" style="flex:1;overflow:auto;padding:16px 16px 130px;display:flex;flex-direction:column;gap:14px">
@@ -523,7 +516,7 @@
                     <span class="gu">તમે ઇચ્છો તો તમારી માહિતી યાદીમાંથી કાઢી શકો છો. એડમિન મંજૂરી આપશે પછી તમારું નામ, નંબર અને ગામ યાદીમાંથી હટી જશે.</span>
                     <span class="en">You can ask for your details to be taken off the directory. After the admin confirms, your name, numbers and village are removed.</span>
                   </div>
-                  <button onClick="{{ askRemoval }}" style="min-height:max(var(--tap), 48px);padding:8px 12px;border:1px solid var(--dan);border-radius:18px;background:none;color:var(--dan);font:inherit;font-size:var(--f-sm);font-weight:700;display:flex;align-items:center;justify-content:center;gap:9px;cursor:pointer" style-hover="background:var(--danBg)">
+                  <button onClick="{{ askRemoval }}" style="height:var(--tap);min-height:48px;border:1px solid var(--dan);border-radius:18px;background:none;color:var(--dan);font:inherit;font-size:var(--f-sm);font-weight:700;display:flex;align-items:center;justify-content:center;gap:9px;cursor:pointer" style-hover="background:var(--danBg)">
                     <i class="ph-duotone ph-user-minus" style="font-size:19px"></i>
                     <div class="bi"><span class="gu">યાદીમાંથી મારી માહિતી કાઢવા વિનંતી</span><span class="en">Request removal from directory</span></div>
                   </button>
@@ -535,7 +528,7 @@
           <sc-if value="{{ isEditProfile }}">
             <div style="flex:1;display:flex;flex-direction:column;min-height:0">
               <div style="padding:14px 16px;display:flex;align-items:center;gap:12px;background:var(--g2);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border-bottom:1px solid var(--gbd)">
-                <button onClick="{{ goMyProfile }}" aria-label="{{ a11y.back }}" title="{{ a11y.back }}" style="width:48px;height:48px;border-radius:13px;border:1px solid var(--gbd);background:var(--g);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer"><i class="ph-duotone ph-arrow-left" style="font-size:20px"></i></button>
+                <button onClick="{{ goMyProfile }}" style="width:40px;height:40px;border-radius:13px;border:1px solid var(--gbd);background:var(--g);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer"><i class="ph-duotone ph-arrow-left" style="font-size:20px"></i></button>
                 <div class="bi" style="font-weight:700;font-size:var(--f-lg)"><span class="gu">મારી વિગત બદલો</span><span class="en">Edit my details</span></div>
               </div>
               <div class="noscroll" style="flex:1;overflow:auto;padding:16px 16px 130px;display:flex;flex-direction:column;gap:14px">
@@ -573,7 +566,7 @@
                     </label>
                   </div>
                 </div>
-                <button onClick="{{ sendUpdateRequest }}" style="min-height:max(var(--tap), 52px);padding:8px 14px;border:0;border-radius:20px;background:var(--grad);color:#fff;font:inherit;font-weight:700;font-size:var(--f-md);display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;box-shadow:0 10px 26px rgba(178,64,44,.36)">
+                <button onClick="{{ sendUpdateRequest }}" style="height:var(--tap);min-height:52px;border:0;border-radius:20px;background:var(--grad);color:#fff;font:inherit;font-weight:700;font-size:var(--f-md);display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;box-shadow:0 10px 26px rgba(178,64,44,.36)">
                   <i class="ph-duotone ph-paper-plane-tilt" style="font-size:20px"></i>
                   <div class="bi row"><span class="gu">મંજૂરી માટે મોકલો</span><span class="en">Send for approval</span></div>
                 </button>
@@ -629,7 +622,7 @@
                     <div class="bi" style="font-size:var(--f-sm);font-weight:700;color:var(--ink2)"><span class="gu">પાસવર્ડ</span><span class="en">Password</span></div>
                     <div style="display:flex;align-items:center;gap:8px;height:var(--tap);border-radius:16px;border:1px solid var(--fieldBd);background:var(--field);padding:0 8px 0 15px">
                       <input value="{{ login.pass }}" onInput="{{ setLoginPass }}" type="{{ passType }}" placeholder="••••••••" style="flex:1;min-width:0;border:0;background:none;color:var(--ink);font:inherit;font-size:var(--f-md);outline:none">
-                      <button onClick="{{ togglePass }}" aria-label="{{ a11y.pass }}" title="{{ a11y.pass }}" style="width:48px;height:48px;border:0;border-radius:12px;background:none;color:var(--ink2);display:flex;align-items:center;justify-content:center;cursor:pointer" style-hover="background:var(--chip);color:var(--ind)"><i class="{{ passIcon }}" style="font-size:20px"></i></button>
+                      <button onClick="{{ togglePass }}" title="Show or hide password" style="width:40px;height:40px;border:0;border-radius:12px;background:none;color:var(--ink2);display:flex;align-items:center;justify-content:center;cursor:pointer" style-hover="background:var(--chip);color:var(--ind)"><i class="{{ passIcon }}" style="font-size:20px"></i></button>
                     </div>
                     <div style="height:7px;border-radius:4px;background:var(--chip);overflow:hidden;margin-top:3px"><div style="height:100%;width:{{ pwWidth }};background:{{ pwColor }};transition:width .2s ease"></div></div>
                     <div style="font-size:var(--f-xs);color:var(--ink2)">{{ pwLabel }}</div>
@@ -637,7 +630,7 @@
                   <sc-if value="{{ loginError }}">
                     <div class="en" style="background:var(--danBg);color:var(--dan);border-radius:14px;padding:11px 13px;font-size:var(--f-sm);display:flex;gap:8px;align-items:center"><i class="ph-duotone ph-warning-circle" style="font-size:18px"></i><span class="bi" style="text-wrap:pretty"><span class="gu">યુઝરનેમ કે પાસવર્ડ ખોટો — પ્રયાસ નોંધાયો. admin / Samaj@2026 વાપરો.</span><span class="en">Wrong credentials — attempt logged. Try admin / Samaj@2026</span></span></div>
                   </sc-if>
-                  <button onClick="{{ doLogin }}" class="en" style="min-height:max(var(--tap), 52px);padding:8px 14px;border:0;border-radius:18px;background:var(--grad);color:#fff;font:inherit;font-weight:700;font-size:var(--f-md);display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;box-shadow:0 10px 26px rgba(178,64,44,.36)"><i class="ph-duotone ph-sign-in" style="font-size:20px"></i><span class="bi row"><span class="gu">લોગિન કરો</span><span class="en">Sign in</span></span></button>
+                  <button onClick="{{ doLogin }}" class="en" style="height:var(--tap);min-height:52px;border:0;border-radius:18px;background:var(--grad);color:#fff;font:inherit;font-weight:700;font-size:var(--f-md);display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;box-shadow:0 10px 26px rgba(178,64,44,.36)"><i class="ph-duotone ph-sign-in" style="font-size:20px"></i><span class="bi row"><span class="gu">લોગિન કરો</span><span class="en">Sign in</span></span></button>
                   <div style="display:flex;justify-content:space-between;align-items:center">
                     <button onClick="{{ goAdminForgot }}" class="en" style="background:none;border:0;color:var(--ind);font:inherit;font-size:var(--f-sm);font-weight:700;cursor:pointer;padding:8px 0"><span class="bi"><span class="gu">પાસવર્ડ ભૂલી ગયા?</span><span class="en">Forgot password?</span></span></button>
                     <button onClick="{{ exitAdmin }}" class="en" style="background:none;border:0;color:var(--ink2);font:inherit;font-size:var(--f-sm);cursor:pointer;padding:8px 0"><span class="bi"><span class="gu">બહાર નીકળો</span><span class="en">Leave</span></span></button>
@@ -650,10 +643,10 @@
           <sc-if value="{{ isAdminForgot }}">
             <div style="flex:1;display:flex;flex-direction:column;min-height:0">
               <div style="padding:14px 16px;display:flex;align-items:center;gap:12px;background:var(--g2);border-bottom:1px solid var(--gbd)">
-                <button onClick="{{ goAdminLogin }}" aria-label="{{ a11y.back }}" title="{{ a11y.back }}" style="width:48px;height:48px;border-radius:13px;border:1px solid var(--gbd);background:var(--g);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer"><i class="ph-duotone ph-arrow-left" style="font-size:20px"></i></button>
+                <button onClick="{{ goAdminLogin }}" style="width:40px;height:40px;border-radius:13px;border:1px solid var(--gbd);background:var(--g);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer"><i class="ph-duotone ph-arrow-left" style="font-size:20px"></i></button>
                 <div class="bi" style="font-weight:700;font-size:var(--f-lg)"><span class="gu">પાસવર્ડ રીસેટ</span><span class="en">Reset password</span></div>
               </div>
-              <div class="noscroll" style="flex:1;overflow:auto;padding:14px 16px 40px;display:flex;flex-direction:column;gap:14px">
+              <div class="noscroll" style="flex:1;overflow:auto;padding:18px 18px 40px;display:flex;flex-direction:column;gap:14px">
                 <div class="bi" style="font-size:var(--f-sm);color:var(--ink2);text-wrap:pretty"><span class="gu">૬ આંકડાનો કોડ એડમિનના રજિસ્ટર્ડ મોબાઇલ પર જશે. કોડ ૧૦ મિનિટમાં પૂરો થાય; ૫ ખોટા પ્રયાસે ખાતું ૧૫ મિનિટ બંધ થાય.</span><span class="en">A 6-digit code goes to the registered mobile; 5 wrong attempts lock the account for 15 minutes.</span></div>
                 <div style="background:var(--g);border:1px solid var(--gbd);border-radius:26px;padding:18px 16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:14px">
                   <label style="display:flex;flex-direction:column;gap:7px">
@@ -669,7 +662,7 @@
                     <input type="password" placeholder="At least 10 characters" style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid var(--fieldBd);background:var(--field);color:var(--ink);padding:0 15px;font:inherit;font-size:var(--f-md)" style-focus="border-color:var(--ind)">
                   </label>
                 </div>
-                <button onClick="{{ goAdminLogin }}" class="en" style="min-height:max(var(--tap), 52px);padding:8px 14px;border:0;border-radius:18px;background:var(--grad);color:#fff;font:inherit;font-weight:700;font-size:var(--f-md);cursor:pointer;box-shadow:0 10px 26px rgba(178,64,44,.36)"><span class="bi row"><span class="gu">નવો પાસવર્ડ સેટ કરો</span><span class="en">Set new password</span></span></button>
+                <button onClick="{{ goAdminLogin }}" class="en" style="height:var(--tap);min-height:52px;border:0;border-radius:18px;background:var(--grad);color:#fff;font:inherit;font-weight:700;font-size:var(--f-md);cursor:pointer;box-shadow:0 10px 26px rgba(178,64,44,.36)"><span class="bi row"><span class="gu">નવો પાસવર્ડ સેટ કરો</span><span class="en">Set new password</span></span></button>
                 <button onClick="{{ goAdminLogin }}" class="en" style="background:none;border:0;color:var(--ink2);font:inherit;font-size:var(--f-sm);cursor:pointer;padding:8px"><span class="bi"><span class="gu">૦:૪૨ પછી કોડ ફરી મોકલો</span><span class="en">Resend code in 0:42</span></span></button>
               </div>
             </div>
@@ -679,20 +672,20 @@
             <div style="flex:1;display:flex;flex-direction:column;min-height:0">
               <div style="padding:14px 16px 12px;display:flex;align-items:center;gap:11px;background:var(--g2);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border-bottom:1px solid var(--gbd)">
                 <sc-if value="{{ inSection }}">
-                  <button onClick="{{ adminHome }}" aria-label="{{ a11y.back }}" title="{{ a11y.back }}" style="width:48px;height:48px;border-radius:13px;border:1px solid var(--gbd);background:var(--g);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto" style-hover="border-color:var(--ind);color:var(--ind)"><i class="ph-duotone ph-arrow-left" style="font-size:20px"></i></button>
+                  <button onClick="{{ adminHome }}" style="width:40px;height:40px;border-radius:13px;border:1px solid var(--gbd);background:var(--g);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto" style-hover="border-color:var(--ind);color:var(--ind)"><i class="ph-duotone ph-arrow-left" style="font-size:20px"></i></button>
                 </sc-if>
                 <div style="flex:1;min-width:0">
                   <div class="bi" style="font-size:var(--f-xs);letter-spacing:.1em;text-transform:uppercase;color:var(--ink2);font-weight:700"><span class="gu">એડમિન પેનલ</span><span class="en">Admin panel</span></div>
                   <div style="font-weight:700;font-size:var(--f-lg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ adminTitle }}</div>
                 </div>
-                <button onClick="{{ openSecurity }}" aria-label="{{ a11y.alerts }}" title="{{ a11y.alerts }}" style="width:48px;height:48px;border-radius:14px;border:1px solid var(--gbd);background:var(--g);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;flex:0 0 auto" style-hover="border-color:var(--dan);color:var(--dan)">
+                <button onClick="{{ openSecurity }}" title="Security alerts" style="width:42px;height:42px;border-radius:14px;border:1px solid var(--gbd);background:var(--g);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;flex:0 0 auto" style-hover="border-color:var(--dan);color:var(--dan)">
                   <i class="ph-duotone ph-bell-ringing" style="font-size:21px"></i>
                   <sc-if value="{{ alertCount }}"><span class="en" style="position:absolute;top:-5px;right:-5px;min-width:19px;height:19px;padding:0 5px;box-sizing:border-box;border-radius:10px;background:var(--badgeDan);color:var(--onTint);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center">{{ alertCount }}</span></sc-if>
                 </button>
-                <button onClick="{{ logout }}" aria-label="{{ a11y.signout }}" title="{{ a11y.signout }}" style="width:48px;height:48px;border-radius:14px;border:1px solid var(--gbd);background:var(--g);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto" style-hover="border-color:var(--ind);color:var(--ind)"><i class="ph-duotone ph-sign-out" style="font-size:21px"></i></button>
+                <button onClick="{{ logout }}" title="Sign out" style="width:42px;height:42px;border-radius:14px;border:1px solid var(--gbd);background:var(--g);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto" style-hover="border-color:var(--ind);color:var(--ind)"><i class="ph-duotone ph-sign-out" style="font-size:21px"></i></button>
               </div>
 
-              <div class="noscroll" style="flex:1;overflow:auto;padding:14px 16px 130px">
+              <div class="noscroll" style="flex:1;overflow:auto;padding:14px 14px 130px">
 
                 <sc-if value="{{ tabHome }}">
                   <div style="display:flex;flex-direction:column;gap:14px">
@@ -734,8 +727,8 @@
                           <div style="font-size:var(--f-sm);color:var(--ink2)">{{ r.place }}</div>
                         </div>
                         <div style="display:flex;gap:9px">
-                          <button onClick="{{ r.onApprove }}" style="flex:1;min-height:46px;padding:7px 0;border:0;border-radius:15px;background:var(--okBg);color:var(--ok);font:inherit;font-size:var(--f-sm);font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer" style-hover="filter:brightness(.97)"><i class="ph-duotone ph-check-circle" style="font-size:19px"></i><span class="bi row"><span class="gu">મંજૂર</span><span class="en">Approve</span></span></button>
-                          <button onClick="{{ r.onReject }}" style="flex:1;min-height:46px;padding:7px 0;border:0;border-radius:15px;background:var(--danBg);color:var(--dan);font:inherit;font-size:var(--f-sm);font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer" style-hover="filter:brightness(.97)"><i class="ph-duotone ph-x-circle" style="font-size:19px"></i><span class="bi row"><span class="gu">નામંજૂર</span><span class="en">Reject</span></span></button>
+                          <button onClick="{{ r.onApprove }}" style="flex:1;height:46px;border:0;border-radius:15px;background:var(--okBg);color:var(--ok);font:inherit;font-size:var(--f-sm);font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer" style-hover="filter:brightness(.97)"><i class="ph-duotone ph-check-circle" style="font-size:19px"></i><span class="bi row"><span class="gu">મંજૂર</span><span class="en">Approve</span></span></button>
+                          <button onClick="{{ r.onReject }}" style="flex:1;height:46px;border:0;border-radius:15px;background:var(--danBg);color:var(--dan);font:inherit;font-size:var(--f-sm);font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer" style-hover="filter:brightness(.97)"><i class="ph-duotone ph-x-circle" style="font-size:19px"></i><span class="bi row"><span class="gu">નામંજૂર</span><span class="en">Reject</span></span></button>
                         </div>
                       </div>
                     </sc-for>
@@ -763,8 +756,8 @@
                           </div>
                         </div>
                         <div style="display:flex;gap:9px">
-                          <button onClick="{{ u.onAuthorize }}" style="flex:1;min-height:46px;padding:7px 0;border:0;border-radius:15px;background:var(--okBg);color:var(--ok);font:inherit;font-size:var(--f-sm);font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer"><i class="ph-duotone ph-seal-check" style="font-size:19px"></i><span class="bi row"><span class="gu">મંજૂરી આપો</span><span class="en">Authorize</span></span></button>
-                          <button onClick="{{ u.onReject }}" style="flex:0 0 auto;min-height:46px;padding:7px 16px;border:1px solid var(--gbd);border-radius:15px;background:none;color:var(--dan);font:inherit;font-size:var(--f-sm);font-weight:800;cursor:pointer"><span class="bi"><span class="gu">નામંજૂર</span><span class="en">Reject</span></span></button>
+                          <button onClick="{{ u.onAuthorize }}" style="flex:1;height:46px;border:0;border-radius:15px;background:var(--okBg);color:var(--ok);font:inherit;font-size:var(--f-sm);font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer"><i class="ph-duotone ph-seal-check" style="font-size:19px"></i><span class="bi row"><span class="gu">મંજૂરી આપો</span><span class="en">Authorize</span></span></button>
+                          <button onClick="{{ u.onReject }}" style="flex:0 0 auto;height:46px;padding:0 16px;border:1px solid var(--gbd);border-radius:15px;background:none;color:var(--dan);font:inherit;font-size:var(--f-sm);font-weight:800;cursor:pointer"><span class="bi"><span class="gu">નામંજૂર</span><span class="en">Reject</span></span></button>
                         </div>
                       </div>
                     </sc-for>
@@ -783,8 +776,8 @@
                         <div class="en" style="font-size:var(--f-sm);color:var(--ink2);letter-spacing:.04em">{{ d.phone }} · {{ d.place }}</div>
                         <div class="bi" style="font-size:var(--f-xs);color:var(--ink2)"><span class="gu">કારણ: {{ d.reason }}</span><span class="en">Reason: {{ d.reason }}</span></div>
                         <div style="display:flex;gap:9px;margin-top:4px">
-                          <button onClick="{{ d.onApprove }}" style="flex:1;min-height:46px;padding:7px 0;border:0;border-radius:15px;background:var(--danBg);color:var(--dan);font:inherit;font-size:var(--f-sm);font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer"><i class="ph-duotone ph-trash" style="font-size:19px"></i><span class="bi row"><span class="gu">કાઢી નાખો</span><span class="en">Remove</span></span></button>
-                          <button onClick="{{ d.onReject }}" style="flex:0 0 auto;min-height:46px;padding:7px 16px;border:1px solid var(--gbd);border-radius:15px;background:none;color:var(--ink);font:inherit;font-size:var(--f-sm);font-weight:800;cursor:pointer"><span class="bi"><span class="gu">રહેવા દો</span><span class="en">Keep</span></span></button>
+                          <button onClick="{{ d.onApprove }}" style="flex:1;height:46px;border:0;border-radius:15px;background:var(--danBg);color:var(--dan);font:inherit;font-size:var(--f-sm);font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer"><i class="ph-duotone ph-trash" style="font-size:19px"></i><span class="bi row"><span class="gu">કાઢી નાખો</span><span class="en">Remove</span></span></button>
+                          <button onClick="{{ d.onReject }}" style="flex:0 0 auto;height:46px;padding:0 16px;border:1px solid var(--gbd);border-radius:15px;background:none;color:var(--ink);font:inherit;font-size:var(--f-sm);font-weight:800;cursor:pointer"><span class="bi"><span class="gu">રહેવા દો</span><span class="en">Keep</span></span></button>
                         </div>
                       </div>
                     </sc-for>
@@ -841,8 +834,8 @@
                           <div class="bi" style="font-weight:700;font-size:var(--f-md)"><span class="gu">{{ m.nameGu }}</span><span class="en">{{ m.name }}</span></div>
                           <div class="en" style="font-size:var(--f-xs);color:var(--ink2);letter-spacing:.04em">{{ m.phones }} · {{ m.village }}</div>
                         </div>
-                        <button onClick="{{ m.onAdminEdit }}" aria-label="{{ m.editLabel }}" title="{{ m.editLabel }}" style="width:48px;height:48px;border:1px solid var(--gbd);border-radius:13px;background:var(--g);color:var(--ind);display:flex;align-items:center;justify-content:center;cursor:pointer" style-hover="border-color:var(--ind)"><i class="ph-duotone ph-pencil-simple" style="font-size:18px"></i></button>
-                        <button onClick="{{ m.onAdminDelete }}" aria-label="{{ m.delLabel }}" title="{{ m.delLabel }}" style="margin-left:6px;width:48px;height:48px;border:1px solid var(--gbd);border-radius:13px;background:var(--g);color:var(--dan);display:flex;align-items:center;justify-content:center;cursor:pointer" style-hover="border-color:var(--dan)"><i class="ph-duotone ph-trash" style="font-size:18px"></i></button>
+                        <button onClick="{{ m.onAdminEdit }}" title="Edit" style="width:40px;height:40px;border:1px solid var(--gbd);border-radius:13px;background:var(--g);color:var(--ind);display:flex;align-items:center;justify-content:center;cursor:pointer" style-hover="border-color:var(--ind)"><i class="ph-duotone ph-pencil-simple" style="font-size:18px"></i></button>
+                        <button onClick="{{ m.onAdminDelete }}" title="Delete" style="width:40px;height:40px;border:1px solid var(--gbd);border-radius:13px;background:var(--g);color:var(--dan);display:flex;align-items:center;justify-content:center;cursor:pointer" style-hover="border-color:var(--dan)"><i class="ph-duotone ph-trash" style="font-size:18px"></i></button>
                       </div>
                     </sc-for>
                   </div>
@@ -895,7 +888,7 @@
                         </button>
                       </sc-for>
                     </div>
-                    <button onClick="{{ restoreData }}" class="en" style="min-height:54px;padding:8px 14px;border:1px solid var(--gbd);border-radius:18px;background:var(--g);color:var(--ink);font:inherit;font-weight:700;font-size:var(--f-md);display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer" style-hover="border-color:var(--ind);color:var(--ind)"><i class="ph-duotone ph-upload-simple" style="font-size:21px"></i><span class="bi row"><span class="gu">ડેટા પાછો લાવો</span><span class="en">Restore system data</span></span></button>
+                    <button onClick="{{ restoreData }}" class="en" style="height:54px;border:1px solid var(--gbd);border-radius:18px;background:var(--g);color:var(--ink);font:inherit;font-weight:700;font-size:var(--f-md);display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer" style-hover="border-color:var(--ind);color:var(--ind)"><i class="ph-duotone ph-upload-simple" style="font-size:21px"></i><span class="bi row"><span class="gu">ડેટા પાછો લાવો</span><span class="en">Restore system data</span></span></button>
                     <div class="bi" style="font-size:var(--f-xs);color:var(--ink2);text-wrap:pretty"><span class="gu">PDF એ પ્રિન્ટ કરવા તૈયાર સંપર્ક બુક છે (A4, ગામ પ્રમાણે). Excel ફાઇલ Excel કે Google Sheets માં ખૂલશે. બંને ફાઇલ સીધી વોટ્સએપ ગ્રુપમાં મોકલી શકાય.</span><span class="en">PDF is a print-ready A4 contact book; Excel opens anywhere. Both can go straight to WhatsApp.</span></div>
                   </div>
                 </sc-if>
@@ -906,12 +899,12 @@
 
           <sc-if value="{{ showFabs }}">
             <div style="position:absolute;left:16px;bottom:24px;z-index:5">
-              <button onClick="{{ toggleLang }}" aria-label="{{ a11y.lang }}" title="{{ a11y.lang }}" style="width:54px;height:54px;border-radius:27px;border:1px solid var(--gbd);background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);color:var(--ind);font:inherit;font-weight:800;font-size:15px;box-shadow:var(--shadow);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;line-height:1" style-hover="border-color:var(--ind)" style-active="transform:scale(.97)">
+              <button onClick="{{ toggleLang }}" title="Language" style="width:54px;height:54px;border-radius:27px;border:1px solid var(--gbd);background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);color:var(--ind);font:inherit;font-weight:800;font-size:15px;box-shadow:var(--shadow);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;line-height:1" style-hover="border-color:var(--ind)" style-active="transform:scale(.97)">
                 <i class="ph-duotone ph-translate" style="font-size:19px"></i><span class="{{ langBtnClass }}" style="font-size:11px;font-weight:800;letter-spacing:.02em">{{ langBtnLabel }}</span>
               </button>
             </div>
             <div style="position:absolute;right:16px;bottom:24px;z-index:5">
-              <button onClick="{{ toggleTheme }}" aria-label="{{ a11y.theme }}" title="{{ a11y.theme }}" style="width:54px;height:54px;border-radius:27px;border:1px solid var(--gbd);background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);color:var(--ind);box-shadow:var(--shadow);cursor:pointer;display:flex;align-items:center;justify-content:center" style-hover="border-color:var(--ind)" style-active="transform:scale(.97)">
+              <button onClick="{{ toggleTheme }}" title="Theme" style="width:54px;height:54px;border-radius:27px;border:1px solid var(--gbd);background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);color:var(--ind);box-shadow:var(--shadow);cursor:pointer;display:flex;align-items:center;justify-content:center" style-hover="border-color:var(--ind)" style-active="transform:scale(.97)">
                 <i class="{{ themeIcon }}" style="font-size:25px"></i>
               </button>
             </div>
@@ -940,10 +933,10 @@
                 <div class="bi" style="align-items:center;font-weight:700;font-size:var(--f-lg)"><span class="gu">{{ confirm.titleGu }}</span><span class="en">{{ confirm.titleEn }}</span></div>
                 <div class="bi" style="align-items:center;font-size:var(--f-sm);color:var(--ink2);text-wrap:pretty"><span class="gu">{{ confirm.bodyGu }}</span><span class="en">{{ confirm.bodyEn }}</span></div>
                 <div style="display:flex;gap:10px;width:100%;margin-top:4px">
-                  <button onClick="{{ closeConfirm }}" style="flex:1;min-height:48px;padding:7px 10px;border:1px solid var(--gbd);border-radius:16px;background:none;color:var(--ink);font:inherit;font-size:var(--f-sm);font-weight:700;cursor:pointer">
+                  <button onClick="{{ closeConfirm }}" style="flex:1;height:48px;border:1px solid var(--gbd);border-radius:16px;background:none;color:var(--ink);font:inherit;font-size:var(--f-sm);font-weight:700;cursor:pointer">
                     <div class="bi" style="align-items:center"><span class="gu">રહેવા દો</span><span class="en">Cancel</span></div>
                   </button>
-                  <button onClick="{{ confirm.onYes }}" style="flex:1;min-height:48px;padding:7px 10px;border:0;border-radius:16px;background:{{ confirm.yesBg }};color:#fff;font:inherit;font-size:var(--f-sm);font-weight:800;cursor:pointer">
+                  <button onClick="{{ confirm.onYes }}" style="flex:1;height:48px;border:0;border-radius:16px;background:{{ confirm.yesBg }};color:#fff;font:inherit;font-size:var(--f-sm);font-weight:800;cursor:pointer">
                     <div class="bi" style="align-items:center"><span class="gu">{{ confirm.yesGu }}</span><span class="en">{{ confirm.yesEn }}</span></div>
                   </button>
                 </div>
@@ -963,7 +956,7 @@
                   </div>
                 </div>
                 <div class="bi" style="font-size:var(--f-sm);color:var(--ink2);text-wrap:pretty"><span class="gu">{{ dial.gu }}</span><span class="en">{{ dial.en }}</span></div>
-                <button onClick="{{ closeDial }}" style="min-height:52px;padding:8px 14px;border:0;border-radius:18px;background:var(--grad);color:#fff;font:inherit;font-weight:800;font-size:var(--f-md);cursor:pointer">
+                <button onClick="{{ closeDial }}" style="height:52px;border:0;border-radius:18px;background:var(--grad);color:#fff;font:inherit;font-weight:800;font-size:var(--f-md);cursor:pointer">
                   <div class="bi" style="align-items:center"><span class="gu">બરાબર</span><span class="en">OK</span></div>
                 </button>
               </div>
@@ -971,8 +964,8 @@
           </sc-if>
 
           <sc-if value="{{ toast }}">
-            <div style="position:absolute;left:16px;right:16px;bottom:92px;z-index:30;background:rgba(36,20,19,.92);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);color:#FFF4EA;border-radius:18px;padding:13px 15px;box-shadow:0 14px 34px rgba(0,0,0,.4);animation:rise .18s ease" role="status">
-              <div class="bi" style="font-size:var(--f-sm)"><span class="gu">{{ toast.gu }}</span><span class="en">{{ toast.en }}</span></div>
+            <div style="position:absolute;left:16px;right:16px;bottom:92px;z-index:30;background:rgba(36,20,19,.92);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);color:#FFF4EA;border-radius:18px;padding:13px 15px;box-shadow:0 14px 34px rgba(0,0,0,.4);animation:rise .18s ease">
+              <div class="bi" style="font-size:13px"><span class="gu">{{ toast.gu }}</span><span class="en">{{ toast.en }}</span></div>
             </div>
           </sc-if>
 
@@ -1194,8 +1187,6 @@ class Component extends DCLogic {
         ...m, initial: (s.lang === 'en' ? m.name : m.nameGu)[0], place: this.place(m),
         numbers: numbersOf(m).map((n) => ({
           ...n,
-          callLabel: this.P(m.nameGu + ' ને ફોન કરો', 'Call ' + m.name),
-          whatsLabel: this.P(m.nameGu + ' ને વોટ્સએપ કરો', 'WhatsApp ' + m.name),
           onCall: () => this.setState({ dial: { icon: 'ph-duotone ph-phone-call', name: m.nameGu, phone: n.phone, gu: 'નંબર કોપી થઈને ફોનના ડાયલરમાં આવી ગયો છે. કૉલ કરવા લીલું બટન દબાવો.', en: 'Number copied and opened in your dialler. Press dial to call.' } }),
           onWhats: () => this.setState({ dial: { icon: 'ph-duotone ph-whatsapp-logo', name: m.nameGu, phone: n.phone, gu: 'આ નંબર સાથે વોટ્સએપ ચેટ ખૂલી રહી છે.', en: 'Opening a WhatsApp chat with this number.' } })
         }))
@@ -1291,16 +1282,6 @@ class Component extends DCLogic {
     return {
       aes: this.props.aesthetic !== false,
       aesAttr: this.props.aesthetic !== false ? 'on' : 'off',
-      a11y: {
-        profile: this.P('મારી પ્રોફાઇલ', 'My profile'),
-        back: this.P('પાછળ', 'Back'),
-        pass: this.P('પાસવર્ડ દેખાડો કે છુપાવો', 'Show or hide password'),
-        alerts: this.P('સુરક્ષા ચેતવણી', 'Security alerts'),
-        signout: this.P('લોગ આઉટ', 'Sign out'),
-        lang: this.P('ભાષા બદલો', 'Change language'),
-        theme: this.P('થીમ બદલો', 'Change theme'),
-        clear: this.P('શોધ ખાલી કરો', 'Clear search')
-      },
       ph: {
         name: this.P('અશોકભાઈ ચૌધરી', 'Ashokbhai Chaudhary'),
         village: this.P('થોરાળા', 'Thorala'),
@@ -1393,11 +1374,6 @@ class Component extends DCLogic {
         return head + this.P(TEHSIL_GU, TEHSIL_EN) + '  ·  ' + this.P(DISTRICT_GU, DISTRICT_EN);
       })(),
       showTiles: !searching && s.dirMode === 'tiles',
-      emptyList: !searching && s.dirMode !== 'tiles' && sorted.length === 0,
-      emptyTitleGu: s.members.length === 0 ? 'હજી કોઈ સભ્ય નથી' : 'આ ગામમાં કોઈ સભ્ય નથી',
-      emptyTitleEn: s.members.length === 0 ? 'No members yet' : 'No members in this village',
-      emptyBodyGu: s.members.length === 0 ? 'એડમિન પહેલી રિક્વેસ્ટ મંજૂર કરશે એટલે નામ અહીં દેખાવા લાગશે.' : 'બીજું ગામ પસંદ કરો અથવા બધા સભ્યો જુઓ.',
-      emptyBodyEn: s.members.length === 0 ? 'Names appear here once the admin approves the first request.' : 'Pick another village, or view all members.',
       inVillageView: !searching && s.dirMode !== 'tiles',
       allBtn: s.dirMode === 'all'
         ? { bg: 'var(--grad)', fg: '#fff', bd: 'transparent' }
@@ -1633,27 +1609,15 @@ class Component extends DCLogic {
           this.setState({ meId: m.id, edit: { name: m.nameGu, phone: this.fmt(m.phone), phone2: this.fmt(m.phone2), village: m.village, tehsil: m.tehsil, district: m.district }, screen: 'editprofile' });
           this.flash('એડમિનનો ફેરફાર સીધો લાગુ થાય છે.', 'Admin edits apply directly.');
         },
-        editLabel: this.P(m.nameGu + ' ની વિગત બદલો', 'Edit ' + m.name),
-        delLabel: this.P(m.nameGu + ' ને કાઢી નાખો', 'Delete ' + m.name),
-        onAdminDelete: () => this.setState({
-          confirm: {
-            icon: 'ph-duotone ph-trash', iconBg: 'var(--danBg)', iconFg: 'var(--dan)', yesBg: 'var(--dan)',
-            titleGu: m.nameGu + ' ને કાઢી નાખવા છે?', titleEn: 'Delete ' + m.name + '?',
-            bodyGu: 'તેમનું નામ અને નંબર યાદીમાંથી હટી જશે. વિગત આર્કાઇવમાં સચવાઈ રહેશે.',
-            bodyEn: 'Their name and numbers leave the directory. The record stays in the archive.',
-            yesGu: 'હા, કાઢી નાખો', yesEn: 'Delete',
-            onYes: () => {
-              this.setState((st) => ({
-                members: st.members.filter((x) => x.id !== m.id),
-                archive: [...st.archive, { id: Date.now(), name: m.nameGu, nameLatin: m.name, phone: this.fmt(m.phone), place: this.place(m), status: 'એડમિને કાઢી નાખી · Deleted by admin', when: 'આજે · Today' }],
-                confirm: null
-              }));
-              this.flash(m.nameGu + ' કાઢી નાખ્યા.', m.name + ' deleted.');
-            }
-          }
-        })
+        onAdminDelete: () => {
+          this.setState((st) => ({
+            members: st.members.filter((x) => x.id !== m.id),
+            archive: [...st.archive, { id: Date.now(), name: m.nameGu, nameLatin: m.name, phone: this.fmt(m.phone), place: this.place(m), status: 'એડમિને કાઢી નાખી · Deleted by admin', when: 'આજે · Today' }]
+          }));
+          this.flash(m.nameGu + ' કાઢી નાખ્યા.', m.name + ' deleted.');
+        }
       })),
-      memberCountLabel: s.members.length + ' ' + this.P('મંજૂર સભ્યો', s.members.length === 1 ? 'approved member' : 'approved members') + '  ·  ' + this.P('બદલો કે કાઢો', 'edit or delete'),
+      memberCountLabel: s.members.length + ' ' + this.L('મંજૂર સભ્યો', s.members.length === 1 ? 'approved member' : 'approved members') + '  ·  ' + this.P('બદલો કે કાઢો', 'edit or delete'),
 
       archive: s.archive.map((a) => ({ ...a, status: this.O(a.status), when: this.O(a.when), nameGu: a.name, name: a.nameLatin && a.nameLatin !== a.name ? a.nameLatin : '' })), noArchive: s.archive.length === 0,
       alerts: s.alerts.map((a) => ({ ...a, title: this.O(a.title), who: this.O(a.who), when: this.O(a.when), onBlock: () => { this.setState((st) => ({ alerts: st.alerts.filter((x) => x.id !== a.id) })); this.flash('ડિવાઇસ બ્લોક કર્યું.', 'Device blocked.'); } })),
