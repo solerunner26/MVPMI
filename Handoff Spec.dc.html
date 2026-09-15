@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Gujarati:wght@400;600&display=swap">
+<style>
+  body { margin:0; background:#EAEEF3; font-family:'Noto Sans','Noto Sans Gujarati',system-ui,sans-serif; color:#0F172A; }
+  a { color:#00707F; } a:hover { color:#0EA5E9; }
+  .gu { font-family:'Noto Sans Gujarati','Noto Sans',sans-serif; }
+</style>
+</helmet>
+
+<div style="max-width:880px;margin:0 auto;padding:36px 22px 80px;display:flex;flex-direction:column;gap:30px">
+
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#64748B;font-weight:700">Developer handoff · v1</div>
+    <div style="font-size:30px;font-weight:700;line-height:1.15">Community Contact Directory — build spec</div>
+    <div style="font-size:15px;color:#475569;text-wrap:pretty;max-width:66ch">Bilingual (English / ગુજરાતી) Android app for a small community: members submit their details once, an admin approves, approved members get a read-only A–Z directory with call and WhatsApp. This document pairs with the clickable prototype.</div>
+    <a href="Community Directory.dc.html" style="align-self:flex-start;margin-top:6px;font-size:14px;font-weight:600;text-decoration:none;border:1px solid #C6D2DF;border-radius:10px;padding:10px 14px;background:#fff">← Open the prototype</a>
+  </div>
+
+  <div style="background:#fff;border-radius:18px;padding:22px;box-shadow:0 1px 2px rgba(15,23,42,.07);display:flex;flex-direction:column;gap:14px">
+    <div style="font-size:19px;font-weight:700">1 · Platform</div>
+    <div style="font-size:15px;line-height:1.7;color:#334155;text-wrap:pretty">
+      Native Android, Kotlin. <strong>minSdk 21</strong> (Android 5.0) / <strong>targetSdk 36</strong> — this covers every phone still in real use in a small town. Use Views + Material Components (M3 theme) rather than Compose if you must go below API 21; Compose is fine at minSdk 21 and is the recommendation.<br>
+      Single-module app. Local store: <strong>Room</strong> (SQLite) for the on-device directory cache; server: <strong>Firebase Firestore + Firebase Auth (admin only)</strong>, or any small REST + Postgres host if you prefer to avoid Google services. Directory reads work offline from Room; writes queue until network returns.<br>
+      No login for normal members — device identity is the member's phone number, verified once by SMS OTP so nobody can enroll on someone else's behalf. Admin has username + password.<br>
+      Layout scales by window size class (compact / medium / expanded) so the same screens work on a 5" phone, a 7" tablet and a landscape phone. Text sizes are in <code>sp</code>; the app also honours the OS font-size setting on top of the in-app large-font switch.
+    </div>
+  </div>
+
+  <div style="background:#fff;border-radius:18px;padding:22px;box-shadow:0 1px 2px rgba(15,23,42,.07);display:flex;flex-direction:column;gap:14px">
+    <div style="font-size:19px;font-weight:700">2 · Data model</div>
+    <div style="font-size:13px;line-height:1.7;color:#0F172A;background:#F6F8FB;border-radius:12px;padding:16px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;overflow-x:auto">member
+  id            uuid        pk
+  name          text        required
+  name_gu       text        optional (Gujarati spelling)
+  phone         text        required, unique, E.164 (+91XXXXXXXXXX)
+  village       text        required
+  tehsil        text        required
+  district      text        required
+  status        enum        pending | approved | removed
+  created_at    timestamp
+  approved_at   timestamp   null until approved
+  approved_by   text        admin username
+
+enrollment_request        (module 1 — one open request per phone)
+  id, member_payload (the five fields), phone, created_at,
+  state: open | approved | rejected | withdrawn
+
+update_request            (module 2e)
+  id, member_id, changed_fields (json: field -> new value),
+  created_at, state: open | authorized | rejected
+
+delete_request            (module 2f)
+  id, member_id, reason, created_at, state: open | approved | declined
+
+archive                   (admin-only store, module 1c)
+  id, snapshot (json of the submitted fields), source_phone,
+  reason: withdrawn | rejected | removed_on_request | deleted_by_admin,
+  archived_at
+  -- never joined into any member-facing query
+
+admin
+  username, password_hash (bcrypt/argon2), phone,
+  password_changed_at, failed_attempts, locked_until</div>
+    <div style="font-size:14px;color:#475569;line-height:1.7">Server rules: a member document is readable only when the requesting phone belongs to an <code>approved</code> member. <code>archive</code> and all <code>*_request</code> collections are admin-read-only. Nothing in the app can write <code>status = approved</code> — only the admin endpoint can.</div>
+  </div>
+
+  <div style="background:#fff;border-radius:18px;padding:22px;box-shadow:0 1px 2px rgba(15,23,42,.07);display:flex;flex-direction:column;gap:16px">
+    <div style="font-size:19px;font-weight:700">3 · Rules that decide what a user sees</div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div style="display:flex;gap:14px;align-items:flex-start"><div style="flex:0 0 30px;height:30px;border-radius:9px;background:#DFF2F5;color:#00505C;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">1</div><div style="font-size:15px;line-height:1.65;color:#334155">No request, no member record → <strong>Entry form</strong> (module 1, state A).</div></div>
+      <div style="display:flex;gap:14px;align-items:flex-start"><div style="flex:0 0 30px;height:30px;border-radius:9px;background:#DFF2F5;color:#00505C;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">2</div><div style="font-size:15px;line-height:1.65;color:#334155">Open request, not approved → <strong>Pending screen</strong> (state B) on <em>every</em> launch. Directory is unreachable — not just hidden; the query returns nothing server-side. Only Edit and Withdraw are available.</div></div>
+      <div style="display:flex;gap:14px;align-items:flex-start"><div style="flex:0 0 30px;height:30px;border-radius:9px;background:#DFF2F5;color:#00505C;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">3</div><div style="font-size:15px;line-height:1.65;color:#334155">Edit + re-send → old <code>enrollment_request</code> is set to <code>withdrawn</code>, archived, and a fresh <code>open</code> request replaces it in the admin queue. Never two open requests for one phone.</div></div>
+      <div style="display:flex;gap:14px;align-items:flex-start"><div style="flex:0 0 30px;height:30px;border-radius:9px;background:#DFF2F5;color:#00505C;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">4</div><div style="font-size:15px;line-height:1.65;color:#334155">Withdraw → request leaves the queue and the payload is copied to <code>archive</code>. The user's device returns to the empty form.</div></div>
+      <div style="display:flex;gap:14px;align-items:flex-start"><div style="flex:0 0 30px;height:30px;border-radius:9px;background:#DFF2F5;color:#00505C;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">5</div><div style="font-size:15px;line-height:1.65;color:#334155">Approved → <strong>Directory is the launch screen</strong> from then on. Read-only: the only writes a member can make are an update request and a delete request, both of which land in the admin queue and change nothing until authorized.</div></div>
+    </div>
+  </div>
+
+  <div style="background:#fff;border-radius:18px;padding:22px;box-shadow:0 1px 2px rgba(15,23,42,.07);display:flex;flex-direction:column;gap:14px">
+    <div style="font-size:19px;font-weight:700">4 · Screen inventory</div>
+    <div style="font-size:15px;line-height:1.8;color:#334155">
+      <strong>Module 1</strong> — Entry form; Pending screen; Edit request (same form, replace-on-send).<br>
+      <strong>Module 2</strong> — Directory (sticky search, flat A–Z with letter headers, per-card Call + WhatsApp); My Profile (own card, update request, removal link, large-font switch); Edit my details.<br>
+      <strong>Module 3</strong> — Admin login (show/hide password, strength meter, forgot/reset by OTP, 5-attempt lockout, 90-day change reminder); Reset password; Dashboard with six tabs: New Requests, Update Requests (old vs new side by side), Delete Requests, Members (admin edit/delete directly), Archive, Backup/Restore.<br>
+      Floating language and theme buttons sit on every screen except the admin login and reset screens.
+    </div>
+  </div>
+
+  <div style="background:#fff;border-radius:18px;padding:22px;box-shadow:0 1px 2px rgba(15,23,42,.07);display:flex;flex-direction:column;gap:14px">
+    <div style="font-size:19px;font-weight:700">5 · Intents for Call &amp; WhatsApp</div>
+    <div style="font-size:13px;line-height:1.7;color:#0F172A;background:#F6F8FB;border-radius:12px;padding:16px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;overflow-x:auto">// Call — opens the dialler with the number pre-filled.
+// ACTION_DIAL needs no permission and never places the call itself.
+startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + e164)))
+clipboard.setPrimaryClip(ClipData.newPlainText("phone", e164))
+
+// WhatsApp — direct chat, no contact save needed.
+val u = Uri.parse("https://wa.me/" + e164.removePrefix("+"))
+startActivity(Intent(Intent.ACTION_VIEW, u))
+// if resolveActivity == null -> show "WhatsApp is not installed" in both languages</div>
+  </div>
+
+  <div style="background:#fff;border-radius:18px;padding:22px;box-shadow:0 1px 2px rgba(15,23,42,.07);display:flex;flex-direction:column;gap:14px">
+    <div style="font-size:19px;font-weight:700">6 · Theme tokens</div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px">
+      <div style="flex:1;min-width:210px;border:1px solid #E2E8F0;border-radius:14px;overflow:hidden">
+        <div style="height:56px;background:linear-gradient(135deg,#008080,#0EA5E9)"></div>
+        <div style="padding:12px;font-size:13px;line-height:1.7;color:#334155"><strong>Lite (default)</strong><br>gradient #008080 → #0EA5E9<br>bg #F8FAFC · surface #FFFFFF<br>ink #0F172A · muted #51607A<br>line #E2E8F0 · accent text #00707F</div>
+      </div>
+      <div style="flex:1;min-width:210px;border:1px solid #E2E8F0;border-radius:14px;overflow:hidden">
+        <div style="height:56px;background:linear-gradient(135deg,#312E81,#1E293B)"></div>
+        <div style="padding:12px;font-size:13px;line-height:1.7;color:#334155"><strong>Dark</strong><br>gradient #312E81 → #1E293B<br>bg #0F172A · surface #1E293B<br>ink #E9EFF8 · muted #93A4BC<br>1px field border #3C5B82 · accent #38BDF8</div>
+      </div>
+    </div>
+    <div style="font-size:15px;line-height:1.7;color:#334155;text-wrap:pretty">Corner radius 16dp on panels, 12dp on fields and small buttons. Touch targets 48dp standard / 58dp in large mode. Type scale (standard → large): 11→13, 13→15, 15→18, 18→22, 22→27, 27→32 sp. Status colours: approve #0F7A43, danger #B3261E (dark: #3DD17F / #FF8A80). Gujarati text needs <code>Noto Sans Gujarati</code> bundled — do not rely on the system font, older phones clip conjuncts.</div>
+  </div>
+
+  <div style="background:#fff;border-radius:18px;padding:22px;box-shadow:0 1px 2px rgba(15,23,42,.07);display:flex;flex-direction:column;gap:14px">
+    <div style="font-size:19px;font-weight:700">7 · Backup / restore</div>
+    <div style="font-size:15px;line-height:1.7;color:#334155;text-wrap:pretty">Export writes one file through the Storage Access Framework (<code>ACTION_CREATE_DOCUMENT</code>) so it works without storage permissions on every version: <code>community-directory-backup-YYYYMMDD.json</code> (members + all request queues + archive) and a flat <code>community-directory.csv</code> of approved members for printing. Restore uses <code>ACTION_OPEN_DOCUMENT</code>, validates the schema version, shows a diff count, then replaces the local database inside one transaction. Add a weekly automatic export to the admin's Drive folder — a small-town admin will not remember to press the button.</div>
+  </div>
+
+  <div style="background:#fff;border-radius:18px;padding:22px;box-shadow:0 1px 2px rgba(15,23,42,.07);display:flex;flex-direction:column;gap:14px">
+    <div style="font-size:19px;font-weight:700">8 · v2 additions (in the current prototype)</div>
+    <div style="font-size:15px;line-height:1.8;color:#334155;text-wrap:pretty">
+      · <strong>Gujarati is the primary language</strong> everywhere, English as the small second line. The floating toggle only swaps which one is large.<br>
+      · <strong>Two numbers per member</strong> — <code>phone</code> (personal, required) and <code>phone2</code> with a <code>label2</code> of work/other. Each number gets its own call + WhatsApp buttons.<br>
+      · <strong>Validation</strong> — every field required; phone must be 10 digits starting 6–9; second number must differ from the first. Digits-only input filtering, live 0/10 counter.<br>
+      · <strong>Village / tehsil spell-check</strong> — a dictionary of community villages (Gujarati + Latin) with a normalised Levenshtein match ≤0.42 suggests the correct spelling and auto-fills tehsil + district on tap. Ship the dictionary as app data the admin can extend.<br>
+      · <strong>Directory is village-first</strong> — the community is fixed at 7 villages in <strong>Mahuva tehsil, Bhavnagar district</strong>, so tehsil and district are constants (seed them as app config the admin can extend, not free text). The directory opens on a 7-tile village grid, each tile carrying the sun mark and its live member count; tapping one drills into that village, and an <strong>All Members</strong> button shows the whole list. Tiles are drag-reorderable and the order is persisted per device. Lists sort alphabetically by Gujarati name; search still activates at 3 characters, spans every village, and flags a single exact hit.<br>
+      · <strong>Live text-size slider</strong> (85–165%) on My Profile scales every size and touch target through one root multiplier; store it in preferences and apply on launch.<br>
+      · <strong>Hidden admin door</strong> — 5 taps on the app logo → 4-digit access code keypad (prototype code 2468) → admin login. Wrong code or failed login writes a <code>security_alert</code> row (device, OS, the device holder's number when known) and pushes a notification to the admin; the app returns to normal with no hint that an admin area exists. Add exponential back-off after 3 wrong codes.<br>
+      · <strong>Admin dashboard is a tile grid</strong>, not a tab strip — all seven areas visible in one glance with live counts, one tap in, back out. New area: Security alerts, with a Block-device action.<br>
+      · <strong>Exports</strong> — print-ready A4 PDF contact book (WebView/print framework on Android, or a server-rendered PDF), Excel <code>.xls</code>, full JSON backup, and a share-sheet hand-off so any of them can go straight to a WhatsApp group.
+    </div>
+  </div>
+
+  <div style="background:#fff;border-radius:18px;padding:22px;box-shadow:0 1px 2px rgba(15,23,42,.07);display:flex;flex-direction:column;gap:14px">
+    <div style="font-size:19px;font-weight:700">9 · Open questions for you</div>
+    <div style="font-size:15px;line-height:1.8;color:#334155">
+      · One admin or several (a co-admin who can approve but not delete)?<br>
+      · Should the directory be printable / exportable by ordinary members, or admin only?<br>
+      · Do you want SMS OTP verification of the phone number at enrollment (recommended, costs a little per message)?<br>
+      · Hosting: Firebase free tier is enough for a few hundred members — confirm that Google services are acceptable on your users' phones.
+    </div>
+  </div>
+
+</div>
+
+</x-dc>
+</body>
+</html>
