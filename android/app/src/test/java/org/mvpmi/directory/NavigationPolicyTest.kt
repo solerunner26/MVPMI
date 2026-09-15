@@ -1,6 +1,8 @@
 package org.mvpmi.directory
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Test
 import org.mvpmi.directory.NavigationPolicy.Destination.*
 
@@ -28,5 +30,16 @@ class NavigationPolicyTest {
         assertEquals(BLOCKED, NavigationPolicy.classify("https://wa.me/919000000001", base, false))
         assertEquals(BLOCKED, NavigationPolicy.classify("https://wa.me/919000000001?redirect=evil", base))
         assertEquals(BLOCKED, NavigationPolicy.classify("https://evil@wa.me/919000000001", base))
+    }
+    @Test fun privateHttpIsDebugOnlyAndPublicHttpIsAlwaysBlocked() {
+        for (base in listOf("http://10.0.2.2:3000", "http://192.168.1.10:3000", "http://127.0.0.1:3000", "http://172.16.0.2:3000")) {
+            assertFalse(NavigationPolicy.validServer(base))
+            assertTrue(NavigationPolicy.validServer(base, true))
+            assertEquals(INTERNAL, NavigationPolicy.classify("$base/api/state", base, true, true))
+            assertEquals(BLOCKED, NavigationPolicy.classify("$base/api/state", base))
+        }
+        for (base in listOf("http://example.com", "http://8.8.8.8", "http://172.32.0.1", "http://192.169.0.1", "https://user:pass@example.com", "https://example.com/path", "https://example.invalid")) {
+            assertFalse(NavigationPolicy.validServer(base, true))
+        }
     }
 }

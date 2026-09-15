@@ -1,5 +1,13 @@
 name: Quality checks
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      community_url:
+        description: "HTTPS backend URL for a phone-test APK (blank uses repository variable/default)"
+        required: false
+        type: string
 permissions:
   contents: read
 jobs:
@@ -27,6 +35,8 @@ jobs:
   android-debug:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      COMMUNITY_URL: ${{ inputs.community_url || vars.COMMUNITY_TEST_URL || 'https://example.invalid' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -38,8 +48,16 @@ jobs:
         with:
           gradle-version: "8.11.1"
       - run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
-      # This is a compile/test fixture URL, NOT a working hosted app or release.
-      - run: gradle -p android :app:lintDebug :app:testDebugUnitTest :app:assembleDebug -PcommunityUrl=https://example.invalid --stacktrace
+      # With no hosted backend configured, the APK asks for a test server on first launch.
+      - name: Compile, lint, unit-test and build a phone-test APK
+        run: gradle -p android :app:lintDebug :app:testDebugUnitTest :app:assembleDebug "-PcommunityUrl=$COMMUNITY_URL" --stacktrace
+      - name: Upload installable debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mvpmi-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
       - uses: actions/upload-artifact@v4
         if: always()
         with:
