@@ -74,4 +74,8 @@ The browser test performs actual clicks through the original signup, waiting, hi
 
 See `RELEASE_AUDIT.md` for the current status and evidence. The current code includes `server/session.mjs` (cookie-independent development transport), `server/sms.mjs` (HTTPS-only recovery delivery), strict public response allowlists and backup validation, consent metadata, restore concurrency checking and modal/Back semantics. The 12-hour development transport token is stored only as a digest on the server and in tab sessionStorage (or memory) on the client, never in URLs or contact backups. An explicit invalid/expired token fails closed. Admin authorization still expires independently after 30 minutes. This browser-readable transport must not be treated as a production authentication design.
 
-The shared browser test harness uses synthetic fixtures. The published audit deliberately separates server/browser results, static Android declarations, unexecuted Kotlin tests and device/Play Console checks that cannot be performed here.
+The shared browser test harness uses synthetic fixtures. The published audit deliberately separates server/browser results, static Android declarations, executed Kotlin unit/lint/build checks and device/Play Console checks that cannot be performed here.
+
+### Debug APK follow-up
+
+GitHub Actions build [35005276099](https://github.com/solerunner26/MVPMI/actions/runs/35005276099) passed server/browser checks and Android compilation, lint, unit tests, assembly and debug signature verification at `336e359`. See [PHONE_TESTING.md](PHONE_TESTING.md) for the artifact and local computer backend instructions. Device/emulator installation and production readiness remain unverified; all release guards remain in place.

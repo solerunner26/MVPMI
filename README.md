@@ -2,7 +2,7 @@
 
 Development implementation of the supplied Gujarati/English community-directory design.
 
-**Status: working browser development build + an unbuilt Android host scaffold. Not ready for real community data or distribution.** The original HTML and dossier are preserved unchanged. The app is generated from their markup, styles, icons and sun components; the designer's external screen-jump controls and sample data are not exposed by the running application.
+**Status: tested browser development build + a compiled, debug-signed Android test APK. Not ready for real community data or production distribution.** The original HTML and dossier are preserved unchanged. The app is generated from their markup, styles, icons and sun components; the designer's external screen-jump controls and sample data are not exposed by the running application.
 
 ## Latest release audit
 
@@ -62,9 +62,15 @@ UI tests cover enrollment, pending state after reload, hidden admin login, appro
 
 The Linux UI harness uses an npm-distributed Chromium and extracts its bundled runtime libraries into the OS temporary directory; no browser binaries or generated screenshots are tracked in Git.
 
+## Phone / emulator test APK
+
+[Download the APK ZIP from GitHub Actions](https://github.com/solerunner26/MVPMI/actions/runs/35005276099/artifacts/10411406258) (GitHub sign-in may be required; artifact retention is 14 days). Extract `app-debug.apk` from it. Kotlin compilation, Android lint, unit tests, APK assembly and signature verification passed in [build 35005276099](https://github.com/solerunner26/MVPMI/actions/runs/35005276099), source commit `336e359`. Actual device/emulator installation remains to be tested.
+
+**Read [the step-by-step phone testing guide](docs/PHONE_TESTING.md).** Install Node.js LTS on your computer, extract this source folder, and open `START-TEST-SERVER-WINDOWS.cmd` or `START-TEST-SERVER-MAC.command`. Leave the server window open. Its credentials/database are separate from the Arena preview. Use the emulator address `http://10.0.2.2:3000`, or the printed computer Wi-Fi address on your phone. Do not use the Arena preview URL as the APK backend.
+
 ## Android source
 
-`android/` contains an **online Kotlin WebView host scaffold**, not a complete native Kotlin/Room implementation. It preserves the HTML design while providing Android `ACTION_DIAL`, clipboard, WhatsApp `ACTION_VIEW`, HTTPS-only first-party navigation and a Storage Access Framework file picker. No direct-call, contacts or broad storage permission is requested.
+`android/` contains an **online Kotlin WebView host scaffold**, not a complete native Kotlin/Room implementation. It preserves the HTML design while providing Android `ACTION_DIAL`, clipboard, WhatsApp `ACTION_VIEW`, HTTPS first-party navigation (debug builds additionally allow private-network HTTP for local testing) and a Storage Access Framework file picker. No direct-call, contacts or broad storage permission is requested.
 
 Open `android/` in Android Studio with JDK 17, Android SDK 36 and Gradle 8.11.1. Supply the hosted backend URL as a Gradle property:
 
@@ -73,7 +79,7 @@ cd android
 gradle assembleDebug -PcommunityUrl=https://your-development-host.example
 ```
 
-**No APK has been built or tested in this environment** (Android SDK/JDK unavailable). `minSdk = 21` is a packaging target, not a claim that this web renderer works on Android 5. The current JS/CSS require a modern WebView. Native/offline rendering, legacy WebView fallbacks, device testing, download/print/share integration, native Back integration testing and release signing remain work. Use the browser preview to test exports for now.
+**The debug APK was built, linted, unit-tested and signature-verified in GitHub Actions. It has not yet been installed/tested on an emulator or phone.** The local sandbox still lacks an Android SDK/JDK. `minSdk = 21` is a packaging target, not a claim that this web renderer works on Android 5. The current JS/CSS require a modern WebView. Native/offline rendering, legacy WebView fallbacks, device testing, download/print/share integration, native Back integration testing and release signing remain work. Use the browser preview to test exports for now.
 
 ## Production blockers — do not skip
 

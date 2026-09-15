@@ -2,6 +2,13 @@
 
 This guide is for the **MVPMl Test debug APK**, not a Play Store release. Use made-up contacts only. The app needs a backend server: the APK is not a standalone offline directory.
 
+## Downloads
+
+- **[Download APK ZIP](https://github.com/solerunner26/MVPMI/actions/runs/35005276099/artifacts/10411406258)** — sign into GitHub if prompted, extract `app-debug.apk`. The ZIP also includes its checksum and source-build information. GitHub keeps this artifact for 14 days.
+- Use the supplied **MVPMl-test-server.zip**, or [download the tested source ZIP](https://github.com/solerunner26/MVPMI/archive/336e359.zip). Extract it completely before starting the server.
+
+Build/source `336e359`: compilation, lint, Kotlin unit tests, assembly and debug signature verification passed. Installation on your phone/emulator is the next test, not something already verified.
+
 ## What you need
 
 - A Windows, Mac or Linux computer.

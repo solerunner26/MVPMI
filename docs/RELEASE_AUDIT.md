@@ -2,11 +2,11 @@
 
 **Review date:** 15 September 2026
 **Release decision:** **NOT READY TO PUBLISH**
-**What is usable now:** the browser development preview, with synthetic contacts only.
+**What is usable now:** the browser development preview and a debug APK for initial phone/emulator testing, with synthetic contacts only.
 
 ## Plain-language summary
 
-The directory and approval workflows have a working, tested backend. This audit fixed additional security, validation, accessibility and session-handling issues. However, the Android project is still an online WebView host, not a completed native/offline Android application. There is no verified installable APK or signed Play Store app bundle from this environment.
+The directory and approval workflows have a working, tested backend. This audit fixed additional security, validation, accessibility and session-handling issues. However, the Android project is still an online WebView host, not a completed native/offline Android application. A debug APK has now been assembled and its signature verified in GitHub Actions. It has not been installed on a phone/emulator yet, and no production-signed Play Store app bundle exists.
 
 A passing browser test does **not** prove the app works on an old Android phone. Likewise, a successful dependency audit does not mean the app has had an independent security assessment or meets Google Play policy.
 
@@ -24,10 +24,12 @@ A passing browser test does **not** prove the app works on an old Android phone.
 | Automated accessibility (`npm run test:accessibility`) | **23 screen/state scans, 0 reported rule violations** | Automated WCAG A/AA-tagged rules only. **510 node-level color-contrast checks were incomplete across those scans** because of the rendered surfaces; they require manual review. This is not an accessibility certification |
 | Dependency audit | **0 known vulnerabilities reported** | Point-in-time `npm audit`, not proof that dependencies have no undisclosed defects |
 | Local read-load smoke test | Passed | 1,001 synthetic members; 20 sequential requests; approximately **11 ms median / 15 ms p95**, 219,788-byte response on this sandbox. Not a concurrency, low-end-device or production performance test |
-| Source review of Android configuration | Completed | HTTPS-only configuration, no broad contact/call/storage permissions, no JavaScript interface or SSL-error bypass in the host |
-| JDK / SDK / Gradle / emulator availability | **Blocked** | `java`, `gradle`, `adb` and `sdkmanager` were unavailable; direct SDK and Gradle distribution downloads failed with TLS connection errors |
-| Kotlin compilation, Android Lint, Kotlin unit tests | **Not run** | Tests and a CI job were added; source inspection is not a substitute for executing them |
-| APK/AAB installation, real devices, Play Console pre-launch/closed test | **Not run** | Requires a built artifact, Android devices/emulators and the owner's Play Console account |
+| Source review of Android configuration | Completed | HTTPS-only release configuration (debug-only local HTTP exception), no broad contact/call/storage permissions, no JavaScript interface or SSL-error bypass in the host |
+| JDK / SDK / Gradle / emulator availability | **Local sandbox blocked; CI available** | `java`, `gradle`, `adb` and `sdkmanager` were unavailable; direct SDK and Gradle distribution downloads failed with TLS connection errors |
+| Kotlin compilation, Android Lint, Kotlin unit tests, debug assembly | **Passed in GitHub Actions** | Follow-up build `35005276099`, source `336e359`; lint completed with warnings, not a zero-warning certification |
+| APK signature verification | **Passed** | SDK `apksigner verify --verbose --print-certs`; this is a debug key, not production signing |
+| Computer test-server launcher | **Linux smoke test passed** | Isolated source extraction: build, HTTP app/state, generated access code and admin login; Windows/Mac launch wrappers have not been run on their respective OSes |
+| APK/AAB installation, real devices, Play Console pre-launch/closed test | **Not run** | The debug artifact is now available; actual devices/emulators and the owner's Play Console account are still required |
 
 All automated data used in this audit was synthetic and isolated from the preview database. No test deleted the user's existing preview profiles or requests.
 
@@ -124,3 +126,11 @@ Also prepare signing keys/Play App Signing, app icon/screenshots, content rating
 `.github/workflows/quality.yml` defines server/browser quality jobs and a JDK 17 / SDK 36 Android debug build, Lint and Kotlin-unit-test job. **The workflow was added but has not run on GitHub during this audit.** The Android fixture URL in that job is intentionally non-live and is not a distributable community build.
 
 **Recommended next milestone:** confirm the member SMS provider/budget, oldest real phones, native-versus-hybrid delivery and retention/deletion policy. Then implement those P0 items, build a debug APK, execute the device matrix, fix findings, and only then prepare a Play release candidate.
+
+## Debug APK follow-up — 15 September 2026
+
+[Successful build and all job results](https://github.com/solerunner26/MVPMI/actions/runs/35005276099) · [Debug APK artifact ZIP](https://github.com/solerunner26/MVPMI/actions/runs/35005276099/artifacts/10411406258). Source commit: `336e359`. The artifact contains `app-debug.apk`, `SHA256SUMS.txt` and `BUILD-INFO.txt`, with 14-day retention. The archive digest reported by GitHub is `sha256:7b042ecff331d835891a916e1dfe3efe55b8ce73dbad9a36c99854c6b3d5be80` (this is the ZIP digest, not the APK checksum). Direct binary download into this sandbox was blocked by its connection to artifact storage; use the GitHub download link.
+
+This follow-up fixed the obsolete SDK setup package, a Kotlin dial-number regex and an API-23-only status-bar attribute incorrectly placed in API-21 resources. It adds a debug-only configurable server, native connection/retry screen and test banner without changing the directory design. The computer launcher uses a separate database and generated per-computer credentials. The Arena preview is traffic-token protected and cannot be used directly by an external APK. See [PHONE_TESTING.md](PHONE_TESTING.md).
+
+The production decision remains **NOT READY TO PUBLISH**. Compile/unit/lint/signature checks do not establish installation success, old-WebView compatibility, native exports, real member verification, secure public hosting or Play policy compliance.
