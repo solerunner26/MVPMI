@@ -64,7 +64,7 @@ The Linux UI harness uses an npm-distributed Chromium and extracts its bundled r
 
 ## Phone / emulator test APK
 
-[Download the APK ZIP from GitHub Actions](https://github.com/solerunner26/MVPMI/actions/runs/35005276099/artifacts/10411406258) (GitHub sign-in may be required; artifact retention is 14 days). Extract `app-debug.apk` from it. Kotlin compilation, Android lint, unit tests, APK assembly and signature verification passed in [build 35005276099](https://github.com/solerunner26/MVPMI/actions/runs/35005276099), source commit `336e359`. Actual device/emulator installation remains to be tested.
+[Download the APK ZIP from GitHub Actions](https://github.com/solerunner26/MVPMI/actions/runs/35010521845/artifacts/10413323453) (GitHub sign-in may be required; artifact retention is 14 days). Extract `app-debug.apk` from it. Kotlin compilation, Android lint, unit tests, APK assembly and signature verification passed in [build 35010521845](https://github.com/solerunner26/MVPMI/actions/runs/35010521845), source commit `076ed80`. Actual device/emulator installation remains to be tested.
 
 **Read [the step-by-step phone testing guide](docs/PHONE_TESTING.md).** Install Node.js LTS on your computer, extract this source folder, and open `START-TEST-SERVER-WINDOWS.cmd` or `START-TEST-SERVER-MAC.command`. Leave the server window open. Its credentials/database are separate from the Arena preview. Use the emulator address `http://10.0.2.2:3000`, or the printed computer Wi-Fi address on your phone. Do not use the Arena preview URL as the APK backend.
 

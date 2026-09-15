@@ -42,3 +42,7 @@ Commands: `npm run check`, followed by `npm run test:ui && npm run test:accessib
 - Independent security assessment and Play pre-launch/closed testing.
 
 An embedded browser cannot override its host's sandbox policy. A desktop with no phone handler cannot act as an Android dialer. The fix provides the correct handoff and visible fallback, not a guarantee that an external app exists. Use the preview's open-in-new-tab control or the Android app when a sandbox blocks external navigation. **Production remains NOT READY TO PUBLISH.**
+
+## Successful CI build for this fix
+
+Source `076ed80`: [GitHub Actions run 35010521845](https://github.com/solerunner26/MVPMI/actions/runs/35010521845) passed both jobs: server/browser/embedded/accessibility/audit, and Android compilation/lint/unit tests/debug assembly/signature verification. [Updated debug APK ZIP](https://github.com/solerunner26/MVPMI/actions/runs/35010521845/artifacts/10413323453), 14-day retention. APK installation and OS-app launching remain manual device checks. Update the computer backend source as well as the APK when testing outside Arena; the contact renderer is served by the backend.
