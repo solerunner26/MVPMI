@@ -1,0 +1,12 @@
+node_modules/
+dist/
+data/
+.env
+.env.*
+!.env.example
+test-results/
+playwright-report/
+android/.gradle/
+android/local.properties
+*.jks
+*.keystore

@@ -1,0 +1,40 @@
+{
+  "name": "mvpmi-community-directory",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "start": "node server/index.mjs",
+    "dev": "npm run build && node server/index.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "test:ui": "npm run build && node scripts/ui-test.mjs",
+    "test:embedded": "npm run build && node scripts/embedded-login-test.mjs",
+    "test:accessibility": "npm run build && node scripts/accessibility-test.mjs",
+    "test:coverage": "node --experimental-test-coverage --test --test-coverage-include=\"server/*.mjs\" tests/*.test.mjs",
+    "check": "npm test && npm run test:ui && npm run test:embedded && npm run test:accessibility && npm audit --audit-level=moderate"
+  },
+  "dependencies": {
+    "@fontsource/manrope": "^5.2.6",
+    "@fontsource/noto-sans-gujarati": "^5.2.6",
+    "@phosphor-icons/web": "2.1.1",
+    "exceljs": "^4.4.0",
+    "express": "^5.1.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.55.0",
+    "@sparticuz/chromium": "^153.0.0",
+    "prettier": "^3.9.6"
+  },
+  "overrides": {
+    "exceljs": {
+      "uuid": "11.1.1"
+    }
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  }
+}
