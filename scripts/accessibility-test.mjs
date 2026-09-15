@@ -1,3 +1,4 @@
+import { assertFits } from "./text-size-checks.mjs";
 import AxeBuilder from "@axe-core/playwright";
 import { launchBrowser } from "./browser.mjs";
 import { createApp } from "../server/app.mjs";
@@ -23,6 +24,7 @@ try {
   await page.getByRole("button", { name: /Send request/ }).waitFor();
   const scan = async (name) => {
     await page.evaluate(() => document.fonts.ready);
+    await assertFits(page, name);
     const result = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
       .analyze();
@@ -110,12 +112,9 @@ try {
   await page.getByTitle("My profile", { exact: true }).click();
   await page.getByRole("button", { name: /Edit my details/ }).waitFor();
   await scan("profile");
-  const slider = page.locator("input[type=range]");
-  await slider.fill("165");
-  await slider.dispatchEvent("input");
+  await page.getByRole("button", { name: "Biggest", exact: true }).click();
   await scan("profile-large-font");
-  await slider.fill("100");
-  await slider.dispatchEvent("input");
+  // Keep Biggest enabled for edit, reset, and all admin screen checks.
   await page.getByRole("button", { name: /Edit my details/ }).click();
   await page.getByRole("button", { name: /Send for approval/ }).waitFor();
   await scan("edit-profile");

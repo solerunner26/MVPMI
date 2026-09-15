@@ -1,0 +1,68 @@
+/* Retain the supplied visual language; let enlarged content determine height. */
+.app {
+  overflow-wrap: anywhere;
+}
+.app .bi {
+  max-width: 100%;
+}
+.app .bi > span {
+  white-space: normal;
+  max-width: 100%;
+}
+.app button,
+.app input,
+.app [role="button"] {
+  box-sizing: border-box;
+  min-width: 0;
+}
+.app .text-control {
+  height: auto !important;
+  min-height: var(--control-height, 48px);
+  white-space: normal;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+.app .text-control > .bi {
+  flex-shrink: 1;
+}
+.app div[style*="display:flex"] > div {
+  min-width: 0;
+}
+.app [role="dialog"] {
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+.app .text-size-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.app .text-size-option {
+  border: 1px solid var(--fieldBd);
+  border-radius: 14px;
+  background: var(--field);
+  color: var(--ink);
+  padding: 12px 8px;
+  font: inherit;
+  font-size: var(--f-sm);
+  font-weight: 700;
+  cursor: pointer;
+  min-height: 48px;
+  width: 100%;
+}
+.app .text-size-option .bi {
+  justify-content: center;
+}
+.app .text-size-option[aria-pressed="true"] {
+  border: 2px solid var(--ind);
+  background: var(--okBg);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--ind);
+}
+
+/* Keep focused presets above the supplied floating language/theme controls. */
+.app .noscroll {
+  scroll-padding-top: 16px;
+  scroll-padding-bottom: 112px;
+}

@@ -7,7 +7,7 @@ class Component extends DesignComponent {
       this.setState({
         lang: p.lang === "en" ? "en" : "gu",
         theme: p.theme === "dark" ? "dark" : "light",
-        fsPct: Math.max(85, Math.min(165, Number(p.fsPct) || 100)),
+        fsPct: normalizeTextSize(p.fsPct),
         tileOrder:
           Array.isArray(p.tileOrder) &&
           p.tileOrder.length === 7 &&
@@ -690,6 +690,18 @@ class Component extends DesignComponent {
       ][i],
     }));
     v.restoreData = () => this.restore();
+    v.textSizes = TEXT_SIZES.map((option) => ({
+      ...option,
+      active: s.fsPct === option.value,
+      onClick: () => {
+        this.setState({ fsPct: option.value });
+        requestAnimationFrame(() =>
+          document
+            .querySelector(".text-size-options")
+            ?.scrollIntoView({ block: "nearest", inline: "nearest" }),
+        );
+      },
+    }));
     return v;
   }
 }

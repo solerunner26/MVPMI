@@ -39,7 +39,7 @@ Open `http://localhost:3000`. The server binds to `0.0.0.0`; the UI calls same-o
 - Member profile edits remain pending until approval. Delete requests preserve access until approved.
 - Direct admin edits/deletes; dependent request cleanup; stale-update and duplicate-phone checks.
 - Seven village tiles, all-member list, bilingual name/number search, optional second number, live counts and statistics.
-- Original light/dark styling, sun and waiting animations, Gujarati/English language switching, font-size slider; preferences persist without persisting the directory in localStorage.
+- Original light/dark styling, sun and waiting animations, Gujarati/English language switching, four text-size presets (Default, Big, Bigger, Biggest); preferences persist without persisting the directory in localStorage.
 - Browser dialer links (not automatic calls), clipboard copy where supported, and WhatsApp chat URLs.
 - Hidden admin gate, scrypt password hashes, opaque HttpOnly session cookies, 30-minute admin sessions, server-side attempt limits, security alerts, session blocking, and sign-out.
 - Admin reset OTP generation/expiry/attempt limit, strong-password enforcement, session revocation, and a configurable SMS webhook. **Real SMS is not configured in the preview.** Codes are never returned to the browser or logged. A 60-day password reminder is shown when due.

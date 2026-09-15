@@ -1,3 +1,4 @@
+import { checkTextSizes } from "./text-size-checks.mjs";
 import { checkContactActions } from "./contact-checks.mjs";
 import { chromium } from "playwright";
 import chrome from "@sparticuz/chromium";
@@ -86,6 +87,7 @@ try {
   await page.getByTitle("Call", { exact: true }).waitFor();
   await page.screenshot({ path: "test-results/directory.png" });
   await checkContactActions(browser, context, url);
+  await checkTextSizes(context, url);
   await page.getByPlaceholder("નામ કે નંબર શોધો").fill("900");
   assert.equal(await page.getByTitle("Call", { exact: true }).count(), 1);
   await page.reload();
@@ -111,9 +113,7 @@ try {
   );
   await page.getByTitle("Language", { exact: true }).click();
   await page.getByTitle("Theme", { exact: true }).click();
-  const slider = page.locator("input[type=range]");
-  await slider.fill("130");
-  await slider.dispatchEvent("input");
+  await page.getByRole("button", { name: "Bigger", exact: true }).click();
   await page.reload();
   await page.getByRole("button", { name: /All Members/ }).waitFor();
   assert.equal(await page.locator(".app").getAttribute("data-lang"), "en");
