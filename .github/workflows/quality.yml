@@ -68,11 +68,23 @@ jobs:
           PYERROR
           fi
           exit "$result"
+      - name: Verify APK signature and record checksum
+        shell: bash
+        run: |
+          APK=android/app/build/outputs/apk/debug/app-debug.apk
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK"
+          cd android/app/build/outputs/apk/debug
+          sha256sum app-debug.apk > SHA256SUMS.txt
+          echo "Source commit: $GITHUB_SHA" > BUILD-INFO.txt
+          echo "Debug test build only. See docs/PHONE_TESTING.md in the source repository." >> BUILD-INFO.txt
       - name: Upload installable debug APK
         uses: actions/upload-artifact@v4
         with:
           name: mvpmi-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            android/app/build/outputs/apk/debug/app-debug.apk
+            android/app/build/outputs/apk/debug/SHA256SUMS.txt
+            android/app/build/outputs/apk/debug/BUILD-INFO.txt
           if-no-files-found: error
           retention-days: 14
       - uses: actions/upload-artifact@v4
