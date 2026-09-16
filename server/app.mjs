@@ -442,8 +442,8 @@ export function createApp({
   });
   app.get("/api/admin/export.xlsx", admin, async (req, res) => {
     const book = new ExcelJS.Workbook(),
-      sheet = book.addWorksheet("Community");
-    sheet.columns = [
+      sheet = book.addWorksheet(req.query.lang === "en" ? "Community" : "સમાજ");
+    const englishHeaders = [
       "Name (Gujarati)",
       "Name",
       "Personal",
@@ -452,7 +452,21 @@ export function createApp({
       "Village",
       "Tehsil",
       "District",
-    ].map((header) => ({ header, width: 24 }));
+    ];
+    const headers =
+      req.query.lang === "en"
+        ? englishHeaders
+        : [
+            "ગુજરાતી નામ",
+            "નામ",
+            "પોતાનો નંબર",
+            "બીજો નંબર",
+            "પ્રકાર",
+            "ગામ",
+            "તાલુકો",
+            "જિલ્લો",
+          ];
+    sheet.columns = headers.map((header) => ({ header, width: 24 }));
     for (const m of store.all("members"))
       sheet.addRow([
         m.nameGu,
@@ -476,18 +490,16 @@ export function createApp({
   app.use((err, req, res, next) => {
     if (!err.status) console.error("Unexpected server error:", err.name);
     const status = err.status || 500;
-    res
-      .status(status)
-      .json({
-        error:
-          err.type === "entity.parse.failed"
-            ? "Invalid JSON"
-            : err.type === "entity.too.large"
-              ? "Request exceeds 10 MB"
-              : status < 500
-                ? err.message
-                : "સર્વર ભૂલ · Server error. Please retry.",
-      });
+    res.status(status).json({
+      error:
+        err.type === "entity.parse.failed"
+          ? "Invalid JSON"
+          : err.type === "entity.too.large"
+            ? "Request exceeds 10 MB"
+            : status < 500
+              ? err.message
+              : "સર્વર ભૂલ · Server error. Please retry.",
+    });
   });
   return { app, store };
 }

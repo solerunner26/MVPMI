@@ -1,3 +1,4 @@
+import { useEnglishForLegacyFlows } from "./test-language.mjs";
 import { checkTextSizes } from "./text-size-checks.mjs";
 import { checkContactActions } from "./contact-checks.mjs";
 import { chromium } from "playwright";
@@ -38,6 +39,7 @@ const browser = await chromium.launch({
   env: { ...process.env, LD_LIBRARY_PATH: libs + "/lib" },
   headless: true,
 });
+useEnglishForLegacyFlows(browser);
 const errors = [];
 try {
   const context = await browser.newContext({
@@ -54,7 +56,7 @@ try {
   await page.locator("input").nth(1).fill("9000000001");
   await page.locator("input").nth(2).fill("Thorala");
   await page.getByRole("button", { name: /Send request/ }).click();
-  await page.getByRole("button", { name: /Confirm/ }).click();
+  await page.getByRole("button", { name: /Submit request/ }).click();
   await page.getByRole("button", { name: /Withdraw/ }).waitFor();
   await page.reload();
   await page.getByRole("button", { name: /Withdraw/ }).waitFor();
@@ -84,15 +86,15 @@ try {
   await page.reload();
   await page.getByRole("button", { name: /All Members/ }).waitFor();
   await page.getByRole("button", { name: /All Members/ }).click();
-  await page.getByTitle("Call", { exact: true }).waitFor();
+  await page.getByTestId("Call").waitFor();
   await page.screenshot({ path: "test-results/directory.png" });
   await checkContactActions(browser, context, url);
   await checkTextSizes(context, url);
-  await page.getByPlaceholder("નામ કે નંબર શોધો").fill("900");
-  assert.equal(await page.getByTitle("Call", { exact: true }).count(), 1);
+  await page.getByPlaceholder("Search name or number").fill("900");
+  assert.equal(await page.getByTestId("Call").count(), 1);
   await page.reload();
   await page.getByRole("button", { name: /All Members/ }).waitFor();
-  await page.getByTitle("My profile", { exact: true }).click();
+  await page.getByTestId("My profile").click();
   await page.getByRole("button", { name: /Edit my details/ }).click();
   await page.getByRole("button", { name: /Send for approval/ }).waitFor();
   await page.locator("input").nth(0).fill("Updated Test Member");
@@ -107,12 +109,14 @@ try {
   await panel.getByText("Update requests", { exact: true }).click();
   await panel.getByRole("button", { name: /Authorize/ }).click();
   await page.reload();
-  await page.getByTitle("My profile", { exact: true }).click();
+  await page.getByTestId("My profile").click();
   assert(
     (await page.locator("body").innerText()).includes("Updated Test Member"),
   );
-  await page.getByTitle("Language", { exact: true }).click();
-  await page.getByTitle("Theme", { exact: true }).click();
+  if ((await page.locator(".app").getAttribute("data-lang")) !== "en")
+    await page.getByTestId("Language").click();
+  if ((await page.locator(".app").getAttribute("data-theme")) !== "dark")
+    await page.getByTestId("Theme").click();
   await page.getByRole("button", { name: "Bigger", exact: true }).click();
   await page.reload();
   await page.getByRole("button", { name: /All Members/ }).waitFor();
@@ -126,15 +130,15 @@ try {
   );
   await panel.reload();
   await panel.getByText("Members", { exact: true }).click();
-  await panel.getByTitle("Edit", { exact: true }).click();
+  await panel.getByTestId("Edit").click();
   await panel.getByRole("button", { name: /Save changes/ }).waitFor();
   const hostileName = '<img src=x onerror="window.__attack=1">';
   await panel.locator("input").nth(0).fill(hostileName);
   await panel.getByRole("button", { name: /Save changes/ }).click();
-  await panel.getByTitle("Edit", { exact: true }).waitFor();
+  await panel.getByTestId("Edit").waitFor();
   await page.reload();
   await page.getByRole("button", { name: /All Members/ }).click();
-  await page.getByTitle("Call", { exact: true }).waitFor();
+  await page.getByTestId("Call").waitFor();
   assert((await page.locator("body").innerText()).includes(hostileName));
   assert.equal(await page.evaluate(() => window.__attack), undefined);
   assert.equal(

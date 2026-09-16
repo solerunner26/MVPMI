@@ -21,7 +21,7 @@ try {
     }),
     page = await context.newPage();
   await page.goto("http://127.0.0.1:" + server.address().port);
-  await page.getByRole("button", { name: /Send request/ }).waitFor();
+  await page.getByTestId("Language").waitFor();
   const scan = async (name) => {
     await page.evaluate(() => document.fonts.ready);
     await assertFits(page, name);
@@ -45,11 +45,26 @@ try {
     );
   };
   await scan("signup-gu-light");
-  await page.getByTitle("Theme", { exact: true }).click();
+  await page.getByTestId("Reading settings").click();
+  await scan("reading-settings-gu");
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "English", exact: true })
+    .click();
+  await scan("reading-settings-en");
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "ગુજરાતી", exact: true })
+    .click();
+  await page.getByRole("button", { name: "બંધ કરો", exact: true }).click();
+  await page.getByTestId("Member help").click();
+  await scan("member-help-gu");
+  await page.getByRole("button", { name: "સમજાયું", exact: true }).click();
+  await page.getByTestId("Theme").click();
   await scan("signup-gu-dark");
-  await page.getByTitle("Language", { exact: true }).click();
+  await page.getByTestId("Language").click();
   await scan("signup-en-dark");
-  await page.getByTitle("Theme", { exact: true }).click();
+  await page.getByTestId("Theme").click();
   await scan("signup-en-light");
   await page.locator("input").nth(0).fill("Synthetic Member");
   await page.locator("input").nth(1).fill("9000000001");
@@ -74,7 +89,7 @@ try {
   await page.keyboard.press("Escape");
   await page.getByRole("dialog").waitFor({ state: "detached" });
   await page.getByRole("button", { name: /Send request/ }).click();
-  await page.getByRole("button", { name: /Confirm/ }).click();
+  await page.getByRole("button", { name: /Submit request/ }).click();
   await page.getByRole("button", { name: /Withdraw/ }).waitFor();
   await scan("pending");
   // Synthetic fixture approval for scanning; authentication is tested separately.
@@ -89,8 +104,13 @@ try {
   await page.reload();
   await page.getByRole("button", { name: /All Members/ }).waitFor();
   await scan("directory-tiles");
+  await page
+    .getByRole("button", { name: "Reorder villages", exact: true })
+    .click();
+  await scan("village-reordering");
+  await page.getByRole("button", { name: "Done", exact: true }).click();
   await page.getByRole("button", { name: /All Members/ }).click();
-  await page.getByTitle("Call", { exact: true }).waitFor();
+  await page.getByTestId("Call").waitFor();
   await scan("directory-list");
   // Do not launch external apps while scanning the original contact sheets.
   await page.evaluate(() =>
@@ -109,7 +129,7 @@ try {
     await scan("contact-" + title);
     await page.getByRole("button", { name: /OK/ }).click();
   }
-  await page.getByTitle("My profile", { exact: true }).click();
+  await page.getByTestId("My profile").click();
   await page.getByRole("button", { name: /Edit my details/ }).waitFor();
   await scan("profile");
   await page.getByRole("button", { name: "Biggest", exact: true }).click();

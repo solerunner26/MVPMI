@@ -12,8 +12,9 @@
     "test:embedded": "npm run build && node scripts/embedded-login-test.mjs",
     "test:accessibility": "npm run build && node scripts/accessibility-test.mjs",
     "test:coverage": "node --experimental-test-coverage --test --test-coverage-include=\"server/*.mjs\" tests/*.test.mjs",
-    "check": "npm test && npm run test:ui && npm run test:embedded && npm run test:accessibility && npm audit --audit-level=moderate",
-    "start:test": "node scripts/start-test-server.mjs"
+    "check": "npm test && npm run test:ui && npm run test:embedded && npm run test:accessibility && npm run test:language && npm audit --audit-level=moderate",
+    "start:test": "node scripts/start-test-server.mjs",
+    "test:language": "npm run build && node scripts/language-test.mjs"
   },
   "dependencies": {
     "@fontsource/manrope": "^5.2.6",

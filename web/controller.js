@@ -1,5 +1,39 @@
 // The supplied design remains the renderer; all domain actions below go to the API.
 class Component extends DesignComponent {
+  L(gu, en) {
+    return this.P(gu, en);
+  }
+  O(value) {
+    return singleLanguageStatus(value, this.state.lang);
+  }
+  printPdf(members) {
+    const frame = document.createElement("iframe");
+    frame.title = this.P("પ્રિન્ટ પૂર્વદર્શન", "Print preview");
+    frame.style.cssText = "position:fixed;width:0;height:0;border:0";
+    frame.onload = async () => {
+      try {
+        await frame.contentDocument.fonts.ready;
+        frame.contentWindow.focus();
+        frame.contentWindow.print();
+      } catch {
+        this.flash(
+          "પ્રિન્ટ ઉપલબ્ધ નથી.",
+          "Printing is unavailable in this browser.",
+        );
+      }
+      setTimeout(() => frame.remove(), 60000);
+    };
+    document.body.appendChild(frame);
+    frame.srcdoc = printDocument(
+      members.map((m) => ({
+        ...m,
+        village: this.V(m.village),
+        tehsil: this.T(m.tehsil),
+        district: this.D(m.district),
+      })),
+      this.state.lang,
+    );
+  }
   componentDidMount() {
     this._alive = true;
     try {
@@ -70,6 +104,10 @@ class Component extends DesignComponent {
   }
   handleBack() {
     if (this._busy) return true;
+    if (this.state.preferencesOpen) {
+      this.set("preferencesOpen", false);
+      return true;
+    }
     if (this.state.confirm || this.state.picker || this.state.dial) {
       this.setState({ confirm: null, picker: null, dial: null });
       return true;
@@ -115,6 +153,10 @@ class Component extends DesignComponent {
   }
   componentDidUpdate() {
     document.documentElement.lang = this.state.lang;
+    document.title = this.P(
+      "MVPMl · સમાજ સંપર્ક યાદી",
+      "MVPMl · Community Directory",
+    );
     const dialog = document.querySelector('.app [role="dialog"]');
     if (dialog && !this._dialog) {
       this._returnFocus = document.activeElement;
@@ -125,15 +167,16 @@ class Component extends DesignComponent {
       if (this._returnFocus?.isConnected) this._returnFocus.focus();
     }
     try {
-      localStorage.setItem(
-        "mvpmi-preferences",
-        JSON.stringify({
-          lang: this.state.lang,
-          theme: this.state.theme,
-          fsPct: this.state.fsPct,
-          tileOrder: this.state.tileOrder,
-        }),
-      );
+      const preferences = JSON.stringify({
+        lang: this.state.lang,
+        theme: this.state.theme,
+        fsPct: this.state.fsPct,
+        tileOrder: this.state.tileOrder,
+      });
+      if (preferences !== this._lastPreferences) {
+        localStorage.setItem("mvpmi-preferences", preferences);
+        this._lastPreferences = preferences;
+      }
     } catch {}
   }
   async ensureTransport() {
@@ -269,7 +312,7 @@ class Component extends DesignComponent {
             connected: false,
             loaded: true,
           });
-          this.flash("પ્રવેશ ઉપલબ્ધ નથી.", e.message);
+          this.flash(errorText(e.message, "gu"), errorText(e.message, "en"));
         } else this.setState({ connected: false, loaded: true });
       }
     }
@@ -281,7 +324,7 @@ class Component extends DesignComponent {
     try {
       await fn();
     } catch (e) {
-      this.flash("કાર્ય પૂર્ણ ન થયું. ફરી પ્રયાસ કરો.", e.message);
+      this.flash(errorText(e.message, "gu"), errorText(e.message, "en"));
       if (/authentication|approval|blocked/i.test(e.message))
         await this.refresh();
     } finally {
@@ -296,7 +339,15 @@ class Component extends DesignComponent {
       this.flash("કાર્ય પૂર્ણ થયું.", "Saved successfully.");
     });
   }
-  confirmAction(gu, en, body, onYes) {
+  confirmAction(
+    gu,
+    en,
+    body,
+    onYes,
+    bodyGu = gu,
+    yesGu = "આગળ વધો",
+    yesEn = "Continue",
+  ) {
     this.setState({
       confirm: {
         icon: "ph-duotone ph-shield-check",
@@ -305,10 +356,10 @@ class Component extends DesignComponent {
         yesBg: "var(--grad)",
         titleGu: gu,
         titleEn: en,
-        bodyGu: "આગળ વધતા પહેલાં વિગતો ચકાસો.",
+        bodyGu,
         bodyEn: body,
-        yesGu: "હા, આગળ વધો",
-        yesEn: "Confirm",
+        yesGu,
+        yesEn,
         onYes,
       },
     });
@@ -361,6 +412,9 @@ class Component extends DesignComponent {
               digest: diff.digest,
               currentDigest: diff.currentDigest,
             }),
+          `${diff.currentMembers} વર્તમાન સભ્યોની જગ્યાએ ${diff.members} સભ્યો, ${diff.requests} વિનંતીઓ અને ${diff.archive} આર્કાઇવ નોંધો મૂકવામાં આવશે. વર્તમાન માહિતી બદલાઈ જશે.`,
+          "માહિતી બદલીને પુનઃસ્થાપિત કરો",
+          "Replace directory data",
         );
       });
     input.click();
@@ -398,6 +452,9 @@ class Component extends DesignComponent {
         "Your name, numbers and village will be shared only with approved community members. Withdrawn, rejected and removed details are retained in an admin-only archive. Submit only your own details. In this development preview, phone ownership is not SMS-verified.",
         () =>
           this.mutate("enrollment", { ...s.form, consent: true }, "pending"),
+        "તમારું નામ, ફોન નંબર અને ગામ ફક્ત મંજૂર થયેલા સભ્યો જોઈ શકશે. રદ, નામંજૂર કે દૂર કરેલી માહિતી એડમિનના ખાનગી આર્કાઇવમાં રહેશે. ફક્ત તમારી પોતાની વિગતો મોકલો. આ પરીક્ષણ આવૃત્તિમાં ફોનની માલિકી SMS દ્વારા ચકાસાતી નથી.",
+        "વિનંતી મોકલો",
+        "Submit request",
       );
     };
     const withdraw = v.askWithdraw;
@@ -474,7 +531,7 @@ class Component extends DesignComponent {
       disabled: !k.label,
       accessibleLabel:
         k.label === "⌫"
-          ? "છેલ્લો આંકડો કાઢો · Delete last digit"
+          ? this.P("છેલ્લો આંકડો કાઢો", "Delete last digit")
           : k.label || "Unused key",
       onClick: () => {
         if (this._busy || !k.label) return;
@@ -495,7 +552,14 @@ class Component extends DesignComponent {
           });
       },
     }));
-    v.loginErrorMessage = s.loginErrorMessage || "Unable to sign in.";
+    v.loginErrorMessage = errorText(
+      s.loginErrorMessage || "Unable to sign in.",
+      "en",
+    );
+    v.loginErrorMessageGu = errorText(
+      s.loginErrorMessage || "Unable to sign in.",
+      "gu",
+    );
     v.doLogin = () =>
       this.run(async () => {
         try {
@@ -515,7 +579,7 @@ class Component extends DesignComponent {
     };
     v.resetPhone = s.resetPhone
       ? "••••••" + s.resetPhone
-      : "Registered admin phone";
+      : uiText("adminPhone", s.lang);
     v.resetOtp = s.resetOtp || "";
     v.resetPassword = s.resetPassword || "";
     v.setResetOtp = (e) => this.set("resetOtp", dg(e.target.value).slice(0, 6));
@@ -555,18 +619,59 @@ class Component extends DesignComponent {
     ])
       v[key] = v[key].map((row, i) => ({
         ...row,
-        [approve]: () =>
-          this.mutate("admin/requests/" + s[key][i].id + "/approve"),
+        [approve]: () => {
+          const approveRequest = () =>
+            this.mutate("admin/requests/" + s[key][i].id + "/approve");
+          if (key === "deleteRequests")
+            this.confirmAction(
+              "સભ્યને યાદીમાંથી દૂર કરવા છે?",
+              "Remove member from directory?",
+              "The member loses directory access. Their details remain in the admin-only archive.",
+              approveRequest,
+              "સભ્યનો યાદીમાં પ્રવેશ બંધ થશે. વિગતો ફક્ત એડમિનના આર્કાઇવમાં રહેશે.",
+              "યાદીમાંથી દૂર કરો",
+              "Remove from directory",
+            );
+          else approveRequest();
+        },
         onReject: () =>
-          this.mutate("admin/requests/" + s[key][i].id + "/reject"),
+          this.confirmAction(
+            "વિનંતી નામંજૂર કરવી છે?",
+            "Reject this request?",
+            key === "newRequests"
+              ? "This enrollment request will be rejected and retained in the admin-only archive."
+              : "This request will be rejected. The current member profile will remain unchanged.",
+            () => this.mutate("admin/requests/" + s[key][i].id + "/reject"),
+            key === "newRequests"
+              ? "આ નોંધણી વિનંતી નામંજૂર થશે અને ફક્ત એડમિનના આર્કાઇવમાં રહેશે."
+              : "આ વિનંતી નામંજૂર થશે. સભ્યની હાલની પ્રોફાઇલ બદલાશે નહીં.",
+            "વિનંતી નામંજૂર કરો",
+            "Reject request",
+          ),
       }));
     v.updateRequests = v.updateRequests.map((row, i) => {
       const r = s.updateRequests[i],
         keys = Object.keys(r.next).filter((k) => r.next[k] !== r.old[k]);
+      const fieldValue = (key, value) =>
+        !value
+          ? "—"
+          : key === "label2"
+            ? fieldText(value, s.lang)
+            : key === "village"
+              ? this.V(value)
+              : key === "tehsil"
+                ? this.T(value)
+                : key === "district"
+                  ? this.D(value)
+                  : value;
       return {
         ...row,
-        oldRows: keys.map((k) => k + ": " + (r.old[k] || "—")),
-        newRows: keys.map((k) => k + ": " + (r.next[k] || "—")),
+        oldRows: keys.map(
+          (k) => fieldText(k, s.lang) + ": " + fieldValue(k, r.old[k]),
+        ),
+        newRows: keys.map(
+          (k) => fieldText(k, s.lang) + ": " + fieldValue(k, r.next[k]),
+        ),
       };
     });
     v.members = v.members.map((row, i) => ({
@@ -586,11 +691,17 @@ class Component extends DesignComponent {
           row.name +
             " will leave the directory. A copy is retained in the archive.",
           () => this.mutate("admin/members/" + row.id + "/delete"),
+          row.name +
+            " યાદીમાંથી દૂર થશે. તેની નકલ ફક્ત એડમિનના આર્કાઇવમાં રહેશે.",
+          "યાદીમાંથી દૂર કરો",
+          "Remove from directory",
         ),
     }));
     v.alerts = v.alerts.map((row, i) => ({
       ...row,
-      title: row.title + (s.alerts[i].blocked ? " · Blocked" : ""),
+      title:
+        this.O(row.title) +
+        (s.alerts[i].blocked ? this.P(" · અવરોધિત", " · Blocked") : ""),
       onBlock: () => this.mutate("admin/alerts/" + s.alerts[i].id + "/block"),
     }));
     v.sections = v.sections.map((section) => ({
@@ -663,29 +774,12 @@ class Component extends DesignComponent {
             await this.api("state").then((data) => {
               if (data.role !== "admin")
                 throw new Error("Admin authentication required");
-              const escape = (x) =>
-                String(x || "").replace(
-                  /[&<>"']/g,
-                  (c) =>
-                    ({
-                      "&": "&amp;",
-                      "<": "&lt;",
-                      ">": "&gt;",
-                      '"': "&quot;",
-                      "'": "&#39;",
-                    })[c],
-                );
-              this.printPdf(
-                data.members.map((m) =>
-                  Object.fromEntries(
-                    Object.entries(m).map(([k, val]) => [k, escape(val)]),
-                  ),
-                ),
-              );
+              this.printPdf(data.members);
             });
           }),
-        () => this.file("export.xlsx", "mvpmi-contacts.xlsx"),
-        () => this.file("export.xlsx", "mvpmi-contacts.xlsx", true),
+        () => this.file("export.xlsx?lang=" + s.lang, "mvpmi-contacts.xlsx"),
+        () =>
+          this.file("export.xlsx?lang=" + s.lang, "mvpmi-contacts.xlsx", true),
         () => this.file("backup", "mvpmi-backup.json"),
       ][i],
     }));
@@ -693,6 +787,7 @@ class Component extends DesignComponent {
     v.textSizes = TEXT_SIZES.map((option) => ({
       ...option,
       active: s.fsPct === option.value,
+      accessibleLabel: this.P(option.gu, option.label),
       onClick: () => {
         this.setState({ fsPct: option.value });
         requestAnimationFrame(() =>
@@ -702,6 +797,102 @@ class Component extends DesignComponent {
         );
       },
     }));
+    v.ui = Object.fromEntries(
+      Object.keys(UI_COPY).map((key) => [key, uiText(key, s.lang)]),
+    );
+    v.screenName = s.screen;
+    v.aes = false;
+    v.aesAttr = "off";
+    v.languageSwitch = this.P("English", "ગુજરાતી");
+    v.themeLabel = this.P(
+      s.theme === "dark" ? "આછો દેખાવ" : "ઘેરો દેખાવ",
+      s.theme === "dark" ? "Light" : "Dark",
+    );
+    v.preferencesOpen = !!s.preferencesOpen;
+    v.openPreferences = () => this.set("preferencesOpen", true);
+    v.closePreferences = () => this.set("preferencesOpen", false);
+    v.chooseGujarati = () => this.set("lang", "gu");
+    v.chooseEnglish = () => this.set("lang", "en");
+    v.guSelected = s.lang === "gu";
+    v.enSelected = s.lang === "en";
+    v.waitBodyGu = UI_COPY.waitBody[0];
+    v.waitBodyEn = UI_COPY.waitBody[1];
+    v.submittedDate = s.requestAt
+      ? new Date(s.requestAt).toLocaleString(
+          s.lang === "gu" ? "gu-IN" : "en-IN",
+          { dateStyle: "medium", timeStyle: "short" },
+        )
+      : "—";
+    v.steps = v.steps.map((step, i) =>
+      i === 1 ? { ...step, gu: "તપાસની રાહમાં", en: "Awaiting review" } : step,
+    );
+    v.memberHelp = () =>
+      this.confirmAction(
+        UI_COPY.help[0],
+        UI_COPY.help[1],
+        UI_COPY.helpBody[1],
+        () => this.set("confirm", null),
+        UI_COPY.helpBody[0],
+        UI_COPY.helpAction[0],
+        UI_COPY.helpAction[1],
+      );
+    v.reordering = !!s.reordering;
+    v.reorderStatus = s.reorderStatus ? uiText("savedOrder", s.lang) : "";
+    v.reorderLabel = uiText(s.reordering ? "done" : "reorder", s.lang);
+    v.toggleReorder = () =>
+      this.setState({ reordering: !s.reordering, reorderStatus: false });
+    v.resetOrder = () =>
+      this.setState({
+        tileOrder: VILLAGE_LIST.map((v) => v.gu),
+        reorderStatus: true,
+      });
+    v.villageTiles = v.villageTiles.map((row, index, list) => {
+      const move = (delta) => {
+        const order = (s.tileOrder || VILLAGE_LIST.map((v) => v.gu)).slice();
+        const next = index + delta;
+        if (next < 0 || next >= order.length) return;
+        [order[index], order[next]] = [order[next], order[index]];
+        this.setState({ tileOrder: order, reorderStatus: true });
+      };
+      return {
+        ...row,
+        first: index === 0,
+        last: index === list.length - 1,
+        earlierLabel: row.primary + " — " + uiText("earlier", s.lang),
+        laterLabel: row.primary + " — " + uiText("later", s.lang),
+        moveEarlier: () => move(-1),
+        moveLater: () => move(1),
+      };
+    });
+    for (const key of [
+      "newRequests",
+      "updateRequests",
+      "deleteRequests",
+      "archive",
+    ]) {
+      v[key] = v[key].map((row) => ({
+        ...row,
+        name: row.name || row.nameGu || "—",
+        nameGu: row.nameGu || row.name || "—",
+      }));
+    }
+    v.form = {
+      ...v.form,
+      tehsil: this.T(s.form.tehsil),
+      district: this.D(s.form.district),
+    };
+    if (v.edit)
+      v.edit = {
+        ...v.edit,
+        tehsil: this.T(v.edit.tehsil),
+        district: this.D(v.edit.district),
+      };
+    v.shortQuery = !!s.query.trim() && !canSearch(s.query);
+    v.ph = {
+      ...v.ph,
+      tehsil: this.T(TEHSIL_GU),
+      district: this.D(DISTRICT_GU),
+    };
     return v;
   }
 }

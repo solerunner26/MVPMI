@@ -31,7 +31,7 @@ export async function checkTextSizes(context, url) {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto(url);
-  await page.getByTitle("My profile", { exact: true }).click();
+  await page.getByTestId("My profile").click();
   const choices = [
     ["Default", 100],
     ["Big", 120],
@@ -42,9 +42,18 @@ export async function checkTextSizes(context, url) {
     await page.setViewportSize({ width, height: 800 });
     for (const lang of ["gu", "en"]) {
       if ((await page.locator(".app").getAttribute("data-lang")) !== lang)
-        await page.getByTitle("Language", { exact: true }).click();
+        await page.getByTestId("Language").click();
       for (const [name, percent] of choices) {
-        const button = page.getByRole("button", { name, exact: true });
+        const translated = {
+          Default: "મૂળ માપ",
+          Big: "મોટું",
+          Bigger: "વધુ મોટું",
+          Biggest: "સૌથી મોટું",
+        };
+        const button = page.getByRole("button", {
+          name: lang === "gu" ? translated[name] : name,
+          exact: true,
+        });
         await button.click();
         assert.equal(await button.getAttribute("aria-pressed"), "true");
         assert.equal(
@@ -70,31 +79,33 @@ export async function checkTextSizes(context, url) {
         }
         await page
           .getByRole("button", {
-            name: "સંપર્ક યાદી · Back to directory",
+            name: /યાદીમાં પાછા જાઓ|Back to directory/,
             exact: true,
           })
           .click();
         await assertFits(page, `directory tiles ${width} ${lang} ${name}`);
-        await page.getByRole("button", { name: /All Members/ }).click();
-        await page.getByTitle("Call", { exact: true }).waitFor();
+        await page
+          .getByRole("button", { name: /બધા સભ્યો|All Members/ })
+          .click();
+        await page.getByTestId("Call").waitFor();
         await assertFits(page, `directory list ${width} ${lang} ${name}`);
-        await page.getByTitle("My profile", { exact: true }).click();
+        await page.getByTestId("My profile").click();
       }
     }
   }
   await page.reload();
-  await page.getByTitle("My profile", { exact: true }).click();
+  await page.getByTestId("My profile").click();
   assert.equal(
     await page
       .getByRole("button", { name: "Biggest", exact: true })
       .getAttribute("aria-pressed"),
     "true",
   );
-  await page.getByTitle("Theme", { exact: true }).click();
+  await page.getByTestId("Theme").click();
   await assertFits(page, "Biggest alternate theme");
   await page.getByRole("button", { name: "Default", exact: true }).click();
   await page.reload();
-  await page.getByTitle("My profile", { exact: true }).click();
+  await page.getByTestId("My profile").click();
   assert.equal(
     await page
       .getByRole("button", { name: "Default", exact: true })

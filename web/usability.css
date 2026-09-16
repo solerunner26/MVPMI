@@ -1,0 +1,219 @@
+/* Single selected UI language. .en outside .bi is also used for numbers, so do not hide it globally. */
+.app[data-lang="gu"] .bi > .en,
+.app[data-lang="en"] .bi > .gu {
+  display: none !important;
+}
+.app[data-lang="gu"] .bi > .gu,
+.app[data-lang="en"] .bi > .en {
+  font-size: 1em;
+  opacity: 1;
+  color: inherit;
+  order: 0;
+}
+.app {
+  --g: #fffaf4;
+  --g2: #f7eee3;
+  --sheet: #fffaf4;
+  --field: #ffffff;
+  --gbd: #e4d0c1;
+  --grad: linear-gradient(135deg, #ac3827, #84411c);
+  --shadow: 0 3px 12px #42200d0d;
+}
+.app[data-theme="dark"] {
+  --g: #291b16;
+  --g2: #211510;
+  --sheet: #291b16;
+  --field: #20140f;
+  --gbd: #63483a;
+}
+.app *,
+.app *::before,
+.app *::after {
+  animation: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.app button,
+.app a[role="button"] {
+  min-width: 48px;
+  min-height: 48px;
+}
+.app .noscroll {
+  padding-bottom: 24px !important;
+  scroll-padding-bottom: 20px;
+}
+.utility-bar {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  padding: 8px;
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+  background: var(--sheet);
+  border-top: 1px solid var(--gbd);
+  z-index: 6;
+}
+.utility-bar button {
+  font: inherit;
+  font-size: max(13px, var(--f-xs));
+  font-weight: 700;
+  color: var(--ink);
+  border: 0;
+  border-radius: 12px;
+  background: var(--g2);
+  padding: 6px 4px;
+  overflow-wrap: anywhere;
+}
+.preferences-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  background: var(--scrim);
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.preferences-panel {
+  width: 100%;
+  max-width: 480px;
+  max-height: 100% !important;
+  padding: 20px;
+  border-radius: 24px;
+  background: var(--sheet);
+  color: var(--ink);
+  overflow: auto;
+}
+.preferences-panel h2 {
+  font-size: var(--f-lg);
+  margin: 0 0 20px;
+}
+.preferences-panel h3 {
+  font-size: var(--f-md);
+}
+.language-options {
+  display: flex;
+  gap: 8px;
+}
+.language-options button,
+.close-preferences,
+.reorder-toolbar button,
+.reorder-controls button {
+  font: inherit;
+  font-size: var(--f-sm);
+  padding: 10px;
+  border: 1px solid var(--gbd);
+  border-radius: 12px;
+  color: var(--ink);
+  background: var(--field);
+}
+.language-options button {
+  flex: 1;
+}
+.language-options button[aria-pressed="true"] {
+  border: 2px solid var(--ind);
+  background: var(--okBg);
+}
+.close-preferences {
+  width: 100%;
+  margin-top: 20px;
+}
+.app .profile-detail-row {
+  flex-direction: column;
+  align-items: stretch !important;
+  gap: 4px !important;
+}
+.app .profile-detail-row > div:last-child {
+  text-align: left !important;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.app .phone-number {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.app .contact-number-row {
+  flex-wrap: wrap;
+}
+.app .contact-number-row > div:first-child {
+  flex-basis: 100% !important;
+}
+.village-tile {
+  position: relative;
+  text-align: left;
+  width: 100%;
+  padding: 16px;
+  border: 1px solid var(--gbd);
+  border-radius: 20px;
+  background: var(--g);
+  color: var(--ink);
+  font: inherit;
+  min-height: 132px !important;
+  overflow: hidden;
+  cursor: pointer;
+}
+.village-tile:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.reorder-controls {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+.reorder-controls button {
+  flex: 1;
+  min-width: 0;
+}
+.reorder-controls button:disabled {
+  opacity: 0.45;
+}
+.reorder-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.reorder-toolbar [role="status"] {
+  font-size: var(--f-xs);
+}
+@media (min-width: 800px) {
+  .app[data-screen="admin"] {
+    max-width: 1100px;
+  }
+  .app[data-screen="admin"] .screen-frame {
+    height: calc(100dvh - 48px);
+  }
+  .app[data-screen="admin"] .utility-bar {
+    grid-template-columns: repeat(4, minmax(120px, 180px));
+    justify-content: center;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app * {
+    transition: none !important;
+  }
+}
+.village-tile > div[style*="position:absolute"],
+.village-tile .ph-dots-six-vertical {
+  display: none;
+}
+.village-tile > div:first-child {
+  display: none !important;
+}
+
+@media (min-width: 800px) {
+  .app .admin-dashboard-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+
+.returning-member {
+  font: inherit;
+  font-size: var(--f-sm);
+  border: 1px solid var(--gbd);
+  border-radius: 14px;
+  padding: 10px 14px;
+  background: var(--field);
+  color: var(--ind);
+  text-align: left;
+}

@@ -1,3 +1,4 @@
+import { useEnglishForLegacyFlows } from "./test-language.mjs";
 import { launchBrowser } from "./browser.mjs";
 import { createApp } from "../server/app.mjs";
 import https from "node:https";
@@ -54,6 +55,7 @@ try {
     .listen(0);
   await new Promise((r) => outer.once("listening", r));
   browser = await launchBrowser();
+  useEnglishForLegacyFlows(browser);
   for (const mode of ["cookies", "no-cookies", "no-storage"]) {
     const context = await browser.newContext({
       ignoreHTTPSErrors: true,
@@ -84,6 +86,9 @@ try {
     page.on("pageerror", (e) => errors.push(e.message));
     await page.goto("http://localhost:" + outer.address().port);
     const frame = page.frameLocator("#preview");
+    await frame.getByTestId("Language").waitFor();
+    if ((await frame.locator(".app").getAttribute("data-lang")) === "gu")
+      await frame.getByTestId("Language").click();
     await frame.getByRole("button", { name: /Send request/ }).waitFor();
     for (let i = 0; i < 5; i++)
       await frame.getByTitle("MVPMl", { exact: true }).click({ force: true });
@@ -114,7 +119,7 @@ try {
       await page.reload();
       await frame.getByText("New requests", { exact: true }).waitFor();
     }
-    await frame.getByTitle("Sign out", { exact: true }).click();
+    await frame.getByTestId("Sign out").click();
     await frame.getByRole("button", { name: /Send request/ }).waitFor();
     assert.deepEqual(errors, []);
     console.log("PASS embedded authentication, export and logout: " + mode);

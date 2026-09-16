@@ -6,7 +6,11 @@ Development implementation of the supplied Gujarati/English community-directory 
 
 ## Latest release audit
 
-**Not ready for publication.** See [the release audit](docs/RELEASE_AUDIT.md) for the checked code, corrected issues, executed tests and unexecuted Android/Play requirements. This review passed **54 server/configuration tests**, the browser workflows, three embedded-session modes and 23 automated accessibility scans. Manual contrast/TalkBack review and Android compilation/device testing remain outstanding.
+**Not ready for publication.** See [the release audit](docs/RELEASE_AUDIT.md) for production blockers and [changes after cp001](docs/CP001_IMPROVEMENTS.md) for the latest interface/testing evidence. The latest local checks pass 66 Node tests, browser/contact/approval flows, three embedded-session modes, the Gujarati/English journey and 29 automated accessibility states. Android debug compilation/lint/unit/signature checks have passed in earlier CI builds; real-device and Play validation remain outstanding.
+
+## Changes after cp001
+
+Gujarati is the default UI language; switching shows only the chosen language. Reading settings are available before enrollment, and language/theme/help controls use a reserved toolbar. The revision also adds accessible village reordering, short-name search, full-width phone values, clearer approval/confirmation copy and a wider desktop admin view. User-entered names are not automatically translated. Automatic member recovery still requires verified identity and a configured provider/support process. The source checkpoint `cp001` is unchanged.
 
 The development preview now uses an expiring, tab-scoped session transport so cookie-blocking browsers can sign in. It still requires the gate and admin password; the transport is disabled outside development. If all browser storage is blocked, it persists only until the page reloads.
 

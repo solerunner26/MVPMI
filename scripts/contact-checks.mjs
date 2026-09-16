@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 // Intercept external navigation: never place a call or contact a synthetic number.
 async function checkSurface(surface, target, mode) {
   await surface.getByRole("button", { name: /All Members/ }).click();
-  await surface.getByTitle("Call", { exact: true }).waitFor();
+  await surface.getByTestId("Call").waitFor();
   await surface.evaluate((mode) => {
     window.contactAttempts = [];
     Object.defineProperty(navigator, "clipboard", {
@@ -44,7 +44,7 @@ async function checkSurface(surface, target, mode) {
     ["Call", "tel:+919000000001"],
     ["WhatsApp", "https://wa.me/919000000001"],
   ]) {
-    const button = surface.getByTitle(title, { exact: true });
+    const button = surface.getByTestId(title);
     assert.equal(await button.getAttribute("href"), href);
     assert.equal(await button.getAttribute("target"), target);
     // Enter exercises keyboard activation of the real link, not only pointer clicks.
@@ -57,7 +57,7 @@ async function checkSurface(surface, target, mode) {
     assert.equal(await retry.getAttribute("href"), href);
     await retry.click();
     // The original sheet closes on backdrop/number click; retries still dispatch.
-    await surface.getByTitle(title, { exact: true }).waitFor();
+    await surface.getByTestId(title).waitFor();
   }
   const attempts = await surface.evaluate(() => window.contactAttempts);
   assert.equal(attempts.length, 4);
@@ -109,7 +109,7 @@ export async function checkContactActions(browser, context, url) {
     await framed.getByRole("button", { name: /All Members/ }).click();
     if (allowPopups) {
       const opened = context.waitForEvent("page");
-      await framed.getByTitle("WhatsApp", { exact: true }).click();
+      await framed.getByTestId("WhatsApp").click();
       const popup = await opened;
       await popup.waitForURL("https://wa.me/919000000001");
       await popup.waitForLoadState();
@@ -120,7 +120,7 @@ export async function checkContactActions(browser, context, url) {
       assert.equal(await popup.evaluate(() => window.opener), null);
       await popup.close();
     } else {
-      await framed.getByTitle("WhatsApp", { exact: true }).click();
+      await framed.getByTestId("WhatsApp").click();
       await framed.getByRole("dialog").waitFor();
       assert(
         consoleMessages.some((m) => /blocked opening|allow-popups/i.test(m)),
