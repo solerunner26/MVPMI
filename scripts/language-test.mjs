@@ -69,6 +69,10 @@ try {
   await page.getByRole("button", { name: "Default", exact: true }).click();
   await page.getByRole("button", { name: "Close", exact: true }).click();
   await selectedLanguage(page, "en", "English signup");
+  await page.locator("input").nth(2).fill("Thoralaa");
+  await selectedLanguage(page, "en", "English village suggestion");
+  await page.getByRole("button", { name: /Did you mean "Thorala"/ }).click();
+  assert.equal(await page.locator("input").nth(2).inputValue(), "Thorala");
   await page.reload();
   await page.getByTestId("Language").waitFor();
   await selectedLanguage(page, "en", "persisted language");

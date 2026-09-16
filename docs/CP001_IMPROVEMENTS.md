@@ -45,3 +45,7 @@ The Windows/Mac desktop launchers, actual Android/iOS/desktop browser matrix, OS
 ## Rollback
 
 Ask the agent to restore **cp001**. Restore the source on the existing Arena branch and create a new rollback commit; do not switch branches or rewrite shared history. Reinstall dependencies/build after source restoration. A source rollback does not restore database contents.
+
+## CI evidence
+
+[Run 35059091639](https://github.com/solerunner26/MVPMI/actions/runs/35059091639), main revision `852b2c3`, passed both server/browser quality checks and Android compilation, lint, unit tests, debug assembly and signature verification. A final follow-up localizes spelling suggestions and known place fields; the dedicated language journey was rerun successfully for it.

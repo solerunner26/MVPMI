@@ -6,7 +6,7 @@ Development implementation of the supplied Gujarati/English community-directory 
 
 ## Latest release audit
 
-**Not ready for publication.** See [the release audit](docs/RELEASE_AUDIT.md) for production blockers and [changes after cp001](docs/CP001_IMPROVEMENTS.md) for the latest interface/testing evidence. The latest local checks pass 66 Node tests, browser/contact/approval flows, three embedded-session modes, the Gujarati/English journey and 29 automated accessibility states. Android debug compilation/lint/unit/signature checks have passed in earlier CI builds; real-device and Play validation remain outstanding.
+**Not ready for publication.** See [the release audit](docs/RELEASE_AUDIT.md) for production blockers and [changes after cp001](docs/CP001_IMPROVEMENTS.md) for the latest interface/testing evidence. The latest local checks pass 66 Node tests, browser/contact/approval flows, three embedded-session modes, the Gujarati/English journey and 29 automated accessibility states. Android debug compilation/lint/unit/signature checks also passed in [the design revision CI build](https://github.com/solerunner26/MVPMI/actions/runs/35059091639); real-device and Play validation remain outstanding.
 
 ## Changes after cp001
 

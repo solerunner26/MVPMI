@@ -876,14 +876,30 @@ class Component extends DesignComponent {
         nameGu: row.nameGu || row.name || "—",
       }));
     }
+    for (const [key, value, choices] of [
+      ["vSuggest", s.form.village, VILLAGES],
+      ["tSuggest", s.form.tehsil, [[TEHSIL_EN, TEHSIL_GU]]],
+    ]) {
+      const match = bestMatch(value, choices);
+      v[key] = match
+        ? {
+            msg: this.P(
+              `શું તમે "${match.gu}" લખવા માંગતા હતા?`,
+              `Did you mean "${match.en}"?`,
+            ),
+          }
+        : null;
+    }
     v.form = {
       ...v.form,
+      village: this.V(s.form.village),
       tehsil: this.T(s.form.tehsil),
       district: this.D(s.form.district),
     };
     if (v.edit)
       v.edit = {
         ...v.edit,
+        village: this.V(v.edit.village),
         tehsil: this.T(v.edit.tehsil),
         district: this.D(v.edit.district),
       };
