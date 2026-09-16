@@ -28,6 +28,11 @@ try {
     const result = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
       .analyze();
+    assert.equal(
+      result.incomplete.length,
+      0,
+      name + ": unresolved accessibility checks",
+    );
     results.push({
       screen: name,
       violations: result.violations,
@@ -183,7 +188,7 @@ try {
   );
   const count = results.reduce((n, r) => n + r.violations.length, 0);
   console.log(
-    `${results.length} screens scanned; ${count} rule violations. Incomplete checks require manual review.`,
+    `${results.length} screens scanned; ${count} rule violations. 0 incomplete automated checks. Real-device/manual review is still required.`,
   );
   if (count) process.exitCode = 1;
 } finally {

@@ -1,3 +1,4 @@
+import { installMemberRecovery } from "./member-recovery.mjs";
 import { isDeepStrictEqual } from "node:util";
 import { installSessions } from "./session.mjs";
 import express from "express";
@@ -158,6 +159,13 @@ export function createApp({
       development,
     };
   };
+  installMemberRecovery(app, store, {
+    admin,
+    rate,
+    state,
+    secure,
+    development,
+  });
   app.get("/api/state", (req, res) => res.json(state(req)));
   app.post("/api/enrollment", (req, res) => {
     rate("enroll:" + req.session.id, 30, 3600000);

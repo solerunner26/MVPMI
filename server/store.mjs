@@ -142,6 +142,7 @@ const tables = new Set([
   "alerts",
   "sessions",
   "transports",
+  "recoveries",
   "config",
   "audit",
   "limits",
@@ -234,6 +235,7 @@ export class Store {
       );
   }
   remove(m, reason) {
+    this.del("recoveries", m.id);
     this.archive(m, reason);
     this.del("members", m.id);
     for (const r of this.all("requests").filter((r) => r.memberId === m.id))
@@ -413,6 +415,7 @@ export class Store {
           "Directory changed since restore preview. Validate the backup again.",
           409,
         );
+      this.db.exec("DELETE FROM recoveries");
       for (const t of ["members", "requests", "archive"]) {
         this.db.exec(`DELETE FROM ${t}`);
         for (const x of b[t]) this.put(t, x);

@@ -1,3 +1,4 @@
+import { checkAdminRecovery } from "./recovery-checks.mjs";
 import assert from "node:assert/strict";
 import { launchBrowser } from "./browser.mjs";
 import { createApp } from "../server/app.mjs";
@@ -77,7 +78,7 @@ try {
   await page.getByTestId("Language").waitFor();
   await selectedLanguage(page, "en", "persisted language");
   await page.getByTestId("Member help").click();
-  await page.getByText(/Automatic recovery/).waitFor();
+  await page.getByText(/known community administrator/).waitFor();
   await page.getByRole("button", { name: "Understood", exact: true }).click();
   await switchTo(page, "gu");
   await page.locator("input").nth(0).fill("Test Member");
@@ -108,6 +109,15 @@ try {
   for (const digit of "5831")
     await panel.getByRole("button", { name: digit, exact: true }).click();
   await selectedLanguage(panel, "en", "login English");
+  await switchTo(panel, "gu");
+  await panel
+    .getByRole("heading", { name: "એડમિન પેનલ", exact: true })
+    .waitFor();
+  assert.equal(
+    (await panel.locator("body").innerText()).includes("RESTRICTED ACCESS"),
+    false,
+  );
+  await switchTo(panel, "en");
   await panel.getByPlaceholder("admin", { exact: true }).fill("admin");
   await panel.locator("input[type=password]").fill("LanguageTest@2026");
   await panel.getByRole("button", { name: "Sign in", exact: true }).click();
@@ -208,6 +218,7 @@ try {
   await switchTo(page, "gu");
   await selectedLanguage(page, "gu", "profile Gujarati");
   await page.screenshot({ path: "test-results/gujarati-profile.png" });
+  await checkAdminRecovery(browser, panel, page, url);
   assert.deepEqual(errors, []);
   console.log(
     "PASS: Gujarati default, single-language screens, early reading settings, persistence, consent, pending guidance, both-language admin sections, desktop width, keyboard-accessible reordering, two-letter search and unbroken large phone numbers.",

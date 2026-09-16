@@ -104,6 +104,15 @@ class Component extends DesignComponent {
   }
   handleBack() {
     if (this._busy) return true;
+    if (this.state.recoveryOpen || this.state.recoveryIssued) {
+      this.setState({
+        recoveryOpen: false,
+        recoveryIssued: null,
+        recoveryCode: "",
+        recoveryError: null,
+      });
+      return true;
+    }
     if (this.state.preferencesOpen) {
       this.set("preferencesOpen", false);
       return true;
@@ -158,13 +167,39 @@ class Component extends DesignComponent {
       "MVPMl · Community Directory",
     );
     const dialog = document.querySelector('.app [role="dialog"]');
-    if (dialog && !this._dialog) {
-      this._returnFocus = document.activeElement;
+    // Restore background semantics before applying the current modal boundary.
+    for (const [element, inert, hidden] of this._modalBackground || []) {
+      element.inert = inert;
+      if (hidden === null) element.removeAttribute("aria-hidden");
+      else element.setAttribute("aria-hidden", hidden);
+    }
+    this._modalBackground = [];
+    if (dialog && dialog !== this._dialog) {
+      if (!this._dialog) this._returnFocus = document.activeElement;
       this._dialog = dialog;
       (dialog.querySelector("button") || dialog).focus();
     } else if (!dialog && this._dialog) {
       this._dialog = null;
       if (this._returnFocus?.isConnected) this._returnFocus.focus();
+    }
+    if (dialog) {
+      const root = document.querySelector(".app");
+      for (
+        let node = dialog;
+        node && node !== root;
+        node = node.parentElement
+      ) {
+        for (const sibling of node.parentElement?.children || []) {
+          if (sibling === node) continue;
+          this._modalBackground.push([
+            sibling,
+            !!sibling.inert,
+            sibling.getAttribute("aria-hidden"),
+          ]);
+          sibling.inert = true;
+          sibling.setAttribute("aria-hidden", "true");
+        }
+      }
     }
     try {
       const preferences = JSON.stringify({
@@ -266,6 +301,10 @@ class Component extends DesignComponent {
     if (!this._alive) return;
     const current = this.state;
     const patch = { ...data, connected: true, loaded: true };
+    if (data.role !== "admin") {
+      patch.recoveryIssued = null;
+      patch.recoveryMember = null;
+    }
     if (
       data.myRequest &&
       (!current.loaded || current.myRequest?.id !== data.myRequest.id)
@@ -301,6 +340,8 @@ class Component extends DesignComponent {
       if (this._alive) {
         if (e.status === 403 || e.status === 401) {
           this.setState({
+            recoveryIssued: null,
+            recoveryMember: null,
             ...clone(SEED),
             meId: null,
             myRequest: null,
@@ -529,6 +570,7 @@ class Component extends DesignComponent {
     v.keypad = v.keypad.map((k) => ({
       ...k,
       disabled: !k.label,
+      isBackspace: k.label === "⌫",
       accessibleLabel:
         k.label === "⌫"
           ? this.P("છેલ્લો આંકડો કાઢો", "Delete last digit")
@@ -827,15 +869,116 @@ class Component extends DesignComponent {
       i === 1 ? { ...step, gu: "તપાસની રાહમાં", en: "Awaiting review" } : step,
     );
     v.memberHelp = () =>
-      this.confirmAction(
-        UI_COPY.help[0],
-        UI_COPY.help[1],
-        UI_COPY.helpBody[1],
-        () => this.set("confirm", null),
-        UI_COPY.helpBody[0],
-        UI_COPY.helpAction[0],
-        UI_COPY.helpAction[1],
-      );
+      this.setState({
+        recoveryOpen: true,
+        recoveryPhone: "",
+        recoveryCode: "",
+        recoveryError: null,
+      });
+    v.recoveryOpen = !!s.recoveryOpen;
+    v.recoveryEligible = s.role === "guest";
+    v.recoveryPhone = s.recoveryPhone || "";
+    v.recoveryCode = s.recoveryCode || "";
+    v.setRecoveryPhone = (event) =>
+      this.set("recoveryPhone", dg(event.target.value).slice(0, 10));
+    v.setRecoveryCode = (event) =>
+      this.set("recoveryCode", event.target.value.slice(0, 48));
+    v.closeRecovery = () =>
+      this.setState({
+        recoveryOpen: false,
+        recoveryCode: "",
+        recoveryPhone: "",
+        recoveryError: null,
+      });
+    v.recoveryError = s.recoveryError ? errorText(s.recoveryError, s.lang) : "";
+    v.redeemRecovery = () =>
+      this.run(async () => {
+        try {
+          const { recoveryTransport, ...data } = await this.api(
+            "member/recover",
+            { phone: s.recoveryPhone || "", code: s.recoveryCode || "" },
+          );
+          this._transport = recoveryTransport?.token;
+          this._transportPromise = Promise.resolve();
+          try {
+            if (recoveryTransport)
+              sessionStorage.setItem(
+                "mvpmi-preview-session",
+                JSON.stringify(recoveryTransport),
+              );
+            else sessionStorage.removeItem("mvpmi-preview-session");
+          } catch {}
+          this.apply(data, false, "directory");
+          this.setState({
+            recoveryOpen: false,
+            recoveryCode: "",
+            recoveryPhone: "",
+            recoveryError: null,
+          });
+          this.flash(UI_COPY.recoverySuccess[0], UI_COPY.recoverySuccess[1]);
+        } catch (error) {
+          this.set("recoveryError", error.message);
+        }
+      });
+    v.members = v.members.map((row) => ({
+      ...row,
+      onRecover: () =>
+        this.confirmAction(
+          "સભ્યની ઓળખ ચકાસી છે?",
+          "Have you verified this member?",
+          "Verify " +
+            row.name +
+            " through a trusted, independent channel. Do not rely on someone just knowing a phone number. The code restores member access only and signs out old devices when used.",
+          () =>
+            this.run(async () => {
+              const result = await this.api(
+                "admin/members/" + row.id + "/recovery",
+                { identityVerified: true },
+              );
+              this.setState({
+                confirm: null,
+                recoveryIssued: result.code,
+                recoveryExpiresAt: result.expiresAt,
+                recoveryMember: this.P(row.nameGu, row.name),
+                copyStatus: "",
+              });
+            }),
+          row.nameGu +
+            " ની ઓળખ વિશ્વસનીય રીતે ચકાસો. ફક્ત ફોન નંબર જાણવો એ ઓળખનો પુરાવો નથી. કોડ ફક્ત સભ્યનો પ્રવેશ પાછો આપશે અને વાપર્યા પછી જૂના ઉપકરણોનો પ્રવેશ બંધ થશે.",
+          UI_COPY.verifyIdentity[0],
+          UI_COPY.verifyIdentity[1],
+        ),
+    }));
+    v.showRecoveryIssued = s.role === "admin" && !!s.recoveryIssued;
+    v.recoveryIssued =
+      (s.recoveryIssued || "").match(/.{1,4}/g)?.join(" ") || "";
+    v.recoveryMember = s.recoveryMember || "";
+    v.recoveryCodeExpired =
+      !!s.recoveryExpiresAt && Date.now() >= s.recoveryExpiresAt;
+    v.recoveryExpiry = s.recoveryExpiresAt
+      ? new Date(s.recoveryExpiresAt).toLocaleTimeString(
+          s.lang === "gu" ? "gu-IN" : "en-IN",
+        )
+      : "";
+    v.copyStatus = s.copyStatus ? this.P("કોડ કોપી થયો.", "Code copied.") : "";
+    v.copyRecovery = () =>
+      this.run(async () => {
+        try {
+          await navigator.clipboard.writeText(s.recoveryIssued);
+          this.set("copyStatus", true);
+        } catch {
+          this.flash(
+            "કોડ પસંદ કરીને જાતે કોપી કરો.",
+            "Select the displayed code and copy it manually.",
+          );
+        }
+      });
+    v.closeIssuedRecovery = () =>
+      this.setState({
+        recoveryIssued: null,
+        recoveryMember: null,
+        copyStatus: "",
+      });
     v.reordering = !!s.reordering;
     v.reorderStatus = s.reorderStatus ? uiText("savedOrder", s.lang) : "";
     v.reorderLabel = uiText(s.reordering ? "done" : "reorder", s.lang);

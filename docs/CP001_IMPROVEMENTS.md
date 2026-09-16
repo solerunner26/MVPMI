@@ -22,7 +22,7 @@ Baseline: Git tag **cp001**, source `0bb8e7e60b1b22b0b2562a4f63e4fde6d78b7efa`. 
 | 5 | Text-size unavailable before enrollment | Reading settings are reachable from signup, pending, gate/login and the rest of the app. |
 | 6 | Incomplete Gujarati confirmations | Complete Gujarati consent/retention, restore, removal and rejection consequences. |
 | 7 | Misleading approval animation/timer | Submitted date/time and truthful human-review status; smaller static illustration, close-and-return guidance and member-help route. No invented approval deadline. |
-| 8 | Returning member recovery | Added an explicit Already a member entry and honest member-help dialog. **Automatic identity recovery is NOT implemented**: verified identity, SMS provider and an approved support contact are still needed. No membership is recovered solely by typing a known phone number. |
+| 8 | Returning member recovery | Added an explicit Already a member entry and honest member-help dialog. **Administrator-assisted recovery is now implemented**, following the owner's choice: verified operator attestation, one-time expiring codes, session rotation/revocation and no admin privilege transfer. SMS verification is not implied. See [the recovery guide](ADMIN_ASSISTED_RECOVERY.md). |
 | 9 | Three-character name search | Short names now match; phone-number searches still need three digits. |
 | 10 | Drag-only village ordering | Explicit reorder mode, labeled earlier/later buttons, disabled end controls, reset and persistence. Keyboard-compatible village buttons replace draggable click-only divs. |
 | 11 | Technical comparison keys | Translated field labels/values in matched Current and Requested columns. |
@@ -49,3 +49,7 @@ Ask the agent to restore **cp001**. Restore the source on the existing Arena bra
 ## CI evidence
 
 [Run 35059091639](https://github.com/solerunner26/MVPMI/actions/runs/35059091639), main revision `852b2c3`, passed both server/browser quality checks and Android compilation, lint, unit tests, debug assembly and signature verification. A final follow-up localizes spelling suggestions and known place fields; the dedicated language journey was rerun successfully for it.
+
+## Design-review continuation
+
+The owner selected administrator-assisted recovery and kept production-release work out of scope. The [implementation/test guide](ADMIN_ASSISTED_RECOVERY.md) records the completed recovery flow and remaining human/device acceptance checks. The current Node suite passes 75 tests. The accessibility suite now has zero reported violations **and zero incomplete checks** across its 29 states; the older 196-count above is historical evidence, not the current result. cp001 remains unchanged.

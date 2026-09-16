@@ -76,7 +76,7 @@ export function refineDesign(template) {
   template = template.replace(
     /<div draggable="true"[^>]*>([\s\S]*?)<\/div>\s*<\/sc-for>/,
     (all, body) =>
-      `<div class="village-entry"><button class="village-tile" onClick="{{ v.onClick }}" disabled="{{ reordering }}">${body}</button><sc-if value="{{ reordering }}"><div class="reorder-controls"><button onClick="{{ v.moveEarlier }}" disabled="{{ v.first }}" aria-label="{{ v.earlierLabel }}">↑ {{ ui.earlier }}</button><button onClick="{{ v.moveLater }}" disabled="{{ v.last }}" aria-label="{{ v.laterLabel }}">↓ {{ ui.later }}</button></div></sc-if></div></sc-for>`,
+      `<div class="village-entry"><button class="village-tile" onClick="{{ v.onClick }}" disabled="{{ reordering }}">${body}</button><sc-if value="{{ reordering }}"><div class="reorder-controls"><button onClick="{{ v.moveEarlier }}" disabled="{{ v.first }}" aria-label="{{ v.earlierLabel }}"><i class="ph-duotone ph-arrow-up"></i> {{ ui.earlier }}</button><button onClick="{{ v.moveLater }}" disabled="{{ v.last }}" aria-label="{{ v.laterLabel }}"><i class="ph-duotone ph-arrow-down"></i> {{ ui.later }}</button></div></sc-if></div></sc-for>`,
   );
   template = template.replace(
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">',
@@ -134,6 +134,63 @@ export function refineDesign(template) {
         (attr === "title" ? ` data-testid="${english}"` : "")
       );
     },
+  );
+  // Remove a frozen shimmer overlay that obscured the waiting-state text.
+  template = template.replace(
+    /<div style="position:absolute;top:0;left:0;width:60%;height:100%;background:linear-gradient[^"]*"><\/div>/,
+    "",
+  );
+  const headingStart = template.indexOf(
+    '<div style="width:100%;box-sizing:border-box;padding:26px 18px 22px;',
+  );
+  const headingEnd = template.indexOf(
+    '<div class="bi" style="align-items:center;text-align:center;font-size:var(--f-sm);',
+    headingStart,
+  );
+  if (headingStart >= 0 && headingEnd > headingStart)
+    template =
+      template.slice(0, headingStart) +
+      '<section class="admin-signin-heading"><i class="ph-duotone ph-lock-key"></i><h1>{{ ui.adminPanel }}</h1><p>{{ ui.restricted }}</p></section>' +
+      template.slice(headingEnd);
+  template = template.replace(
+    "{{ k.label }}</button>",
+    '<sc-if value="{{ k.isBackspace }}"><i class="ph-duotone ph-backspace"></i></sc-if><sc-if value="{{ !k.isBackspace }}">{{ k.label }}</sc-if></button>',
+  );
+  template = template.replace(
+    'class="en" style="font-weight:800;opacity:.75">{{ statTotal }}',
+    'class="en directory-count" style="font-weight:800;opacity:1">{{ statTotal }}',
+  );
+  const memberStart = template.indexOf('<sc-for list="{{ members }}"');
+  const memberEnd = template.indexOf("</sc-for>", memberStart);
+  let memberPart = template.slice(memberStart, memberEnd);
+  memberPart = memberPart.replace(
+    "<div style=",
+    '<div class="admin-member-row" style=',
+  );
+  memberPart = memberPart.replace(
+    '<button onClick="{{ m.onAdminEdit }}"',
+    '<button class="recovery-issue-button" onClick="{{ m.onRecover }}" data-testid="Issue recovery">{{ ui.issueRecovery }}</button><button onClick="{{ m.onAdminEdit }}"',
+  );
+  template =
+    template.slice(0, memberStart) + memberPart + template.slice(memberEnd);
+  template = template.replace(
+    '<sc-if value="{{ preferencesOpen }}">',
+    `
+    <sc-if value="{{ recoveryOpen }}"><div class="preferences-scrim"><section role="dialog" aria-modal="true" aria-label="{{ ui.help }}" class="preferences-panel recovery-panel" tabindex="-1">
+      <h2>{{ ui.help }}</h2><p>{{ ui.helpBody }}</p>
+      <sc-if value="{{ recoveryEligible }}"><label>{{ ui.recoveryPhone }}<input data-testid="Recovery phone" value="{{ recoveryPhone }}" onInput="{{ setRecoveryPhone }}" inputmode="numeric" autocomplete="tel-national" maxlength="10"></label>
+      <label>{{ ui.recoveryCode }}<input data-testid="Recovery code" value="{{ recoveryCode }}" onInput="{{ setRecoveryCode }}" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="48"></label>
+      <button class="close-preferences" onClick="{{ redeemRecovery }}" disabled="{{ busy }}">{{ ui.recoverAccess }}</button></sc-if>
+      <sc-if value="{{ recoveryError }}"><p role="alert">{{ recoveryError }}</p></sc-if>
+      <button class="close-preferences" onClick="{{ closeRecovery }}">{{ ui.helpAction }}</button>
+    </section></div></sc-if>
+    <sc-if value="{{ showRecoveryIssued }}"><div class="preferences-scrim"><section role="dialog" aria-modal="true" aria-label="{{ ui.recoveryIssued }}" class="preferences-panel recovery-panel" tabindex="-1">
+      <h2>{{ ui.recoveryIssued }}</h2><p>{{ recoveryMember }}</p><p>{{ ui.recoveryWarning }}</p>
+      <output class="recovery-token" data-testid="Issued recovery code">{{ recoveryIssued }}</output>
+      <p>{{ ui.recoveryExpires }}: {{ recoveryExpiry }}</p><sc-if value="{{ recoveryCodeExpired }}"><p role="alert">{{ ui.recoveryExpired }}</p></sc-if><button class="close-preferences" onClick="{{ copyRecovery }}" disabled="{{ recoveryCodeExpired }}">{{ ui.copyCode }}</button>
+      <p role="status">{{ copyStatus }}</p><button class="close-preferences" onClick="{{ closeIssuedRecovery }}">{{ ui.close }}</button>
+    </section></div></sc-if>
+    <sc-if value="{{ preferencesOpen }}">`,
   );
   return template.replace(/<i\b/g, '<i aria-hidden="true"');
 }

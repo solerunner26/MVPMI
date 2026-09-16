@@ -1,5 +1,7 @@
 // Interface copy only. Names and other member-entered content are never machine-translated.
 export const UI_COPY = {
+  adminPanel: ["એડમિન પેનલ", "Admin panel"],
+  restricted: ["ફક્ત અધિકૃત પ્રવેશ", "Restricted access"],
   call: ["ફોન કરો", "Call"],
   whatsapp: ["વોટ્સએપ", "WhatsApp"],
   edit: ["ફેરફાર કરો", "Edit"],
@@ -27,8 +29,31 @@ export const UI_COPY = {
   help: ["સભ્ય સહાય", "Member help"],
   returning: ["પહેલેથી સભ્ય છો?", "Already a member?"],
   helpBody: [
-    "પહેલાં નોંધણી કરેલા ફોન અથવા બ્રાઉઝરમાં આ યાદી ખોલો. નવા ફોન કે ફરી ઇન્સ્ટોલ કર્યા પછી હાલમાં આપમેળે પ્રવેશ પાછો મેળવી શકાતો નથી. તમારી ઓળખ ચકાસાવવા સમાજના જાણીતા સંચાલકનો સંપર્ક કરો. બીજા વ્યક્તિનો નંબર દાખલ ન કરો. આ એપમાં હજી ચકાસેલો સહાય સંપર્ક ગોઠવાયો નથી.",
-    "Open the directory on the phone or browser you used to enroll. Automatic recovery on a new phone or after reinstalling is not available yet. Contact your known community administrator to verify your identity. Do not enter another person's number. A verified support contact has not yet been configured in this app.",
+    "પહેલાં નોંધણી કરેલા ફોન અથવા બ્રાઉઝરમાં યાદી ખોલો. નવા ફોન માટે સમાજના જાણીતા એડમિનને તમારી ઓળખ ચકાસવા કહો. એડમિન ૧૫ મિનિટ માટે માન્ય, એક જ વાર વાપરી શકાય એવો કોડ આપશે. નીચેના ફોર્મમાં તમારો નોંધાયેલ પોતાનો નંબર અને કોડ નાખો. જૂના ફોનનો પ્રવેશ બંધ થશે. એડમિન લોગિન પાછું મળતું નથી. કોડ બીજા કોઈને આપશો નહીં.",
+    "Use your original phone or browser if available. For a new device, ask your known community administrator to verify your identity and issue a one-time code, valid for 15 minutes. Enter your registered personal number and code below. Your old devices will be signed out. This does not recover admin access. Keep the code private.",
+  ],
+  recoverAccess: ["પ્રવેશ પાછો મેળવો", "Recover access"],
+  recoveryCode: ["પ્રવેશ પાછો મેળવવાનો કોડ", "Recovery code"],
+  recoveryPhone: ["નોંધાયેલ પોતાનો ફોન નંબર", "Registered personal number"],
+  issueRecovery: ["પ્રવેશ કોડ આપો", "Issue recovery code"],
+  verifyIdentity: [
+    "મેં ઓળખ ચકાસી છે — કોડ આપો",
+    "I verified identity — issue code",
+  ],
+  recoveryExpires: ["મુદત પૂરી થવાનો સમય", "Expires at"],
+  recoveryExpired: [
+    "કોડની મુદત પૂરી થઈ છે. નવો કોડ આપો.",
+    "This code has expired. Issue a new code.",
+  ],
+  recoveryIssued: ["કોડ એક જ વાર બતાવવામાં આવે છે", "Code shown only once"],
+  recoveryWarning: [
+    "ફક્ત ચકાસેલા સભ્યને ખાનગી રીતે આપો. ૧૫ મિનિટમાં મુદત પૂરી થશે. નવો કોડ આપવાથી જૂનો કોડ રદ થશે. કોડ વાપર્યા પછી જૂના ઉપકરણોનો પ્રવેશ બંધ થશે.",
+    "Share privately with the verified member only. Expires in 15 minutes. Issuing a new code cancels the previous one. Redeeming the code signs out old devices.",
+  ],
+  copyCode: ["કોડ કોપી કરો", "Copy code"],
+  recoverySuccess: [
+    "પ્રવેશ પાછો મળ્યો. જૂના ઉપકરણોનો પ્રવેશ બંધ થયો.",
+    "Access restored. Old devices have been signed out.",
   ],
   helpAction: ["સમજાયું", "Understood"],
   reorder: ["ગામનો ક્રમ બદલો", "Reorder villages"],
@@ -94,6 +119,10 @@ export function errorText(message, lang = "gu") {
   const text = singleLanguageStatus(message, lang);
   if (lang === "en") return text;
   const exact = {
+    "Use a new browser session to recover access":
+      "પ્રવેશ પાછો મેળવવા નવા ફોન કે ખાનગી બ્રાઉઝર વિન્ડોમાં આ ફોર્મ ખોલો.",
+    "Invalid or expired recovery code. Ask your administrator for a new code":
+      "કોડ ખોટો છે અથવા મુદત પૂરી થઈ છે. એડમિન પાસેથી નવો કોડ મેળવો.",
     "Wrong username or password": "યુઝરનેમ અથવા પાસવર્ડ ખોટો છે.",
     "Incorrect access code": "પ્રવેશ કોડ ખોટો છે.",
     "Access code required": "પ્રવેશ કોડ દાખલ કરો.",
