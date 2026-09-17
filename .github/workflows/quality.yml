@@ -26,6 +26,7 @@ jobs:
       - run: npm run test:embedded
       - run: npm run test:accessibility
       - run: npm run test:language
+      - run: npm run test:materials
       - run: npm audit --audit-level=moderate
       - uses: actions/upload-artifact@v4
         if: always()
