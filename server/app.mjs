@@ -6,6 +6,7 @@ import ExcelJS from "exceljs";
 import { randomUUID, randomBytes, randomInt } from "node:crypto";
 import {
   Store,
+  villages,
   hash,
   passwordHash,
   passwordMatches,
@@ -461,32 +462,48 @@ export function createApp({
       "Tehsil",
       "District",
     ];
-    const headers =
-      req.query.lang === "en"
-        ? englishHeaders
-        : [
-            "ગુજરાતી નામ",
-            "નામ",
-            "પોતાનો નંબર",
-            "બીજો નંબર",
-            "પ્રકાર",
-            "ગામ",
-            "તાલુકો",
-            "જિલ્લો",
-          ];
-    sheet.columns = headers.map((header) => ({ header, width: 24 }));
+    const gujaratiHeaders = [
+      "ગુજરાતી નામ",
+      "નામ",
+      "પોતાનો નંબર",
+      "બીજો નંબર",
+      "પ્રકાર",
+      "ગામ",
+      "તાલુકો",
+      "જિલ્લો",
+    ];
+    const pair = (gu, en, separator = " · ") =>
+      gu === en
+        ? gu
+        : req.query.lang === "en"
+          ? en + separator + gu
+          : gu + separator + en;
+    const headers = gujaratiHeaders.map((gu, i) =>
+      pair(gu, englishHeaders[i], "\n"),
+    );
+    sheet.columns = headers.map((header) => ({ header, width: 26 }));
+    const place = (value) => {
+      const match = villages.find((v) => v.gu === value || v.en === value);
+      return match ? pair(match.gu, match.en) : value;
+    };
     for (const m of store.all("members"))
       sheet.addRow([
         m.nameGu,
         m.name,
         m.phone,
         m.phone2,
-        m.label2,
-        m.village,
-        m.tehsil,
-        m.district,
+        m.label2 === "work"
+          ? pair("ધંધાનો", "Work")
+          : m.label2 === "other"
+            ? pair("બીજો", "Other")
+            : m.label2,
+        place(m.village),
+        pair("મહુવા", "Mahuva"),
+        pair("ભાવનગર", "Bhavnagar"),
       ]);
     sheet.getRow(1).font = { bold: true };
+    sheet.getRow(1).alignment = { vertical: "middle", wrapText: true };
+    sheet.getRow(1).height = 40;
     res.attachment("mvpmi-contacts.xlsx");
     res.type(
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

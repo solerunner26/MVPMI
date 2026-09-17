@@ -1,4 +1,4 @@
-import { assertFits } from "./text-size-checks.mjs";
+import { assertFits, setTextSize } from "./text-size-checks.mjs";
 import AxeBuilder from "@axe-core/playwright";
 import { launchBrowser } from "./browser.mjs";
 import { createApp } from "../server/app.mjs";
@@ -20,14 +20,30 @@ try {
       reducedMotion: "reduce",
     }),
     page = await context.newPage();
+  if (process.env.CAPTURE_DESIGN) {
+    mkdirSync("test-results/liquid-glass/screens", { recursive: true });
+    await context.addInitScript(() => {
+      Object.defineProperty(navigator, "hardwareConcurrency", { value: 8 });
+      Object.defineProperty(navigator, "deviceMemory", { value: 8 });
+    });
+  }
   await page.goto("http://127.0.0.1:" + server.address().port);
   await page.getByTestId("Language").waitFor();
   const scan = async (name) => {
     await page.evaluate(() => document.fonts.ready);
     await assertFits(page, name);
+    if (process.env.CAPTURE_DESIGN)
+      await page.screenshot({
+        path: "test-results/liquid-glass/screens/" + name + ".png",
+      });
     const result = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
       .analyze();
+    if (result.incomplete.length)
+      writeFileSync(
+        "test-results/accessibility-unresolved.json",
+        JSON.stringify({ name, incomplete: result.incomplete }, null, 2),
+      );
     assert.equal(
       result.incomplete.length,
       0,
@@ -61,10 +77,10 @@ try {
     .getByRole("dialog")
     .getByRole("button", { name: "ગુજરાતી", exact: true })
     .click();
-  await page.getByRole("button", { name: "બંધ કરો", exact: true }).click();
+  await page.getByRole("button", { name: /બંધ કરો/ }).click();
   await page.getByTestId("Member help").click();
   await scan("member-help-gu");
-  await page.getByRole("button", { name: "સમજાયું", exact: true }).click();
+  await page.getByRole("button", { name: /સમજાયું/ }).click();
   await page.getByTestId("Theme").click();
   await scan("signup-gu-dark");
   await page.getByTestId("Language").click();
@@ -109,11 +125,9 @@ try {
   await page.reload();
   await page.getByRole("button", { name: /All Members/ }).waitFor();
   await scan("directory-tiles");
-  await page
-    .getByRole("button", { name: "Reorder villages", exact: true })
-    .click();
+  await page.getByRole("button", { name: /Reorder villages/ }).click();
   await scan("village-reordering");
-  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await page.getByRole("button", { name: /Done/ }).click();
   await page.getByRole("button", { name: /All Members/ }).click();
   await page.getByTestId("Call").waitFor();
   await scan("directory-list");
@@ -137,7 +151,7 @@ try {
   await page.getByTestId("My profile").click();
   await page.getByRole("button", { name: /Edit my details/ }).waitFor();
   await scan("profile");
-  await page.getByRole("button", { name: "Biggest", exact: true }).click();
+  await setTextSize(page, 165);
   await scan("profile-large-font");
   // Keep Biggest enabled for edit, reset, and all admin screen checks.
   await page.getByRole("button", { name: /Edit my details/ }).click();

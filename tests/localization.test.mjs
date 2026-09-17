@@ -59,7 +59,8 @@ test("printed directory follows language and escapes member content", () => {
   assert.match(gu, /lang="gu"/);
   assert.ok(!en.includes("<img"));
   assert.ok(en.includes("&lt;img"));
-  assert.ok(!en.includes("ગુજરાતી નામ"));
+  assert.ok(en.includes("ગુજરાતી નામ"));
+  assert.ok(gu.includes("&lt;img"));
   assert.ok(gu.includes("ગુજરાતી નામ"));
 });
 test("original design stays intact and refined template removes corrupted copy", async () => {
@@ -118,8 +119,8 @@ test("Excel headers follow the requested language and remain admin-only", async 
     200,
   );
   for (const [lang, heading] of [
-    ["en", "Name (Gujarati)"],
-    ["gu", "ગુજરાતી નામ"],
+    ["en", "Name (Gujarati)\nગુજરાતી નામ"],
+    ["gu", "ગુજરાતી નામ\nName (Gujarati)"],
   ]) {
     const response = await request("admin/export.xlsx?lang=" + lang);
     assert.equal(response.status, 200);

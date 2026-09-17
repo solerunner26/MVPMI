@@ -1,27 +1,22 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { TEXT_SIZES, normalizeTextSize } from "../web/text-size.mjs";
-
-test("text presets have one default and three strictly increasing larger sizes", () => {
-  assert.deepEqual(
-    TEXT_SIZES.map((x) => x.label),
-    ["Default", "Big", "Bigger", "Biggest"],
-  );
-  assert.deepEqual(
-    TEXT_SIZES.map((x) => x.value),
-    [100, 120, 140, 160],
-  );
-  for (const size of TEXT_SIZES)
-    assert.equal(normalizeTextSize(size.value), size.value);
+import {
+  normalizeTextSize,
+  TEXT_SIZE_MIN,
+  TEXT_SIZE_MAX,
+} from "../web/text-size.mjs";
+test("continuous text slider spans 85 through 165, not four presets", () => {
+  assert.equal(TEXT_SIZE_MIN, 85);
+  assert.equal(TEXT_SIZE_MAX, 165);
+  for (let i = 85; i <= 165; i++) assert.equal(normalizeTextSize(i), i);
 });
-test("legacy slider preferences migrate to a supported preset", () => {
-  assert.equal(normalizeTextSize(85), 100);
-  assert.equal(normalizeTextSize(115), 120);
-  assert.equal(normalizeTextSize(135), 140);
-  assert.equal(normalizeTextSize(165), 160);
-  assert.equal(normalizeTextSize("140"), 140);
+test("saved slider values and previous presets are preserved exactly", () => {
+  for (const n of [85, 100, 115, 120, 135, 140, 160, 165])
+    assert.equal(normalizeTextSize(String(n)), n);
+  assert.equal(normalizeTextSize(84), 85);
+  assert.equal(normalizeTextSize(999), 165);
 });
-test("invalid font preferences safely return to Default", () => {
+test("invalid preferences safely return to 100%", () => {
   for (const raw of [undefined, null, "", "bad", Infinity, NaN, -5, {}, []])
     assert.equal(normalizeTextSize(raw), 100);
 });

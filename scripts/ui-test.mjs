@@ -1,5 +1,5 @@
 import { useEnglishForLegacyFlows } from "./test-language.mjs";
-import { checkTextSizes } from "./text-size-checks.mjs";
+import { checkTextSizes, setTextSize } from "./text-size-checks.mjs";
 import { checkContactActions } from "./contact-checks.mjs";
 import { chromium } from "playwright";
 import chrome from "@sparticuz/chromium";
@@ -117,7 +117,7 @@ try {
     await page.getByTestId("Language").click();
   if ((await page.locator(".app").getAttribute("data-theme")) !== "dark")
     await page.getByTestId("Theme").click();
-  await page.getByRole("button", { name: "Bigger", exact: true }).click();
+  await setTextSize(page, 140);
   await page.reload();
   await page.getByRole("button", { name: /All Members/ }).waitFor();
   assert.equal(await page.locator(".app").getAttribute("data-lang"), "en");

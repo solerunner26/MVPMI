@@ -1,19 +1,8 @@
-export const TEXT_SIZES = [
-  { label: "Default", gu: "મૂળ માપ", value: 100 },
-  { label: "Big", gu: "મોટું", value: 120 },
-  { label: "Bigger", gu: "વધુ મોટું", value: 140 },
-  { label: "Biggest", gu: "સૌથી મોટું", value: 160 },
-];
-
-// Migrate saved slider values to the nearest supported preset.
+export const TEXT_SIZE_MIN = 85;
+export const TEXT_SIZE_MAX = 165;
+// Retain exact saved slider/preset values, including 120/140/160 from cp002.
 export function normalizeTextSize(raw) {
   const value = Number(raw);
   if (!Number.isFinite(value) || value <= 0) return 100;
-  return TEXT_SIZES.reduce(
-    (best, option) =>
-      Math.abs(option.value - value) < Math.abs(best - value)
-        ? option.value
-        : best,
-    100,
-  );
+  return Math.max(TEXT_SIZE_MIN, Math.min(TEXT_SIZE_MAX, Math.round(value)));
 }

@@ -1,8 +1,9 @@
+import { checkBilingualSorting } from "./bilingual-sort-checks.mjs";
 import { checkAdminRecovery } from "./recovery-checks.mjs";
 import assert from "node:assert/strict";
 import { launchBrowser } from "./browser.mjs";
 import { createApp } from "../server/app.mjs";
-import { assertFits } from "./text-size-checks.mjs";
+import { assertFits, setTextSize } from "./text-size-checks.mjs";
 
 const { app, store } = createApp({
   dbPath: ":memory:",
@@ -18,26 +19,28 @@ const errors = [];
 async function selectedLanguage(page, lang, name) {
   assert.equal(await page.locator(".app").getAttribute("data-lang"), lang);
   assert.equal(await page.locator("html").getAttribute("lang"), lang);
-  const hiddenClass = lang === "gu" ? "en" : "gu";
-  assert.equal(
-    await page.locator(`.bi > .${hiddenClass}:visible`).count(),
-    0,
-    name + " opposite-language labels",
-  );
+  for (const code of ["gu", "en"])
+    assert(
+      (await page.locator(`.bi > .${code}:visible`).count()) > 0,
+      name + " visible " + code,
+    );
+  const order = await page
+    .locator(".bi")
+    .first()
+    .evaluate((el, lang) => {
+      const primary = el.querySelector("." + lang),
+        secondary = el.querySelector("." + (lang === "gu" ? "en" : "gu"));
+      return [
+        getComputedStyle(primary).order,
+        getComputedStyle(secondary).order,
+      ];
+    }, lang);
+  assert.deepEqual(order, ["0", "1"], name + " language primacy");
   assert.equal(
     (await page.locator("body").innerText()).includes("�"),
     false,
     name + " encoding",
   );
-  if (lang === "en") {
-    const ui = await page.locator("body").innerText();
-    // The destination language is intentionally named in its own script.
-    assert.equal(
-      /[\u0a80-\u0aff]/.test(ui.replaceAll("ગુજરાતી", "")),
-      false,
-      name + " untranslated Gujarati UI",
-    );
-  }
   await assertFits(page, name);
 }
 async function switchTo(page, lang) {
@@ -54,21 +57,21 @@ try {
   await page.getByTestId("Language").waitFor();
   await selectedLanguage(page, "gu", "fresh signup");
   await page.getByTestId("Reading settings").click();
-  await page.getByRole("button", { name: "સૌથી મોટું", exact: true }).click();
-  await page.getByRole("button", { name: "બંધ કરો", exact: true }).click();
+  await setTextSize(page, 165);
+  await page.getByRole("button", { name: /બંધ કરો/ }).click();
   assert.equal(
     await page
       .locator(".app")
       .evaluate((el) => el.style.getPropertyValue("--fs")),
-    "1.60",
+    "1.65",
   );
   await page.getByTestId("Reading settings").click();
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "English", exact: true })
     .click();
-  await page.getByRole("button", { name: "Default", exact: true }).click();
-  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await setTextSize(page, 100);
+  await page.getByRole("button", { name: /Close/ }).click();
   await selectedLanguage(page, "en", "English signup");
   await page.locator("input").nth(2).fill("Thoralaa");
   await selectedLanguage(page, "en", "English village suggestion");
@@ -79,17 +82,15 @@ try {
   await selectedLanguage(page, "en", "persisted language");
   await page.getByTestId("Member help").click();
   await page.getByText(/known community administrator/).waitFor();
-  await page.getByRole("button", { name: "Understood", exact: true }).click();
+  await page.getByRole("button", { name: /Understood/ }).click();
   await switchTo(page, "gu");
   await page.locator("input").nth(0).fill("Test Member");
   await page.locator("input").nth(1).fill("9000000001");
   await page.locator("input").nth(2).fill("Thorala");
-  await page
-    .getByRole("button", { name: "રિક્વેસ્ટ મોકલો", exact: true })
-    .click();
+  await page.getByRole("button", { name: /રિક્વેસ્ટ મોકલો/ }).click();
   await page.getByRole("dialog").waitFor();
   assert.match(await page.getByRole("dialog").innerText(), /આર્કાઇવ/);
-  await page.getByRole("button", { name: "વિનંતી મોકલો", exact: true }).click();
+  await page.getByRole("button", { name: /વિનંતી મોકલો/ }).click();
   await page.getByText("એડમિનની મંજૂરીની રાહમાં", { exact: true }).waitFor();
   await selectedLanguage(page, "gu", "pending Gujarati");
   await switchTo(page, "en");
@@ -110,27 +111,23 @@ try {
     await panel.getByRole("button", { name: digit, exact: true }).click();
   await selectedLanguage(panel, "en", "login English");
   await switchTo(panel, "gu");
-  await panel
-    .getByRole("heading", { name: "એડમિન પેનલ", exact: true })
-    .waitFor();
+  await panel.getByRole("heading", { name: /એડમિન પેનલ/ }).waitFor();
   assert.equal(
-    (await panel.locator("body").innerText()).includes("RESTRICTED ACCESS"),
-    false,
+    (await panel.locator("body").innerText()).includes("Restricted access"),
+    true,
   );
   await switchTo(panel, "en");
   await panel.getByPlaceholder("admin", { exact: true }).fill("admin");
   await panel.locator("input[type=password]").fill("LanguageTest@2026");
-  await panel.getByRole("button", { name: "Sign in", exact: true }).click();
+  await panel.getByRole("button", { name: /Sign in/ }).click();
   await panel.getByText("New requests", { exact: true }).waitFor();
   assert(
     (await panel.locator(".app").boundingBox()).width > 800,
     "Admin expands on desktop",
   );
   await panel.getByText("New requests", { exact: true }).click();
-  await panel.getByRole("button", { name: "Approve", exact: true }).click();
-  await panel
-    .getByRole("button", { name: "Back to dashboard", exact: true })
-    .click();
+  await panel.getByRole("button", { name: /Approve/ }).click();
+  await panel.getByRole("button", { name: /Back to dashboard/ }).click();
   for (const section of [
     "Total members",
     "New requests",
@@ -146,24 +143,20 @@ try {
     await switchTo(panel, "gu");
     await selectedLanguage(panel, "gu", section + " Gujarati");
     await switchTo(panel, "en");
-    await panel
-      .getByRole("button", { name: "Back to dashboard", exact: true })
-      .click();
+    await panel.getByRole("button", { name: /Back to dashboard/ }).click();
   }
   await page.reload();
   await page.getByTestId("My profile").waitFor();
   await selectedLanguage(page, "en", "directory English");
   const before = await page.locator(".village-tile").allTextContents();
-  await page
-    .getByRole("button", { name: "Reorder villages", exact: true })
-    .click();
+  await page.getByRole("button", { name: /Reorder villages/ }).click();
   await page
     .getByRole("button", { name: /Move later/ })
     .first()
     .click();
   const after = await page.locator(".village-tile").allTextContents();
   assert.equal(after[1], before[0]);
-  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await page.getByRole("button", { name: /Done/ }).click();
   await page.reload();
   await page.getByTestId("My profile").waitFor();
   assert.equal(
@@ -179,17 +172,11 @@ try {
   );
   await page.getByTestId("My profile").click();
   await selectedLanguage(page, "en", "profile English");
-  await page
-    .getByRole("button", { name: "Edit my details", exact: true })
-    .click();
+  await page.getByRole("button", { name: /Edit my details/ }).click();
   await page.locator("input").nth(0).fill("Changed Test Member");
   await page.locator("input").nth(2).fill("8000000002");
-  await page
-    .getByRole("button", { name: "Send for approval", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Edit my details", exact: true })
-    .waitFor();
+  await page.getByRole("button", { name: /Send for approval/ }).click();
+  await page.getByRole("button", { name: /Edit my details/ }).waitFor();
   await panel.reload();
   await panel.getByText("Update requests", { exact: true }).click();
   await selectedLanguage(panel, "en", "populated update comparison");
@@ -200,12 +187,10 @@ try {
   await switchTo(panel, "gu");
   await selectedLanguage(panel, "gu", "Gujarati update comparison");
   await switchTo(panel, "en");
-  await panel.getByRole("button", { name: "Reject", exact: true }).click();
-  await panel
-    .getByRole("button", { name: "Reject request", exact: true })
-    .click();
+  await panel.getByRole("button", { name: /Reject/ }).click();
+  await panel.getByRole("button", { name: /Reject request/ }).click();
   await panel.getByRole("dialog").waitFor({ state: "detached" });
-  await page.getByRole("button", { name: "Biggest", exact: true }).click();
+  await setTextSize(page, 165);
   for (const width of [320, 360, 412]) {
     await page.setViewportSize({ width, height: 800 });
     const number = page.getByText("90000 00001", { exact: true });
@@ -219,9 +204,10 @@ try {
   await selectedLanguage(page, "gu", "profile Gujarati");
   await page.screenshot({ path: "test-results/gujarati-profile.png" });
   await checkAdminRecovery(browser, panel, page, url);
+  await checkBilingualSorting(browser, store, url);
   assert.deepEqual(errors, []);
   console.log(
-    "PASS: Gujarati default, single-language screens, early reading settings, persistence, consent, pending guidance, both-language admin sections, desktop width, keyboard-accessible reordering, two-letter search and unbroken large phone numbers.",
+    "PASS: Gujarati default, visible paired languages and primacy, early reading settings, persistence, consent, pending guidance, both-language admin sections, desktop width, keyboard-accessible reordering, two-letter search and unbroken large phone numbers.",
   );
 } finally {
   await browser.close();

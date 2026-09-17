@@ -4,13 +4,17 @@ Development implementation of the supplied Gujarati/English community-directory 
 
 **Status: tested browser development build + a compiled, debug-signed Android test APK. Not ready for real community data or production distribution.** The original HTML and dossier are preserved unchanged. The app is generated from their markup, styles, icons and sun components; the designer's external screen-jump controls and sample data are not exposed by the running application.
 
-## Latest release audit
+## Liquid Glass review build — 17 September 2026
 
-**Not ready for publication.** See [the release audit](docs/RELEASE_AUDIT.md) for production blockers and [changes after cp001](docs/CP001_IMPROVEMENTS.md) for the latest interface/testing evidence. The latest local checks pass 75 Node tests, browser/contact/approval flows, three embedded-session modes, the Gujarati/English recovery journey and 29 automated accessibility states (zero reported violations and zero incomplete checks). Android debug compilation/lint/unit/signature checks also passed in [the design revision CI build](https://github.com/solerunner26/MVPMI/actions/runs/35059091639); real-device and Play validation remain outstanding.
+The original app now has a restrained material layer, Gujarati-first **visible bilingual pairs**, a continuous **85–165% slider**, and explicit reduced-effects fallbacks. Existing navigation and server-backed workflows remain. See the [upgrade comparison, evidence and remaining risks](docs/LIQUID_GLASS_UPGRADE.md).
 
-## Changes after cp001
+**Exact pre-upgrade source checkpoint:** `Pre-LiquidGlass-Upgrade` at `3179e92`. cp001/cp002 and the original design assets remain unchanged. “UNDO” targets that pre-upgrade tree, not a replacement theme.
 
-Gujarati is the default UI language; switching shows only the chosen language. Reading settings are available before enrollment, and language/theme/help controls use a reserved toolbar. The revision also adds accessible village reordering, short-name search, full-width phone values, clearer approval/confirmation copy and a wider desktop admin view. User-entered names are not automatically translated. Administrator-assisted member recovery is now available; see [the recovery guide](docs/ADMIN_ASSISTED_RECOVERY.md). SMS phone-ownership verification and production release requirements remain separate. The source checkpoint `cp001` is unchanged.
+Validation includes 80 Node tests, browser/contact/recovery/embedded flows, 29 app accessibility states and 20 material states. Real-device Android, TalkBack, performance and visual acceptance remain outstanding. This is not native refractive glass or a production release. See the [release audit](docs/RELEASE_AUDIT.md) for the separate publishing blockers.
+
+## Historical changes after cp001 (superseded presentation)
+
+The following describes the earlier checkpoint, not the current bilingual/slider design. Gujarati is the default UI language; switching shows only the chosen language. Reading settings are available before enrollment, and language/theme/help controls use a reserved toolbar. The revision also adds accessible village reordering, short-name search, full-width phone values, clearer approval/confirmation copy and a wider desktop admin view. User-entered names are not automatically translated. Administrator-assisted member recovery is now available; see [the recovery guide](docs/ADMIN_ASSISTED_RECOVERY.md). SMS phone-ownership verification and production release requirements remain separate. The source checkpoint `cp001` is unchanged.
 
 The development preview now uses an expiring, tab-scoped session transport so cookie-blocking browsers can sign in. It still requires the gate and admin password; the transport is disabled outside development. If all browser storage is blocked, it persists only until the page reloads.
 
@@ -98,6 +102,5 @@ gradle assembleDebug -PcommunityUrl=https://your-development-host.example
 7. **Remaining design features.** Villages are fixed in code, mobile long-press tile reordering is unimplemented, and backup is directory-data recovery rather than a full authentication/security-system restore. PDF and file sharing still depend on browser support.
 
 See `docs/IMPLEMENTATION.md` for the architecture and next steps. Do not remove the development guard until these decisions and security work are complete.
-
 
 Android `assembleRelease` and `bundleRelease` are intentionally blocked until the P0 items in the audit are resolved. `.github/workflows/quality.yml` prepares debug compilation/Lint/Kotlin tests on a runner with the Android toolchain; adding this workflow does not mean those checks have passed.

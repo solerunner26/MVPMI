@@ -19,6 +19,29 @@ export async function assertFits(page, label) {
           height: [el.clientHeight, el.scrollHeight],
         });
     }
+    for (const region of document.querySelectorAll(".app .noscroll")) {
+      const first = [...region.children].find(
+        (el) => el.getClientRects().length,
+      );
+      if (
+        first &&
+        first.getBoundingClientRect().top <
+          region.getBoundingClientRect().top - region.scrollTop - 2
+      )
+        bad.push({ unreachableTop: first.textContent.trim().slice(0, 70) });
+    }
+    for (const button of document.querySelectorAll(
+      '.app button:not(:disabled), .app a[role="button"]',
+    )) {
+      if (!button.getClientRects().length) continue;
+      const rect = button.getBoundingClientRect();
+      if (rect.width < 47.5 || rect.height < 47.5)
+        bad.push({
+          smallTarget: button.textContent.trim(),
+          width: rect.width,
+          height: rect.height,
+        });
+    }
     if (document.body.scrollWidth > innerWidth + 1)
       bad.push({ pageOverflow: true });
     return bad;
@@ -26,40 +49,22 @@ export async function assertFits(page, label) {
   assert.deepEqual(overflow, [], label);
 }
 
+export async function setTextSize(page, percent) {
+  await page.locator('input[type="range"]').last().fill(String(percent));
+}
 export async function checkTextSizes(context, url) {
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto(url);
   await page.getByTestId("My profile").click();
-  const choices = [
-    ["Default", 100],
-    ["Big", 120],
-    ["Bigger", 140],
-    ["Biggest", 160],
-  ];
   for (const width of [320, 360, 412]) {
     await page.setViewportSize({ width, height: 800 });
     for (const lang of ["gu", "en"]) {
       if ((await page.locator(".app").getAttribute("data-lang")) !== lang)
         await page.getByTestId("Language").click();
-      for (const [name, percent] of choices) {
-        const translated = {
-          Default: "મૂળ માપ",
-          Big: "મોટું",
-          Bigger: "વધુ મોટું",
-          Biggest: "સૌથી મોટું",
-        };
-        const button = page.getByRole("button", {
-          name: lang === "gu" ? translated[name] : name,
-          exact: true,
-        });
-        await button.click();
-        assert.equal(await button.getAttribute("aria-pressed"), "true");
-        assert.equal(
-          await page.locator('.text-size-option[aria-pressed="true"]').count(),
-          1,
-        );
+      for (const percent of [85, 100, 125, 165]) {
+        await setTextSize(page, percent);
         assert.equal(
           await page
             .locator(".app")
@@ -72,49 +77,38 @@ export async function checkTextSizes(context, url) {
           ),
           percent,
         );
-        await assertFits(page, `profile ${width} ${lang} ${name}`);
-        if (width === 360 && lang === "en" && name === "Biggest") {
-          await button.scrollIntoViewIfNeeded();
-          await page.screenshot({ path: "test-results/text-size-biggest.png" });
-        }
+        await assertFits(page, `profile ${width} ${lang} ${percent}`);
         await page
-          .getByRole("button", {
-            name: /યાદીમાં પાછા જાઓ|Back to directory/,
-            exact: true,
-          })
+          .getByRole("button", { name: /Back to directory|યાદીમાં પાછા જાઓ/ })
           .click();
-        await assertFits(page, `directory tiles ${width} ${lang} ${name}`);
-        await page
-          .getByRole("button", { name: /બધા સભ્યો|All Members/ })
-          .click();
+        await assertFits(page, `tiles ${width} ${lang} ${percent}`);
+        await page.getByRole("button", { name: /All Members/ }).click();
         await page.getByTestId("Call").waitFor();
-        await assertFits(page, `directory list ${width} ${lang} ${name}`);
+        await assertFits(page, `members ${width} ${lang} ${percent}`);
         await page.getByTestId("My profile").click();
       }
     }
   }
   await page.reload();
   await page.getByTestId("My profile").click();
-  assert.equal(
-    await page
-      .getByRole("button", { name: "Biggest", exact: true })
-      .getAttribute("aria-pressed"),
-    "true",
-  );
+  const range = page.locator('input[type="range"]');
+  assert.equal(await range.inputValue(), "165");
+  await range.focus();
+  await page.keyboard.press("Home");
+  assert.equal(await range.inputValue(), "85");
+  await page.keyboard.press("ArrowRight");
+  assert.equal(await range.inputValue(), "86");
+  await page.keyboard.press("End");
+  assert.equal(await range.inputValue(), "165");
   await page.getByTestId("Theme").click();
-  await assertFits(page, "Biggest alternate theme");
-  await page.getByRole("button", { name: "Default", exact: true }).click();
+  await assertFits(page, "165 alternate theme");
+  await page.getByRole("button", { name: /Reset to 100%/ }).click();
   await page.reload();
   await page.getByTestId("My profile").click();
-  assert.equal(
-    await page
-      .getByRole("button", { name: "Default", exact: true })
-      .getAttribute("aria-pressed"),
-    "true",
-  );
+  assert.equal(await page.locator('input[type="range"]').inputValue(), "100");
   assert.deepEqual(errors, []);
   await page.close();
   console.log(
-    "PASS: four text presets; 320/360/412px, Gujarati/English profile and directory control overflow; selection, persistence and Default reset.",
+    "PASS: 85–165% slider; 320/360/412px × both languages × 4 sizes; profile, tiles, member list, keyboard, persistence and reset.",
   );
 }

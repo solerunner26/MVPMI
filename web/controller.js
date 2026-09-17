@@ -4,6 +4,14 @@ class Component extends DesignComponent {
     return this.P(gu, en);
   }
   O(value) {
+    if (
+      /^\d{4}-\d{2}-\d{2}T/.test(String(value)) &&
+      Number.isFinite(Date.parse(value))
+    )
+      return new Date(value).toLocaleString(
+        this.state.lang === "gu" ? "gu-IN" : "en-IN",
+        { dateStyle: "medium", timeStyle: "short" },
+      );
     return singleLanguageStatus(value, this.state.lang);
   }
   printPdf(members) {
@@ -27,9 +35,16 @@ class Component extends DesignComponent {
     frame.srcdoc = printDocument(
       members.map((m) => ({
         ...m,
-        village: this.V(m.village),
-        tehsil: this.T(m.tehsil),
-        district: this.D(m.district),
+        villageGu:
+          VILLAGE_LIST.find((v) => v.gu === m.village || v.en === m.village)
+            ?.gu || m.village,
+        villageEn:
+          VILLAGE_LIST.find((v) => v.gu === m.village || v.en === m.village)
+            ?.en || m.village,
+        tehsilGu: TEHSIL_GU,
+        tehsilEn: TEHSIL_EN,
+        districtGu: DISTRICT_GU,
+        districtEn: DISTRICT_EN,
       })),
       this.state.lang,
     );
@@ -42,6 +57,7 @@ class Component extends DesignComponent {
         lang: p.lang === "en" ? "en" : "gu",
         theme: p.theme === "dark" ? "dark" : "light",
         fsPct: normalizeTextSize(p.fsPct),
+        effects: p.effects !== false,
         tileOrder:
           Array.isArray(p.tileOrder) &&
           p.tileOrder.length === 7 &&
@@ -51,6 +67,17 @@ class Component extends DesignComponent {
             : null,
       });
     } catch {}
+    this._materialQueries = [
+      "(prefers-reduced-transparency: reduce)",
+      "(forced-colors: active)",
+      "(prefers-reduced-motion: reduce)",
+    ].map((q) => matchMedia(q));
+    this._materialChanged = () => this.forceUpdate();
+    for (const q of this._materialQueries) {
+      if (q.addEventListener)
+        q.addEventListener("change", this._materialChanged);
+      else q.addListener(this._materialChanged);
+    }
     this._onKey = (e) => {
       const dialog = document.querySelector('.app [role="dialog"]');
       if (!dialog) return;
@@ -96,6 +123,11 @@ class Component extends DesignComponent {
     }, 8000);
   }
   componentWillUnmount() {
+    for (const q of this._materialQueries || []) {
+      if (q.removeEventListener)
+        q.removeEventListener("change", this._materialChanged);
+      else q.removeListener(this._materialChanged);
+    }
     document.removeEventListener("keydown", this._onKey);
     delete window.mvpmiBack;
     this._alive = false;
@@ -206,6 +238,7 @@ class Component extends DesignComponent {
         lang: this.state.lang,
         theme: this.state.theme,
         fsPct: this.state.fsPct,
+        effects: this.state.effects !== false,
         tileOrder: this.state.tileOrder,
       });
       if (preferences !== this._lastPreferences) {
@@ -300,10 +333,17 @@ class Component extends DesignComponent {
   apply(data, initial = false, screen) {
     if (!this._alive) return;
     const current = this.state;
-    const patch = { ...data, connected: true, loaded: true };
+    const patch = {
+      ...data,
+      connected: true,
+      loaded: true,
+      lastConfirmed: Date.now(),
+    };
     if (data.role !== "admin") {
       patch.recoveryIssued = null;
       patch.recoveryMember = null;
+      patch.recoveryMemberGu = null;
+      patch.recoveryMemberEn = null;
     }
     if (
       data.myRequest &&
@@ -342,6 +382,8 @@ class Component extends DesignComponent {
           this.setState({
             recoveryIssued: null,
             recoveryMember: null,
+            recoveryMemberGu: null,
+            recoveryMemberEn: null,
             ...clone(SEED),
             meId: null,
             myRequest: null,
@@ -460,13 +502,14 @@ class Component extends DesignComponent {
       });
     input.click();
   }
-  renderVals() {
+  renderVals(primaryOnly = false) {
     const v = super.renderVals(),
       s = this.state;
     v.loaded = !!s.loaded;
-    v.busy = !!s.busy || !s.loaded;
+    v.busy = !!s.busy || (!s.loaded && s.connected !== false);
     v.connectionError = s.connected === false;
-    if (!s.loaded) v.isSignup = false;
+    if (!s.loaded || (s.connected === false && !s.lastConfirmed))
+      v.isSignup = false;
     v.retry = () => this.refresh(true);
     v.development = !!s.development;
     v.passwordDue = !!s.passwordDue;
@@ -777,6 +820,8 @@ class Component extends DesignComponent {
                     ? "ph-duotone ph-phone-call"
                     : "ph-duotone ph-whatsapp-logo",
                 name: s.lang === "gu" ? m.nameGu : m.name,
+                nameGu: m.nameGu,
+                nameEn: m.name,
                 phone: links.number,
                 href: links[kind],
                 target: links.target,
@@ -826,22 +871,48 @@ class Component extends DesignComponent {
       ][i],
     }));
     v.restoreData = () => this.restore();
-    v.textSizes = TEXT_SIZES.map((option) => ({
-      ...option,
-      active: s.fsPct === option.value,
-      accessibleLabel: this.P(option.gu, option.label),
-      onClick: () => {
-        this.setState({ fsPct: option.value });
-        requestAnimationFrame(() =>
-          document
-            .querySelector(".text-size-options")
-            ?.scrollIntoView({ block: "nearest", inline: "nearest" }),
-        );
-      },
-    }));
+    v.setFs = (e) => this.set("fsPct", normalizeTextSize(e.target.value));
+    v.resetFs = () => this.set("fsPct", 100);
+    v.effectsEnabled = s.effects !== false;
+    v.toggleEffects = () => this.set("effects", !v.effectsEnabled);
+    v.material = materialCapability({
+      enabled: v.effectsEnabled,
+      reduceTransparency: matchMedia("(prefers-reduced-transparency: reduce)")
+        .matches,
+      forcedColors: matchMedia("(forced-colors: active)").matches,
+      saveData: navigator.connection?.saveData,
+      memory: navigator.deviceMemory,
+      cores: navigator.hardwareConcurrency,
+      blur:
+        CSS.supports("backdrop-filter", "blur(1px)") ||
+        CSS.supports("-webkit-backdrop-filter", "blur(1px)"),
+    });
+    v.motion =
+      v.effectsEnabled &&
+      v.material !== "opaque" &&
+      !matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "on"
+        : "off";
+    v.largeText = s.fsPct >= 135 ? "large" : "normal";
     v.ui = Object.fromEntries(
       Object.keys(UI_COPY).map((key) => [key, uiText(key, s.lang)]),
     );
+    if (v.connectionError)
+      v.ui.connection = uiText(
+        !navigator.onLine
+          ? "offline"
+          : s.lastConfirmed
+            ? "stale"
+            : "unavailable",
+        s.lang,
+      );
+    v.lastConfirmed =
+      s.connected === false && s.lastConfirmed
+        ? new Date(s.lastConfirmed).toLocaleString(
+            s.lang === "gu" ? "gu-IN" : "en-IN",
+          )
+        : "";
+    v.lastBackup = this.O(s.lastBackup);
     v.screenName = s.screen;
     v.aes = false;
     v.aesAttr = "off";
@@ -940,6 +1011,8 @@ class Component extends DesignComponent {
                 recoveryIssued: result.code,
                 recoveryExpiresAt: result.expiresAt,
                 recoveryMember: this.P(row.nameGu, row.name),
+                recoveryMemberGu: row.nameGu,
+                recoveryMemberEn: row.name,
                 copyStatus: "",
               });
             }),
@@ -952,7 +1025,12 @@ class Component extends DesignComponent {
     v.showRecoveryIssued = s.role === "admin" && !!s.recoveryIssued;
     v.recoveryIssued =
       (s.recoveryIssued || "").match(/.{1,4}/g)?.join(" ") || "";
-    v.recoveryMember = s.recoveryMember || "";
+    v.recoveryMember = s.recoveryMember
+      ? this.P(
+          s.recoveryMemberGu || s.recoveryMember,
+          s.recoveryMemberEn || s.recoveryMember,
+        )
+      : "";
     v.recoveryCodeExpired =
       !!s.recoveryExpiresAt && Date.now() >= s.recoveryExpiresAt;
     v.recoveryExpiry = s.recoveryExpiresAt
@@ -977,6 +1055,8 @@ class Component extends DesignComponent {
       this.setState({
         recoveryIssued: null,
         recoveryMember: null,
+        recoveryMemberGu: null,
+        recoveryMemberEn: null,
         copyStatus: "",
       });
     v.reordering = !!s.reordering;
@@ -1047,11 +1127,26 @@ class Component extends DesignComponent {
         district: this.D(v.edit.district),
       };
     v.shortQuery = !!s.query.trim() && !canSearch(s.query);
+    const location = s.screen === "editprofile" ? v.edit : v.form;
+    const villageHint = VILLAGE_LIST.find(
+      (x) =>
+        x.gu === location?.village ||
+        x.en.toLowerCase() === String(location?.village || "").toLowerCase(),
+    );
+    v.locationHints = {
+      village: villageHint ? this.P(villageHint.gu, villageHint.en) : "",
+      tehsil: this.P(TEHSIL_GU, TEHSIL_EN),
+      district: this.P(DISTRICT_GU, DISTRICT_EN),
+    };
     v.ph = {
       ...v.ph,
       tehsil: this.T(TEHSIL_GU),
       district: this.D(DISTRICT_GU),
     };
-    return v;
+    if (primaryOnly) return v;
+    // Read-only language facade: no state mutation, requests or alternate handlers.
+    const alternate = Object.create(this);
+    alternate.state = { ...s, lang: s.lang === "gu" ? "en" : "gu" };
+    return bilingualView(v, alternate.renderVals(true), s.lang);
   }
 }

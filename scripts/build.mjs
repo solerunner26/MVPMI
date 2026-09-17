@@ -1,3 +1,4 @@
+import { liquidGlass } from "./liquid-glass.mjs";
 import { refineDesign } from "./refine-design.mjs";
 import {
   readFileSync as read,
@@ -81,32 +82,7 @@ template = template.replace(
   "{{ dial.phone }}</div>",
   '<sc-if value="{{ dial.href }}"><a href="{{ dial.href }}" target="{{ dial.target }}" rel="noopener noreferrer" style="color:inherit">{{ dial.phone }}</a></sc-if><sc-if value="{{ !dial.href }}">{{ dial.phone }}</sc-if></div>',
 );
-// Replace only the slider inside the supplied Text size tile.
-const sizeStart = template.lastIndexOf(
-  '<div style="display:flex;align-items:center;gap:10px">',
-  template.indexOf('class="rng"'),
-);
-const sizeEnd = template.indexOf("</div>", sizeStart) + 6;
-if (sizeStart < 0 || sizeEnd < 6) throw new Error("Text size tile not found");
-template =
-  template.slice(0, sizeStart) +
-  `<div class="text-size-options" role="group" aria-label="અક્ષરનું માપ · Text size">
-  <sc-for list="{{ textSizes }}" as="size">
-    <button class="text-size-option" aria-label="{{ size.label }}" aria-pressed="{{ size.active }}" onClick="{{ size.onClick }}">
-      <span class="bi"><span class="gu">{{ size.gu }}</span><span class="en">{{ size.label }}</span></span>
-    </button>
-  </sc-for>
-</div>` +
-  template.slice(sizeEnd);
-template = template
-  .replace(
-    "બોલ સરકાવો — આખી એપના અક્ષર તરત મોટા-નાના થશે.",
-    "માપ પસંદ કરો — આખી એપમાં લાગુ થશે. મૂળ માપ માટે Default દબાવો.",
-  )
-  .replace(
-    "Drag the ball — the whole app resizes live.",
-    "Choose a size for the whole app. Press Default to reset.",
-  );
+// Restore Best1's continuous 85–165% slider; input and keyboard share one handler.
 // Preserve square icons/avatars when neighbouring labels need more room.
 template = template.replace(
   /<(div|button)\b([^>]*style="[^"]*")[^>]*>/g,
@@ -218,7 +194,7 @@ template =
   template.slice(0, insertAt) +
   `<sc-if value="{{ connectionError }}"><button onClick="{{ retry }}" role="alert" style="z-index:40;position:absolute;top:8px;left:8px;right:8px;padding:12px;border-radius:16px;background:var(--sheet);color:var(--dan);border:1px solid var(--dan);font:inherit">કનેક્શન તપાસો · Connection lost — tap to retry</button></sc-if><sc-if value="{{ busy }}"><div role="status" style="position:absolute;inset:0;z-index:50;background:var(--scrim);display:flex;align-items:center;justify-content:center;color:white">રાહ જુઓ · Please wait…</div></sc-if>` +
   template.slice(insertAt);
-template = refineDesign(template);
+template = liquidGlass(refineDesign(template));
 let logic = source.match(
   /<script type="text\/x-dc"[^>]*>([\s\S]*?)<\/script>/,
 )[1];
@@ -265,11 +241,13 @@ logic += "\n" + read("web/text-size.mjs", "utf8").replaceAll("export ", "");
 logic += "\n" + read("web/ui-copy.mjs", "utf8").replaceAll("export ", "");
 logic +=
   "\n" + read("web/print-document.mjs", "utf8").replaceAll("export ", "");
+for (const file of ["bilingual.mjs", "material-capability.mjs"])
+  logic += "\n" + read("web/" + file, "utf8").replaceAll("export ", "");
 logic += "\n" + read("web/controller.js", "utf8");
 const extra = `<style>html,body{height:100%}body{background:#17100E}.app{margin:0 auto;width:100%;max-width:412px}.screen-frame{height:100vh;height:100dvh;min-height:480px;overflow:hidden;position:relative;background:var(--page)}@media(min-width:600px){.app{padding:24px 0}.screen-frame{height:892px;max-height:calc(100dvh - 48px);border-radius:18px;box-shadow:0 30px 80px #0004}}a[role="button"]:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--ind);outline-offset:3px}@media(prefers-reduced-motion:reduce){.app *{animation:none!important;scroll-behavior:auto!important}}.app button{touch-action:manipulation}.noscroll>div,.noscroll>button{flex-shrink:0}</style>`;
 write(
   "dist/index.html",
-  `<!doctype html><html lang="gu"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#B2402C"><title>MVPMl · Community Directory</title><script src="/vendor/react.js"></script><script src="/vendor/react-dom.js"></script><script src="/support.js"></script></head><body><x-dc><helmet><link rel="stylesheet" href="/vendor/icons/style.css">${["manrope", "noto-sans-gujarati"].flatMap((f) => [400, 500, 600, 700, 800].map((w) => `<link rel="stylesheet" href="/vendor/${f}/${w}.css">`)).join("")}${helmet}${extra}<style>${read("web/text-size.css", "utf8")}\n${read("web/usability.css", "utf8")}</style></helmet>${template}</x-dc><script type="text/x-dc" data-dc-script>${logic}</script></body></html>`,
+  `<!doctype html><html lang="gu"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#B2402C"><title>MVPMl · Community Directory</title><script src="/vendor/react.js"></script><script src="/vendor/react-dom.js"></script><script src="/support.js"></script></head><body><x-dc><helmet><link rel="stylesheet" href="/vendor/icons/style.css">${["manrope", "noto-sans-gujarati"].flatMap((f) => [400, 500, 600, 700, 800].map((w) => `<link rel="stylesheet" href="/vendor/${f}/${w}.css">`)).join("")}${helmet}${extra}<style>${read("web/text-size.css", "utf8")}\n${read("web/usability.css", "utf8")}\n${read("web/liquid-glass.css", "utf8")}</style></helmet>${template}</x-dc><script type="text/x-dc" data-dc-script>${logic}</script></body></html>`,
 );
 cpSync("support.js", "dist/support.js");
 for (const file of ["SunMark.dc.html", "SunWait.dc.html"])

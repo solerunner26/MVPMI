@@ -1,5 +1,30 @@
 // Interface copy only. Names and other member-entered content are never machine-translated.
 export const UI_COPY = {
+  offline: [
+    "ઇન્ટરનેટ નથી. જોડાણ તપાસો અને ફરી પ્રયાસ કરવા દબાવો.",
+    "You’re offline. Check your connection and tap to retry.",
+  ],
+  stale: [
+    "જોડાણ તૂટ્યું. દેખાતી માહિતી જૂની હોઈ શકે છે. ફેરફાર માટે જોડાણ જરૂરી છે. ફરી પ્રયાસ કરો.",
+    "Connection lost. Displayed information may be out of date. Changes need a connection. Tap to retry.",
+  ],
+  unavailable: [
+    "સર્વર સાથે જોડાઈ શકાયું નથી. ફરી પ્રયાસ કરવા દબાવો.",
+    "The server is unavailable. Tap to retry.",
+  ],
+  lastConfirmed: ["છેલ્લે જોડાણ થયું", "Last connected"],
+
+  effects: ["દૃશ્ય અસરો", "Visual effects"],
+  effectsHelp: [
+    "બંધ કરવાથી સરળ, ઘન સપાટીઓ મળે છે. કોઈ કાર્ય બદલાતું નથી.",
+    "Turn off for simple, solid surfaces. All functions remain available.",
+  ],
+  resetSize: ["મૂળ માપ", "Reset to 100%"],
+  sliderHelp: [
+    "સરકાવો અથવા તીર કી વાપરો — આખી એપ તરત બદલાશે.",
+    "Drag or use arrow keys — the whole app resizes immediately.",
+  ],
+
   adminPanel: ["એડમિન પેનલ", "Admin panel"],
   restricted: ["ફક્ત અધિકૃત પ્રવેશ", "Restricted access"],
   call: ["ફોન કરો", "Call"],
