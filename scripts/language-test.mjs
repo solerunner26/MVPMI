@@ -1,3 +1,4 @@
+import { openMemberHelp } from "./preferences-checks.mjs";
 import { checkBilingualSorting } from "./bilingual-sort-checks.mjs";
 import { checkAdminRecovery } from "./recovery-checks.mjs";
 import assert from "node:assert/strict";
@@ -80,7 +81,7 @@ try {
   await page.reload();
   await page.getByTestId("Language").waitFor();
   await selectedLanguage(page, "en", "persisted language");
-  await page.getByTestId("Member help").click();
+  await openMemberHelp(page);
   await page.getByText(/known community administrator/).waitFor();
   await page.getByRole("button", { name: /Understood/ }).click();
   await switchTo(page, "gu");

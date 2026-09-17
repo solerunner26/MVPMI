@@ -1,7 +1,14 @@
+import { openMemberHelp } from "./preferences-checks.mjs";
 import assert from "node:assert/strict";
 import AxeBuilder from "@axe-core/playwright";
 
 export async function checkAdminRecovery(browser, panel, oldPage, url) {
+  // Hold the old device offline so polling cannot clear the revoked token
+  // before reload. This exercises the formerly timing-dependent first 401.
+  await oldPage.route("**/api/state", (route) => route.abort());
+  const oldToken = await oldPage.evaluate(
+    () => JSON.parse(sessionStorage.getItem("mvpmi-preview-session")).token,
+  );
   await panel.getByRole("button", { name: /Back to dashboard/ }).click();
   await panel.getByText("Members", { exact: true }).click();
   for (const mode of ["cookies", "no-cookies"]) {
@@ -45,8 +52,8 @@ export async function checkAdminRecovery(browser, panel, oldPage, url) {
       errors = [];
     page.on("pageerror", (e) => errors.push(e.message));
     await page.goto(url);
-    await page.getByTestId("Member help").waitFor();
-    await page.getByTestId("Member help").click();
+    await page.getByTestId("Reading settings").waitFor();
+    await openMemberHelp(page);
     assert.equal(
       (
         await new AxeBuilder({ page })
@@ -80,8 +87,26 @@ export async function checkAdminRecovery(browser, panel, oldPage, url) {
     assert.deepEqual(errors, []);
     await context.close();
   }
+  await oldPage.unroute("**/api/state");
+  const revoked = oldPage.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/state") && response.status() === 401,
+  );
   await oldPage.reload();
+  await revoked;
   await oldPage.getByRole("button", { name: /રિક્વેસ્ટ મોકલો/ }).waitFor();
+  const fresh = await oldPage.evaluate(async () => {
+    const session = JSON.parse(sessionStorage.getItem("mvpmi-preview-session"));
+    const state = await (
+      await fetch("/api/state", {
+        headers: { "X-MVPMI-Session": session.token },
+      })
+    ).json();
+    return { token: session.token, role: state.role, members: state.members };
+  });
+  assert.notEqual(fresh.token, oldToken);
+  assert.equal(fresh.role, "guest");
+  assert.deepEqual(fresh.members, []);
   console.log(
     "PASS: admin-assisted recovery UI, code clearing, invalid-code feedback, cookie/no-cookie login + reload, old-device revocation; recovery dialogs have zero reported axe violations.",
   );

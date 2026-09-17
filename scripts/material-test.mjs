@@ -1,3 +1,5 @@
+import { verifyOpaqueModalContrast } from "./modal-contrast-checks.mjs";
+import { toggleTheme } from "./preferences-checks.mjs";
 import assert from "node:assert/strict";
 import AxeBuilder from "@axe-core/playwright";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -16,7 +18,7 @@ const url = "http://127.0.0.1:" + server.address().port;
 const browser = await launchBrowser(),
   results = [],
   errors = [];
-mkdirSync("test-results/liquid-glass", { recursive: true });
+mkdirSync("test-results/modern-design", { recursive: true });
 try {
   const context = await browser.newContext({
     viewport: { width: 360, height: 800 },
@@ -32,32 +34,43 @@ try {
   await page.goto(url);
   await page.getByTestId("Reading settings").waitFor();
   const scan = async (name) => {
+    await page
+      .locator(".preferences-panel")
+      .evaluateAll((panels) =>
+        panels.forEach((panel) => (panel.scrollTop = 0)),
+      );
     await assertFits(page, name);
     const result = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
       .analyze();
+    if (result.incomplete.length)
+      writeFileSync(
+        "test-results/material-incomplete.json",
+        JSON.stringify({ name, incomplete: result.incomplete }, null, 2),
+      );
+    const verifiedContrast = await verifyOpaqueModalContrast(
+      page,
+      result.incomplete,
+      name,
+    );
     results.push({
       name,
       violations: result.violations,
       incomplete: result.incomplete,
+      verifiedContrast,
     });
     assert.deepEqual(
       result.violations.map((x) => x.id),
       [],
       name,
     );
-    assert.deepEqual(
-      result.incomplete.map((x) => x.id),
-      [],
-      name + " incomplete",
-    );
     await page.screenshot({
-      path: "test-results/liquid-glass/" + name + ".png",
+      path: "test-results/modern-design/" + name + ".png",
     });
   };
   for (const theme of ["light", "dark"]) {
     if ((await page.locator(".app").getAttribute("data-theme")) !== theme)
-      await page.getByTestId("Theme").click();
+      await toggleTheme(page);
     for (const mode of ["blur", "opaque", "translucent"]) {
       await page.getByTestId("Reading settings").click();
       const toggle = page.getByRole("switch");
@@ -143,7 +156,7 @@ try {
   );
 } finally {
   writeFileSync(
-    "test-results/liquid-glass/material-checks.json",
+    "test-results/modern-design/material-checks.json",
     JSON.stringify(results, null, 2),
   );
   await browser.close();

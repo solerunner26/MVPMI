@@ -1,5 +1,18 @@
 // Interface copy only. Names and other member-entered content are never machine-translated.
 export const UI_COPY = {
+  exploreVillages: ["ગામ પસંદ કરો", "Explore villages"],
+  dismissSettings: ["પાછા જાઓ", "Dismiss settings"],
+  connected: ["આપણો સમાજ", "Our community"],
+  welcome: ["સમાજમાં તમારું સ્વાગત છે", "A place for our people"],
+  joinTitle: ["જોડાઈએ, આપણા લોકો સાથે.", "Your people. A little closer."],
+  directoryTitle: ["આપણા લોકો", "Your community"],
+  communityPlace: ["મહુવા · ભાવનગર", "Mahuva · Bhavnagar"],
+  directoryView: ["યાદીનો દેખાવ", "Directory view"],
+  villages: ["ગામો", "Villages"],
+  allMembers: ["બધા સભ્યો", "All Members"],
+  lightTheme: ["આછો", "Light"],
+  darkTheme: ["ઘેરો", "Dark"],
+
   offline: [
     "ઇન્ટરનેટ નથી. જોડાણ તપાસો અને ફરી પ્રયાસ કરવા દબાવો.",
     "You’re offline. Check your connection and tap to retry.",
@@ -16,13 +29,13 @@ export const UI_COPY = {
 
   effects: ["દૃશ્ય અસરો", "Visual effects"],
   effectsHelp: [
-    "બંધ કરવાથી સરળ, ઘન સપાટીઓ મળે છે. કોઈ કાર્ય બદલાતું નથી.",
-    "Turn off for simple, solid surfaces. All functions remain available.",
+    "બંધ કરવાથી સાદો દેખાવ મળે છે.",
+    "Switch off for a simpler appearance.",
   ],
   resetSize: ["મૂળ માપ", "Reset to 100%"],
   sliderHelp: [
-    "સરકાવો અથવા તીર કી વાપરો — આખી એપ તરત બદલાશે.",
-    "Drag or use arrow keys — the whole app resizes immediately.",
+    "સરકાવો અથવા તીર કી વાપરો.",
+    "Drag or use arrow keys. Applies across the app.",
   ],
 
   adminPanel: ["એડમિન પેનલ", "Admin panel"],
@@ -47,7 +60,7 @@ export const UI_COPY = {
   removeSecond: ["બીજો નંબર કાઢો", "Remove second number"],
   clearSearch: ["શોધ સાફ કરો", "Clear search"],
   minPassword: ["ઓછામાં ઓછા ૧૦ અક્ષર", "At least 10 characters"],
-  preferences: ["ભાષા અને વાંચન", "Language & reading"],
+  preferences: ["તમારી પસંદગી", "Make it yours"],
   close: ["બંધ કરો", "Close"],
   light: ["આછો દેખાવ", "Light"],
   dark: ["ઘેરો દેખાવ", "Dark"],

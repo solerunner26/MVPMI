@@ -1,9 +1,14 @@
+import { captureModernVariants } from "./capture-modern.mjs";
+import { verifyOpaqueModalContrast } from "./modal-contrast-checks.mjs";
+import { openMemberHelp } from "./preferences-checks.mjs";
+import { toggleTheme } from "./preferences-checks.mjs";
 import { assertFits, setTextSize } from "./text-size-checks.mjs";
 import AxeBuilder from "@axe-core/playwright";
 import { launchBrowser } from "./browser.mjs";
 import { createApp } from "../server/app.mjs";
 import { mkdirSync, writeFileSync } from "node:fs";
 import assert from "node:assert/strict";
+mkdirSync("test-results", { recursive: true });
 const { app, store } = createApp({
   dbPath: ":memory:",
   adminPassword: "Accessible@2026",
@@ -21,7 +26,7 @@ try {
     }),
     page = await context.newPage();
   if (process.env.CAPTURE_DESIGN) {
-    mkdirSync("test-results/liquid-glass/screens", { recursive: true });
+    mkdirSync("test-results/modern-design/screens", { recursive: true });
     await context.addInitScript(() => {
       Object.defineProperty(navigator, "hardwareConcurrency", { value: 8 });
       Object.defineProperty(navigator, "deviceMemory", { value: 8 });
@@ -34,26 +39,23 @@ try {
     await assertFits(page, name);
     if (process.env.CAPTURE_DESIGN)
       await page.screenshot({
-        path: "test-results/liquid-glass/screens/" + name + ".png",
+        path: "test-results/modern-design/screens/" + name + ".png",
       });
     const result = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
       .analyze();
-    if (result.incomplete.length)
-      writeFileSync(
-        "test-results/accessibility-unresolved.json",
-        JSON.stringify({ name, incomplete: result.incomplete }, null, 2),
-      );
-    assert.equal(
-      result.incomplete.length,
-      0,
-      name + ": unresolved accessibility checks",
+    const verifiedContrast = await verifyOpaqueModalContrast(
+      page,
+      result.incomplete,
+      name,
     );
     results.push({
       screen: name,
       violations: result.violations,
       incomplete: result.incomplete,
+      verifiedContrast,
     });
+    await captureModernVariants(page, name);
     console.log(
       name,
       JSON.stringify(
@@ -78,14 +80,14 @@ try {
     .getByRole("button", { name: "ગુજરાતી", exact: true })
     .click();
   await page.getByRole("button", { name: /બંધ કરો/ }).click();
-  await page.getByTestId("Member help").click();
+  await openMemberHelp(page);
   await scan("member-help-gu");
   await page.getByRole("button", { name: /સમજાયું/ }).click();
-  await page.getByTestId("Theme").click();
+  await toggleTheme(page);
   await scan("signup-gu-dark");
   await page.getByTestId("Language").click();
   await scan("signup-en-dark");
-  await page.getByTestId("Theme").click();
+  await toggleTheme(page);
   await scan("signup-en-light");
   await page.locator("input").nth(0).fill("Synthetic Member");
   await page.locator("input").nth(1).fill("9000000001");
@@ -202,7 +204,7 @@ try {
   );
   const count = results.reduce((n, r) => n + r.violations.length, 0);
   console.log(
-    `${results.length} screens scanned; ${count} rule violations. 0 incomplete automated checks. Real-device/manual review is still required.`,
+    `${results.length} screens scanned; ${count} rule violations. ${results.reduce((n, r) => n + r.verifiedContrast.length, 0)} modal text checks independently verified (raw axe uncertainty retained). Real-device/manual review is still required.`,
   );
   if (count) process.exitCode = 1;
 } finally {

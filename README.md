@@ -4,13 +4,21 @@ Development implementation of the supplied Gujarati/English community-directory 
 
 **Status: tested browser development build + a compiled, debug-signed Android test APK. Not ready for real community data or production distribution.** The original HTML and dossier are preserved unchanged. The app is generated from their markup, styles, icons and sun components; the designer's external screen-jump controls and sample data are not exposed by the running application.
 
-## Liquid Glass review build — 17 September 2026
+## Modern redesign review — 17 September 2026
 
-The original app now has a restrained material layer, Gujarati-first **visible bilingual pairs**, a continuous **85–165% slider**, and explicit reduced-effects fallbacks. Existing navigation and server-backed workflows remain. See the [upgrade comparison, evidence and remaining risks](docs/LIQUID_GLASS_UPGRADE.md).
+The whole-app redesign is implemented: **no permanent bottom settings bar**; a compact global header and preferences sheet; connected language/theme segments; a search-led directory with illustrated village tiles; labelled Call/WhatsApp actions; and coordinated forms, profile, dialogs and eight-card admin dashboard. Gujarati-first visible bilingual content and the 85–165% slider remain.
+
+See the [before/after review, screenshots, test evidence and limits](docs/MODERN_REDESIGN.md). `npm run check` passes **87 Node tests** and all browser/contact/embedded/recovery/language/material suites. App accessibility has zero reported violations; four modal contrast uncertainties receive independent checks with raw axe results retained (details in the report). Physical-device and visual acceptance are not claimed.
+
+**Pre-edit checkpoint:** `Pre-Modern-Redesign` → `6812495`. Earlier checkpoints and original assets are unchanged. Open preferences using the sliders control at the top right; language also has a direct header control.
+
+## Previous Liquid Glass review (superseded presentation)
+
+The previous review added a restrained material layer, Gujarati-first **visible bilingual pairs**, a continuous **85–165% slider**, and explicit reduced-effects fallbacks. Existing navigation and server-backed workflows remain. See the [upgrade comparison, evidence and remaining risks](docs/LIQUID_GLASS_UPGRADE.md).
 
 **Exact pre-upgrade source checkpoint:** `Pre-LiquidGlass-Upgrade` at `3179e92`. cp001/cp002 and the original design assets remain unchanged. “UNDO” targets that pre-upgrade tree, not a replacement theme.
 
-Validation includes 80 Node tests, browser/contact/recovery/embedded flows, 29 app accessibility states and 20 material states. Real-device Android, TalkBack, performance and visual acceptance remain outstanding. This is not native refractive glass or a production release. See the [release audit](docs/RELEASE_AUDIT.md) for the separate publishing blockers.
+That checkpoint’s validation included 80 Node tests, browser/contact/recovery/embedded flows, 29 app accessibility states and 20 material states. Real-device Android, TalkBack, performance and visual acceptance remain outstanding. This is not native refractive glass or a production release. See the [release audit](docs/RELEASE_AUDIT.md) for the separate publishing blockers.
 
 ## Historical changes after cp001 (superseded presentation)
 

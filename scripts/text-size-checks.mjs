@@ -1,13 +1,23 @@
+import { toggleTheme } from "./preferences-checks.mjs";
 import assert from "node:assert/strict";
 
 export async function assertFits(page, label) {
   await page.evaluate(() => document.fonts.ready);
   const overflow = await page.evaluate(() => {
     const bad = [];
+    // Descriptions linked through aria-describedby are intentionally clipped,
+    // never actionable content or a workaround for a small interactive target.
+    if (document.querySelector(".sr-only button,.sr-only input,.sr-only a"))
+      bad.push({ hiddenInteractiveControl: true });
     for (const el of document.querySelectorAll(
       '.app button, .app [role="button"], .app .bi',
     )) {
-      if (!el.getClientRects().length || !el.clientWidth || !el.clientHeight)
+      if (
+        el.closest(".sr-only") ||
+        !el.getClientRects().length ||
+        !el.clientWidth ||
+        !el.clientHeight
+      )
         continue;
       if (
         el.scrollWidth > el.clientWidth + 2 ||
@@ -100,7 +110,7 @@ export async function checkTextSizes(context, url) {
   assert.equal(await range.inputValue(), "86");
   await page.keyboard.press("End");
   assert.equal(await range.inputValue(), "165");
-  await page.getByTestId("Theme").click();
+  await toggleTheme(page);
   await assertFits(page, "165 alternate theme");
   await page.getByRole("button", { name: /Reset to 100%/ }).click();
   await page.reload();

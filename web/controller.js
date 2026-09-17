@@ -290,7 +290,7 @@ class Component extends DesignComponent {
     });
     return this._transportPromise;
   }
-  async request(path, body) {
+  async request(path, body, reconnect = true) {
     await this.ensureTransport();
     const headers = { "X-MVPMI-Client": "1" };
     if (this._transport) headers["X-MVPMI-Session"] = this._transport;
@@ -305,9 +305,20 @@ class Component extends DesignComponent {
     if (response.status === 401 && this._transport) {
       const error = await response.clone().json();
       if (/Preview session expired/.test(error.error)) {
-        try {
-          sessionStorage.removeItem("mvpmi-preview-session");
-        } catch {}
+        // A recovery on another device revokes this transport. Invalidate the
+        // in-memory promise as well as storage; otherwise every retry reuses it.
+        if (this._transport === headers["X-MVPMI-Session"]) {
+          this._transport = null;
+          this._transportPromise = null;
+          try {
+            sessionStorage.removeItem("mvpmi-preview-session");
+          } catch {}
+          this.clearAccess();
+        }
+        // Only a read may reconnect once. Never replay a mutation, and never
+        // retry a blocked-device 403 or restore a revoked member/admin role.
+        if (reconnect && path === "state" && body === undefined)
+          return this.request(path, undefined, false);
       }
     }
     return response;
@@ -373,28 +384,35 @@ class Component extends DesignComponent {
     }
     this.setState(patch);
   }
+  clearAccess() {
+    if (!this._alive) return;
+    this.setState({
+      recoveryIssued: null,
+      recoveryMember: null,
+      recoveryMemberGu: null,
+      recoveryMemberEn: null,
+      ...clone(SEED),
+      meId: null,
+      myRequest: null,
+      role: "guest",
+      screen: "signup",
+      confirm: null,
+      dial: null,
+      edit: null,
+      preferencesOpen: false,
+      recoveryOpen: false,
+      lastConfirmed: null,
+      connected: false,
+      loaded: true,
+    });
+  }
   async refresh(initial = false) {
     try {
       this.apply(await this.api("state"), initial);
     } catch (e) {
       if (this._alive) {
         if (e.status === 403 || e.status === 401) {
-          this.setState({
-            recoveryIssued: null,
-            recoveryMember: null,
-            recoveryMemberGu: null,
-            recoveryMemberEn: null,
-            ...clone(SEED),
-            meId: null,
-            myRequest: null,
-            role: "guest",
-            screen: "signup",
-            confirm: null,
-            dial: null,
-            edit: null,
-            connected: false,
-            loaded: true,
-          });
+          this.clearAccess();
           this.flash(errorText(e.message, "gu"), errorText(e.message, "en"));
         } else this.setState({ connected: false, loaded: true });
       }
@@ -921,6 +939,14 @@ class Component extends DesignComponent {
       s.theme === "dark" ? "આછો દેખાવ" : "ઘેરો દેખાવ",
       s.theme === "dark" ? "Light" : "Dark",
     );
+    v.villagesSelected = !v.hasQuery && s.dirMode !== "all";
+    v.directoryHeading =
+      v.hasQuery || !v.inVillageView || s.dirMode === "all"
+        ? uiText("directoryTitle", s.lang)
+        : this.V(s.dirMode);
+    v.allMembersSelected = s.dirMode === "all" && !s.query;
+    v.chooseLight = () => this.set("theme", "light");
+    v.chooseDark = () => this.set("theme", "dark");
     v.preferencesOpen = !!s.preferencesOpen;
     v.openPreferences = () => this.set("preferencesOpen", true);
     v.closePreferences = () => this.set("preferencesOpen", false);
@@ -941,6 +967,7 @@ class Component extends DesignComponent {
     );
     v.memberHelp = () =>
       this.setState({
+        preferencesOpen: false,
         recoveryOpen: true,
         recoveryPhone: "",
         recoveryCode: "",
@@ -1062,6 +1089,7 @@ class Component extends DesignComponent {
     v.reordering = !!s.reordering;
     v.reorderStatus = s.reorderStatus ? uiText("savedOrder", s.lang) : "";
     v.reorderLabel = uiText(s.reordering ? "done" : "reorder", s.lang);
+    v.reorderActionLabel = v.reorderLabel;
     v.toggleReorder = () =>
       this.setState({ reordering: !s.reordering, reorderStatus: false });
     v.resetOrder = () =>

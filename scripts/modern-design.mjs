@@ -1,0 +1,227 @@
+// Structural redesign layered over the functional renderer, not a new app.
+function find(html, needle, from = 0) {
+  const index = html.indexOf(needle, from);
+  if (index < 0) throw new Error("Modern design contract missing: " + needle);
+  return index;
+}
+function before(html, needle, from) {
+  const index = html.lastIndexOf(needle, from);
+  if (index < 0)
+    throw new Error("Modern design preceding contract missing: " + needle);
+  return index;
+}
+function endOfElement(html, start, tag = "div") {
+  const re = new RegExp("</?" + tag + "\\b[^>]*>", "g");
+  re.lastIndex = start;
+  let depth = 0,
+    match;
+  while ((match = re.exec(html))) {
+    depth += match[0].startsWith("</") ? -1 : 1;
+    if (!depth) return re.lastIndex;
+  }
+  throw new Error("Unbalanced redesign element: " + tag);
+}
+function replaceElement(html, start, replacement, tag = "div") {
+  if (start < 0) throw new Error("Missing redesign element");
+  return (
+    html.slice(0, start) +
+    replacement +
+    html.slice(endOfElement(html, start, tag))
+  );
+}
+export function modernDesign(html) {
+  // Remove the rejected permanent bottom utility bar completely.
+  const utility = find(html, '<nav class="utility-bar"');
+  html = replaceElement(html, utility, "", "nav");
+  // The global header replaces the signup/pending headers and directory brand row.
+  for (const screen of ["isSignup", "isPending"]) {
+    const section = find(html, '<sc-if value="{{ ' + screen + ' }}"');
+    const header = find(html, '<div class="app-header"', section);
+    html = replaceElement(html, header, "");
+  }
+  let directory = find(html, '<sc-if value="{{ isDirectory }}">');
+  let logo = find(html, 'onClick="{{ secretTap }}"', directory);
+  const brandRow = before(html, "<div ", logo);
+  html = replaceElement(
+    html,
+    brandRow,
+    `<div class="directory-heading"><div><p class="eyebrow">{{ copy.communityPlace }}</p><h1>{{ directoryHeading }}</h1></div><button class="profile-trigger" onClick="{{ goMyProfile }}" data-testid="My profile" title="{{ ui.profile }}" aria-label="{{ ui.profile }}"><i aria-hidden="true" class="ph-duotone ph-user-circle"></i></button></div>`,
+  );
+  // Make the directory tooling a coherent search + filter region.
+  directory = find(html, '<sc-if value="{{ isDirectory }}">');
+  const toolsStart = find(
+    html,
+    '<div style="padding:14px 16px 10px;',
+    directory,
+  );
+  html =
+    html.slice(0, toolsStart) +
+    html.slice(toolsStart).replace("<div ", '<div class="directory-tools" ');
+  const search = find(html, 'onInput="{{ setQuery }}"', directory);
+  const searchBox = before(html, "<div ", search);
+  html =
+    html.slice(0, searchBox) +
+    html.slice(searchBox).replace("<div ", '<div class="directory-search" ');
+  // Replace the old all-members button with a real two-state navigation segment.
+  const all = find(html, 'onClick="{{ showAllMembers }}"');
+  const allButtonStart = before(html, "<button", all);
+  const previousIf = before(
+    html,
+    '<sc-if value="{{ inVillageView }}">',
+    allButtonStart,
+  );
+  const segmentStart = before(html, "<div ", previousIf);
+  html = replaceElement(
+    html,
+    segmentStart,
+    `<div class="directory-segments" role="group" aria-label="{{ ui.directoryView }}"><button onClick="{{ backToTiles }}" aria-pressed="{{ villagesSelected }}"><i aria-hidden="true" class="ph-duotone ph-house-line"></i>{{ copy.villages }}</button><button onClick="{{ showAllMembers }}" aria-pressed="{{ allMembersSelected }}"><i aria-hidden="true" class="ph-duotone ph-users-three"></i>{{ copy.allMembers }}<span class="segment-count">{{ statTotal }}</span></button></div>`,
+  );
+  // The summary row has only count and place; the place already leads the page.
+  const count = find(html, "{{ countLabel }}", directory);
+  const countDiv = before(html, "<div ", count);
+  const summary = before(html, "<div ", countDiv - 1);
+  html = replaceElement(
+    html,
+    summary,
+    '<div class="directory-summary">{{ countLabel }}</div>',
+  );
+  const reorder = find(html, '<div class="reorder-toolbar"');
+  const toolbar = html
+    .slice(reorder, endOfElement(html, reorder))
+    .replace(
+      '<button onClick="{{ toggleReorder }}" data-glass="2">{{ reorderLabel }}</button>',
+      '<button class="reorder-trigger" onClick="{{ toggleReorder }}" aria-pressed="{{ reordering }}" aria-label="{{ reorderActionLabel }}" title="{{ reorderActionLabel }}"><i aria-hidden="true" class="ph-duotone ph-arrows-down-up"></i><sc-if value="{{ reordering }}">{{ copy.done }}</sc-if></button>',
+    );
+  const intro = before(html, '<div class="bi"', reorder);
+  const introEnd = endOfElement(html, reorder);
+  html =
+    html.slice(0, intro) +
+    `<div class="collection-heading"><h2>{{ copy.exploreVillages }}</h2>${toolbar}</div>` +
+    html.slice(introEnd);
+  // Replace plain village rectangles with illustrated community collection tiles.
+  const tile = find(html, '<button class="village-tile"');
+  html = replaceElement(
+    html,
+    tile,
+    `<button class="village-tile collection-tile" onClick="{{ v.onClick }}" disabled="{{ reordering }}">
+    <div class="village-art" aria-hidden="true"><dc-import name="SunMark" hint-size="48px,48px" style="width:48px;height:48px"></dc-import><svg viewBox="0 0 180 94" fill="none"><path d="M0 84Q40 60 90 77T180 68V94H0Z" fill="currentColor" opacity=".12"/><path d="M22 45L49 24L76 45V83H22Z" fill="currentColor" opacity=".28"/><path d="M84 34L119 9L154 34V83H84Z" fill="currentColor" opacity=".18"/><path d="M14 47L49 19L84 47M76 36L119 3L162 36" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M39 83V59H59V83M108 83V50H128V83" fill="currentColor" opacity=".6"/><path d="M13 84H168" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></div>
+    <div class="village-info"><div class="village-name">{{ v.primary }}</div><div class="village-meta"><span class="village-count">{{ v.count }} <span class="bi"><span class="gu" lang="gu">સભ્યો</span><span class="en" lang="en">{{ v.unitEn }}</span></span></span><i aria-hidden="true" class="ph-duotone ph-arrow-up-right"></i></div></div>
+  </button>`,
+    "button",
+  );
+  // Member rows become editorial identity cards with labelled contact actions.
+  const members = find(html, '<sc-for list="{{ sec.items }}"');
+  const card = find(html, '<div style="background:var(--g)', members);
+  html =
+    html.slice(0, card) +
+    html.slice(card).replace("<div ", '<div class="member-card" ');
+  for (const [action, key] of [
+    ["onCall", "call"],
+    ["onWhats", "whatsapp"],
+  ]) {
+    const at = find(html, 'onClick="{{ n.' + action + ' }}"');
+    const start = before(html, "<a ", at),
+      end = find(html, "</a>", at);
+    let link = html.slice(start, end);
+    link =
+      link.replace("<a ", `<a class="contact-action contact-${key}" `) +
+      `<span>{{ copy.${key} }}</span>`;
+    html = html.slice(0, start) + link + html.slice(end);
+  }
+  html = html.replace(
+    '<div class="bi" style="font-weight:700;font-size:var(--f-md)"><span class="gu" lang="gu">{{ m.nameGu }}</span><span class="en" lang="en">{{ m.name }}</span></div>',
+    '<div class="member-name">{{ m.primaryName }}</div>',
+  );
+  // Classify the remaining screens for a unified design system, without changing handlers.
+  html = html.replace(
+    /<div([^>]*style="[^"]*border-bottom:1px solid var\(--gbd\)[^"]*"[^>]*)>/g,
+    (tag, attrs) =>
+      tag.includes("class=")
+        ? tag
+        : '<div class="context-header"' + attrs + ">",
+  );
+  html = html.replace(
+    '<div style="flex:1;display:flex;flex-direction:column;min-height:0;align-items:center;justify-content:center;padding:24px;',
+    '<div class="access-gate" style="flex:1;display:flex;flex-direction:column;min-height:0;align-items:center;justify-content:center;padding:24px;',
+  );
+  html = html.replace(
+    '<div style="display:grid;grid-template-columns:repeat(3,72px);',
+    '<div class="access-keypad" style="display:grid;grid-template-columns:repeat(3,72px);',
+  );
+  // Add a strong editorial introduction to enrollment, rather than another panel.
+  const signup = find(html, '<sc-if value="{{ isSignup }}"');
+  const title = find(
+    html,
+    '<div class="bi" style="padding:2px 4px 6px;',
+    signup,
+  );
+  html = replaceElement(
+    html,
+    title,
+    `<div class="entry-intro"><p class="eyebrow">{{ copy.welcome }}</p><h1>{{ copy.joinTitle }}</h1></div>`,
+  );
+  // Preferences use native segmented buttons, not four permanently-visible tools.
+  const prefs = find(html, '<sc-if value="{{ preferencesOpen }}">');
+  const panel = find(html, '<section role="dialog"', prefs);
+  const panelEnd = endOfElement(html, panel, "section");
+  let content = html.slice(panel, panelEnd);
+  content = content.replace(
+    "<h2>{{ copy.preferences }}</h2>",
+    '<header class="sheet-heading"><div><p class="eyebrow">MVPMl</p><h2>{{ copy.preferences }}</h2></div><button class="sheet-close" aria-label="{{ ui.dismissSettings }}" onClick="{{ closePreferences }}"><i aria-hidden="true" class="ph-duotone ph-x"></i></button></header><h3 class="settings-label">{{ copy.language }}</h3>',
+  );
+  content = content
+    .replace(
+      '<p class="reading-hint">',
+      '<p id="preferences-size-help" class="reading-hint sr-only">',
+    )
+    .replace(
+      'aria-valuetext="{{ fsLabel }}"',
+      'aria-valuetext="{{ fsLabel }}" aria-describedby="preferences-size-help"',
+    )
+    .replace(
+      "<p>{{ copy.effectsHelp }}</p>",
+      '<p id="preferences-effects-help" class="sr-only">{{ copy.effectsHelp }}</p>',
+    )
+    .replace(
+      'role="switch"',
+      'role="switch" aria-describedby="preferences-effects-help"',
+    );
+  const languageEnd =
+    find(content, "</div>", find(content, 'class="language-options"')) + 6;
+  content =
+    content.slice(0, languageEnd) +
+    `<h3 class="settings-label">{{ copy.theme }}</h3><div class="theme-options" role="group" aria-label="{{ ui.theme }}"><button onClick="{{ chooseLight }}" aria-pressed="{{ !isDark }}" data-testid="Light theme"><i aria-hidden="true" class="ph-duotone ph-sun"></i>{{ copy.lightTheme }}</button><button onClick="{{ chooseDark }}" aria-pressed="{{ isDark }}" data-testid="Dark theme"><i aria-hidden="true" class="ph-duotone ph-moon"></i>{{ copy.darkTheme }}</button></div>` +
+    content.slice(languageEnd);
+  content = content.replace(
+    '<button class="close-preferences"',
+    '<button class="settings-help" onClick="{{ memberHelp }}" data-testid="Member help"><i aria-hidden="true" class="ph-duotone ph-question"></i>{{ copy.help }}<i aria-hidden="true" class="ph-duotone ph-arrow-up-right"></i></button><button class="close-preferences"',
+  );
+  html = html.slice(0, panel) + content + html.slice(panelEnd);
+  const frame = find(html, '<div style="height:100%;');
+  const frameStart = find(html, ">", frame) + 1;
+  html =
+    html.slice(0, frameStart) +
+    `<header class="main-header"><div class="brand-lockup"><button class="brand-sun" title="MVPMl" onClick="{{ secretTap }}"><dc-import name="SunMark" hint-size="36px,36px" style="width:36px;height:36px"></dc-import></button><span class="wordmark">MVPMl<span class="brand-caption">{{ copy.connected }}</span></span></div><div class="header-actions"><button class="language-trigger" onClick="{{ toggleLang }}" data-testid="Language" aria-label="{{ ui.language }}" title="{{ ui.language }}"><i aria-hidden="true" class="ph-duotone ph-translate"></i></button><button class="preferences-trigger" onClick="{{ openPreferences }}" data-testid="Reading settings" title="{{ ui.preferences }}" aria-label="{{ ui.preferences }}"><i aria-hidden="true" class="ph-duotone ph-sliders-horizontal"></i></button></div></header>` +
+    html.slice(frameStart);
+  html = html.replace(
+    '<div class="bi" style="font-weight:700;font-size:var(--f-lg)"><span class="gu" lang="gu">{{ me.nameGu }}</span><span class="en" lang="en">{{ me.name }}</span></div>',
+    '<div class="profile-name">{{ profileName }}</div>',
+  );
+  const repeatedRestriction = before(
+    html,
+    "<div",
+    find(html, "Authorised admins only"),
+  );
+  html = replaceElement(html, repeatedRestriction, "");
+  const dialStart = find(
+    html,
+    "<div ",
+    find(html, '<sc-if value="{{ dial }}">'),
+  );
+  html = replaceElement(
+    html,
+    dialStart,
+    `<div class="preferences-scrim"><section class="preferences-panel contact-sheet" role="dialog" aria-modal="true" aria-label="{{ ui.contact }}" tabindex="-1"><div class="contact-sheet-heading"><span class="contact-sheet-icon"><i aria-hidden="true" class="{{ dial.icon }}"></i></span><div><h2>{{ dial.name }}</h2><sc-if value="{{ dial.href }}"><a onClick="{{ closeDial }}" href="{{ dial.href }}" target="{{ dial.target }}" rel="noopener noreferrer">{{ dial.phone }}</a></sc-if><sc-if value="{{ !dial.href }}"><span>{{ dial.phone }}</span></sc-if></div></div><div class="contact-explanation">{{ contactCopy }}</div><button class="close-preferences" onClick="{{ closeDial }}"><span class="bi"><span class="gu" lang="gu">બરાબર</span><span class="en" lang="en">OK</span></span></button></section></div>`,
+  );
+  return html;
+}

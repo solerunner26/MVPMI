@@ -1,3 +1,8 @@
+import {
+  checkModernPreferences,
+  checkModernDirectory,
+} from "./modern-design-checks.mjs";
+import { toggleTheme } from "./preferences-checks.mjs";
 import { useEnglishForLegacyFlows } from "./test-language.mjs";
 import { checkTextSizes, setTextSize } from "./text-size-checks.mjs";
 import { checkContactActions } from "./contact-checks.mjs";
@@ -52,6 +57,7 @@ try {
   });
   await page.goto(url);
   await page.getByRole("button", { name: /Send request/ }).waitFor();
+  await checkModernPreferences(page);
   await page.locator("input").nth(0).fill("Test Community Member");
   await page.locator("input").nth(1).fill("9000000001");
   await page.locator("input").nth(2).fill("Thorala");
@@ -88,6 +94,7 @@ try {
   await page.getByRole("button", { name: /All Members/ }).click();
   await page.getByTestId("Call").waitFor();
   await page.screenshot({ path: "test-results/directory.png" });
+  await checkModernDirectory(page);
   await checkContactActions(browser, context, url);
   await checkTextSizes(context, url);
   await page.getByPlaceholder("Search name or number").fill("900");
@@ -116,7 +123,7 @@ try {
   if ((await page.locator(".app").getAttribute("data-lang")) !== "en")
     await page.getByTestId("Language").click();
   if ((await page.locator(".app").getAttribute("data-theme")) !== "dark")
-    await page.getByTestId("Theme").click();
+    await toggleTheme(page);
   await setTextSize(page, 140);
   await page.reload();
   await page.getByRole("button", { name: /All Members/ }).waitFor();
@@ -155,7 +162,7 @@ try {
   }
   assert.deepEqual(errors, []);
   console.log(
-    "PASS: rendered original design, submitted request, retained pending after reload, hidden admin login, approved in separate session, directory search, no browser errors or horizontal overflow.",
+    "PASS: rendered modern design, submitted request, retained pending after reload, hidden admin login, approved in separate session, directory search, no browser errors or horizontal overflow.",
   );
 } finally {
   await browser.close();

@@ -36,7 +36,7 @@ export async function checkBilingualSorting(browser, store, url) {
   await page.getByRole("button", { name: /All Members/ }).waitFor();
   await page.locator(".village-tile svg").first().waitFor();
   assert.equal(await page.locator(".village-tile").count(), 7);
-  assert.equal(await page.locator(".village-tile svg").count(), 7);
+  assert.equal(await page.locator(".village-tile svg defs").count(), 7);
   await page.screenshot({
     path: "test-results/liquid-glass/directory-gu-light.png",
   });

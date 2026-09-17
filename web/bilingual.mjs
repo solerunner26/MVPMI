@@ -17,6 +17,7 @@ export function bilingual(gu, en, lang = "gu") {
 }
 const labels = new Set([
   "adminTitle",
+  "directoryHeading",
   "placeLabel",
   "countLabel",
   "footerStats",
@@ -115,6 +116,7 @@ export function bilingualView(primary, alternate, lang) {
       const other = alternateMembers.get(member.id);
       return {
         ...member,
+        primaryName: bilingual(member.nameGu, member.name, lang),
         place: pair(member.place, other?.place || member.place),
       };
     }),
@@ -142,6 +144,10 @@ export function bilingualView(primary, alternate, lang) {
         lang,
       ),
     };
+  out.profileName = bilingual(primary.me.nameGu, primary.me.name, lang);
+  out.contactCopy = primary.dial
+    ? bilingual(primary.dial.gu, primary.dial.en, lang)
+    : "";
   out.languageSwitch = bilingual("ગુજરાતી", "English", lang);
   return out;
 }
