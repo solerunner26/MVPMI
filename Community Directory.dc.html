@@ -1170,7 +1170,8 @@ class Component extends DCLogic {
   }
 
   printPdf(members) {
-    const rows = members.map((m, i) => '<tr><td>' + (i + 1) + '</td><td><b>' + m.nameGu + '</b><div class="lat">' + m.name + '</div></td><td>' + this.fmt(m.phone) + (m.phone2 ? '<div class="lat">' + this.fmt(m.phone2) + ' (work)</div>' : '') + '</td><td>' + m.village + '</td><td>' + m.tehsil + '</td><td>' + m.district + '</td></tr>').join('');
+    const ordered = [...members].sort(memberNameOrder(this.state.lang));
+    const rows = ordered.map((m, i) => '<tr><td>' + (i + 1) + '</td><td><b>' + m.nameGu + '</b><div class="lat">' + m.name + '</div></td><td>' + this.fmt(m.phone) + (m.phone2 ? '<div class="lat">' + this.fmt(m.phone2) + ' (work)</div>' : '') + '</td><td>' + m.village + '</td><td>' + m.tehsil + '</td><td>' + m.district + '</td></tr>').join('');
     const html = '<!doctype html><html><head><meta charset="utf-8"><title>સમાજ સંપર્ક યાદી</title>' +
       '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Gujarati:wght@400;700&display=swap">' +
       '<style>@page{size:A4;margin:14mm}body{font-family:"Noto Sans Gujarati",sans-serif;color:#241413;margin:0}h1{font-size:20pt;margin:0 0 2mm}p.sub{margin:0 0 8mm;color:#6B4F48;font-size:9pt}table{width:100%;border-collapse:collapse;font-size:10pt}th{text-align:left;background:#F7EEE3;padding:3mm 2mm;font-size:9pt;text-transform:uppercase;letter-spacing:.08em}td{padding:3mm 2mm;border-bottom:1px solid #EADFD4;vertical-align:top}.lat{font-size:8pt;color:#6B4F48}</style></head><body>' +
@@ -1203,7 +1204,7 @@ class Component extends DCLogic {
         (dg(q).length >= 3 && (dg(m.phone).includes(dg(q)) || dg(m.phone2).includes(dg(q))));
     });
     const visible = q.length > 0 && !searching ? [] : matched;
-    const sorted = [...visible].sort((a, b) => s.lang === 'en' ? a.name.localeCompare(b.name, 'en') : a.nameGu.localeCompare(b.nameGu, 'gu'));
+    const sorted = [...visible].sort(memberNameOrder(s.lang));
 
     const numbersOf = (m) => {
       const out = [{ phone: this.fmt(m.phone), labelGu: 'પોતાનો નંબર', labelEn: 'Personal' }];
@@ -1450,7 +1451,8 @@ class Component extends DCLogic {
         ...me, initial: (s.lang === 'en' ? me.name : me.nameGu)[0],
         rows: [
           { gu: 'પોતાનો નંબર', en: 'Personal', value: this.fmt(me.phone) },
-          { gu: 'ધંધાનો નંબર', en: 'Work', value: dg(me.phone2) ? this.fmt(me.phone2) : '—' },
+          // A missing second number shows nothing at all — no blank row.
+          ...(dg(me.phone2) ? [{ gu: me.label2 === 'work' ? 'ધંધાનો નંબર' : 'બીજો નંબર', en: me.label2 === 'work' ? 'Work' : 'Other', value: this.fmt(me.phone2) }] : []),
           { gu: 'ગામ', en: 'Village', value: this.V(me.village) },
           { gu: 'તાલુકો', en: 'Tehsil', value: this.T(me.tehsil) },
           { gu: 'જિલ્લો', en: 'District', value: this.D(me.district) }
@@ -1641,7 +1643,7 @@ class Component extends DCLogic {
       })),
       noDeletes: s.deleteRequests.length === 0,
 
-      members: s.members.map((m) => ({
+      members: [...s.members].sort(memberNameOrder(s.lang)).map((m) => ({
         ...m, village: this.V(m.village), phones: [this.fmt(m.phone), dg(m.phone2) ? this.fmt(m.phone2) : ''].filter(Boolean).join(' · '),
         onAdminEdit: () => {
           this.setState({ meId: m.id, edit: { name: m.nameGu, phone: this.fmt(m.phone), phone2: this.fmt(m.phone2), village: m.village, tehsil: m.tehsil, district: m.district }, screen: 'editprofile' });

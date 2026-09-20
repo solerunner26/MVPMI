@@ -25,7 +25,7 @@ redesign remain unchanged.
 
 |              | Village administrator                                                                                                                       | Main administrator                                    |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| Entrance     | Visible **"ગામ એડમિન સાઇન ઇન / Village admin sign in"** button                                                                              | Hidden: 5 taps on the sun logo + gate code + password |
+| Entrance     | Visible **"ગામ એડમિન સાઇન ઇન / Village admin sign in"** shield button; once signed in, a **"ડેશબોર્ડ / Dashboard"** button beside "My profile" (with a pending-request counter) opens the workspace |
 | Credentials  | Phone number + password (set at enrollment, 12-hour session)                                                                                | Username + password (30-minute session)               |
 | Scope        | Only their own village                                                                                                                      | Everything                                            |
 | Sun-tap gate | **Sealed** — the hidden entrance never opens for a signed-in village administrator, and only the main administrator knows the code/password | Owner                                                 |
@@ -37,7 +37,9 @@ redesign remain unchanged.
   session that is not already signed in as an administrator (main or village)
   — including approved members, so a member promoted to village administrator
   can reach it on their own device. The sheet itself rejects anyone without
-  valid credentials.
+  valid credentials. Signed-in village administrators instead get the
+  **"ડેશબોર્ડ / Dashboard"** button beside "My profile"; its red counter shows
+  the join requests waiting for their verification.
 - Passwords: administrators change their own (Account tab); the main
   administrator can reset any village's administrator password after
   re-confirming identity. Hashes are scrypt, never exported in backups, and
@@ -103,14 +105,25 @@ administrator.
 - The village table is seeded with the original seven villages. Only the main
   administrator adds villages (Gujarati + English names, duplicates refused);
   they appear immediately in signup and profile edits.
+- **ઝીંજકા was renamed જીંજકા** (September 2026). Existing databases migrate
+  automatically (village rows, member and request references, administrator
+  assignments), and backups exported before the rename still restore.
+- Member lists sort alphabetically in the **visible script** — Gujarati
+  collation in Gujarati, English collation in English — across the directory,
+  the administrator panels, the workflow member pickers and the PDF export.
 - **હાલ :** current location/address is a single optional field (max 240
   characters) next to the secondary number, visible to approved members.
 - Language and dark/light theme are header-only controls; the duplicates in
   reading settings are gone. The 85–165% slider and other preferences remain.
-- The header carries the community name **મહુવા ક્ષત્રિય રાજપૂત સમાજ** and one
-  uniform row of same-shaped buttons: **All admins**, the village-admin
-  shield (sign-in, or "ગામની વિનંતીઓ તપાસો" once signed in), **language**,
-  **dark/light theme** and **reading settings**.
+- The header carries the community logo and one uniform row of same-shaped
+  buttons: **All admins**, the village-admin sign-in shield (hidden once a
+  village administrator is signed in), **language**, **dark/light theme** and
+  **reading settings**. The community name **મહુવા ક્ષત્રિય રાજપૂત સમાજ** is the
+  heading of the home screen (below it a signed-in village administrator
+  sees their village); the signup screen heading is the community name too.
+  The old "મહુવા · ભાવનગર", "આપણા લોકો" and header wordmark lines are gone.
+  Profile rows with no value (second number, હાલ location) are omitted
+  instead of showing a blank "—" line.
 - **One language at a time.** The app starts in Gujarati; the header language
   button toggles Gujarati/English, and only the selected script is rendered.
   Directory sorting follows the visible script.

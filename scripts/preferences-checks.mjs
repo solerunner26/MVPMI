@@ -33,13 +33,12 @@ export async function enrollVillageAdministrator(
   const card = page.locator(".workflow-card").filter({
     has: page.getByRole("heading", { name: new RegExp(villageGu) }),
   });
-  await card.getByLabel(/Name/).fill(name);
+  const [first, ...rest] = name.split(" ");
+  await card.getByLabel(/First name/).fill(first);
+  await card.getByLabel(/Surname/).fill(rest.join(" ") || "Administrator");
   await card.getByLabel(/Phone number \(used to sign in\)/).fill(phone);
   if (location) await card.getByLabel(/Current location/).fill(location);
   await card.getByLabel(/Initial password/).fill(pass);
-  await card
-    .getByLabel(/Enrollment reason/)
-    .fill("Identity confirmed in person");
   await card.getByRole("checkbox").check();
   await card.getByRole("button", { name: /Enroll administrator/ }).click();
   await card.getByText(/Current administrator:/).waitFor();

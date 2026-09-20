@@ -70,32 +70,58 @@ export function AllAdminDirectory({ data, lang, onClose }) {
   const h = React.createElement,
     B = (gu, en) => bilingual(gu, en, lang);
   const directory = data.adminDirectory || { main: null, villages: [] };
-  const contact = (phone, key) =>
+  // Compact contact row: avatar, name, role line, phone and two icon actions.
+  const row = ({ key, name, role, phone, hint }) =>
     h(
-      "div",
-      { className: "workflow-actions" },
+      "article",
+      { className: "admin-row", key },
       h(
-        "a",
-        {
-          className: "contact-action contact-call",
-          href: "tel:+91" + phone,
-          target: "_blank",
-          rel: "noopener noreferrer",
-          "data-testid": "Admin call " + key,
-        },
-        B("ફોન કરો", "Call"),
+        "span",
+        { className: "admin-avatar", "aria-hidden": true },
+        key === "main"
+          ? h("i", { className: "ph-duotone ph-shield-star" })
+          : (name || role || "?").trim().charAt(0),
       ),
       h(
-        "a",
-        {
-          className: "contact-action contact-whatsapp",
-          href: "https://wa.me/91" + phone,
-          target: "_blank",
-          rel: "noopener noreferrer",
-          "data-testid": "Admin whatsapp " + key,
-        },
-        B("વોટ્સએપ", "WhatsApp"),
+        "div",
+        { className: "admin-detail" },
+        h("p", { className: "admin-name" }, name),
+        h("p", { className: "admin-role" }, role),
+        phone &&
+          h("p", { className: "admin-phone" }, h("i", { className: "ph-duotone ph-phone", "aria-hidden": true }), " +91 ", phone),
+        hint,
       ),
+      phone &&
+        h(
+          "div",
+          { className: "admin-actions" },
+          h(
+            "a",
+            {
+              className: "admin-icon-action",
+              href: "tel:+91" + phone,
+              target: "_blank",
+              rel: "noopener noreferrer",
+              "data-testid": "Admin call " + key,
+              "aria-label": B("ફોન કરો", "Call") + " " + name,
+              title: B("ફોન કરો", "Call"),
+            },
+            h("i", { className: "ph-duotone ph-phone-call", "aria-hidden": true }),
+          ),
+          h(
+            "a",
+            {
+              className: "admin-icon-action",
+              href: "https://wa.me/91" + phone,
+              target: "_blank",
+              rel: "noopener noreferrer",
+              "data-testid": "Admin whatsapp " + key,
+              "aria-label": "WhatsApp " + name,
+              title: "WhatsApp",
+            },
+            h("i", { className: "ph-duotone ph-whatsapp-logo", "aria-hidden": true }),
+          ),
+        ),
     );
   return h(
     "div",
@@ -103,7 +129,7 @@ export function AllAdminDirectory({ data, lang, onClose }) {
     h(
       "section",
       {
-        className: "preferences-panel workflow-panel",
+        className: "preferences-panel workflow-panel admin-directory",
         role: "dialog",
         "aria-modal": true,
         "aria-label": B("બધા એડમિન", "All admins"),
@@ -117,36 +143,58 @@ export function AllAdminDirectory({ data, lang, onClose }) {
       ),
       h(
         "p",
-        null,
+        { className: "admin-intro" },
         B(
           "કોઈપણ પ્રશ્ન કે જોડાવાની મુશ્કેલી હોય તો સીધા તમારા ગામના એડમિનનો સંપર્ક કરો.",
           "Contact your village administrator directly for any question or trouble joining.",
         ),
       ),
-      directory.main &&
-        h(
-          "article",
-          { className: "workflow-card admin-card main-admin" },
-          h("h3", null, B("મુખ્ય એડમિન", "Main administrator")),
-          h("p", { className: "admin-name" }, directory.main.name),
-          h("p", null, directory.main.phone),
-          contact(directory.main.phone, "main"),
-        ),
-      directory.villages.map((v) =>
-        h(
-          "article",
-          { className: "workflow-card admin-card", key: v.village },
-          h("h3", null, lang === "gu" ? v.village + " · " + v.villageEn : v.villageEn + " · " + v.village),
+      h(
+        "div",
+        { className: "admin-list" },
+        directory.main &&
+          row({
+            key: "main",
+            name: directory.main.name,
+            role: B("મુખ્ય એડમિન · સમગ્ર સમાજ", "Main administrator · whole community"),
+            phone: directory.main.phone,
+          }),
+        ...directory.villages.map((v) =>
           v.admin
-            ? h(
-                "div",
-                null,
-                h("p", { className: "admin-name" }, v.admin.name),
-                h("p", null, v.admin.phone),
-                v.admin.location && h("p", null, "હાલ : ", v.admin.location),
-                contact(v.admin.phone, v.village),
-              )
-            : h("p", null, B("એડમિન નિયુક્ત નથી", "No administrator yet")),
+            ? row({
+                key: v.village,
+                name: v.admin.name,
+                role: B("ગામ એડમિન · ", "Village administrator · ") + v.village,
+                phone: v.admin.phone,
+                hint:
+                  v.admin.location &&
+                  h(
+                    "p",
+                    { className: "admin-hint" },
+                    h("i", { className: "ph-duotone ph-map-pin", "aria-hidden": true }),
+                    " ",
+                    v.admin.location,
+                  ),
+              })
+            : h(
+                "article",
+                { className: "admin-row admin-row-empty", key: v.village },
+                h(
+                  "span",
+                  { className: "admin-avatar", "aria-hidden": true },
+                  v.village.charAt(0),
+                ),
+                h(
+                  "div",
+                  { className: "admin-detail" },
+                  h("p", { className: "admin-name" }, v.village),
+                  h(
+                    "p",
+                    { className: "admin-role" },
+                    B("એડમિન નિયુક્ત નથી", "No administrator yet"),
+                  ),
+                ),
+              ),
         ),
       ),
     ),
@@ -763,7 +811,9 @@ function WorkflowDecision({ request: r, data, lang, act, busy }) {
 function WorkflowMembers({ data, lang, act, busy }) {
   const { h, B, field, button } = workflowTools(lang, busy);
   const village = data.villageAdminVillage;
-  const members = data.members.filter((m) => m.village === village);
+  const members = data.members
+    .filter((m) => m.village === village)
+    .sort(memberNameOrder(lang));
   const pending = new Map(data.villageProposals.map((p) => [p.memberId, p]));
   return h(
     "div",
@@ -1027,7 +1077,9 @@ function WorkflowAssignment({ village: v, data, lang, act, busy }) {
   const { h, B, field, button } = workflowTools(lang, busy);
   const a = data.villageAssignments.find((a) => a.id === v.id);
   const admin = a && data.members.find((m) => m.id === a.memberId);
-  const members = data.members.filter((m) => m.village === v.gu);
+  const members = data.members
+    .filter((m) => m.village === v.gu)
+    .sort(memberNameOrder(lang));
   const [selection, setSelection] = React.useState(""),
     [pass, setPass] = React.useState(""),
     [confirmed, setConfirmed] = React.useState(false),

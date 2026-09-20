@@ -17,8 +17,10 @@ in, and village administrators never receive the gate code or main password.
 
 Use the header **shield button ("ગામ એડમિન સાઇન ઇન / Village admin sign in"**,
 right beside the language button) and sign in with the phone number and
-password. The sign-in lasts 12 hours; the button then becomes
-"ગામની વિનંતીઓ તપાસો / Review village requests" and opens the requests workspace.
+password. The sign-in lasts 12 hours. Once signed in, the shield entry
+disappears and a **"ડેશબોર્ડ / Dashboard"** button appears beside "My profile"
+on the home screen; it shows a red counter with the number of join requests
+waiting for your verification, and opens the requests workspace.
 
 ## All-admins page (no sign-in needed)
 
@@ -35,7 +37,7 @@ have not signed in at all.
 | લીલવણ / Lilvan             | Dipakbhai Gohil     | 9001000004 | Lilvan@2026      |
 | દૂધાળા નં 1 / Dudhala No 1 | Saritaben Parmar    | 9001000005 | Dudhala@2026     |
 | તલગાજરડા / Talgajarada     | Vijaybhai Chudasama | 9001000006 | Talgajarada@2026 |
-| ઝીંજકા / Zinzaka           | Nitaben Makwana     | 9001000007 | Zinzaka@2026     |
+| જીંજકા / Jinjaka           | Nitaben Makwana     | 9001000007 | Jinjaka@2026     |
 
 ## Sample data to explore
 

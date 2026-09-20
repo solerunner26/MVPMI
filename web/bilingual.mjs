@@ -142,3 +142,14 @@ export function bilingualView(primary, alternate, lang) {
   out.languageSwitch = bilingual("ગુજરાતી", "English", lang);
   return out;
 }
+
+// Alphabetical member ordering that follows the selected script: Gujarati
+// collation in Gujarati, English collation in English. Missing translations
+// fall back to the other spelling so no member is left unordered.
+export function memberNameOrder(lang) {
+  const key = lang === "en" ? "name" : "nameGu";
+  const locale = lang === "en" ? "en" : "gu";
+  const visible = (m) => String((m && (m[key] || m.name)) || "");
+  return (a, b) =>
+    visible(a).localeCompare(visible(b), locale, { sensitivity: "base" });
+}

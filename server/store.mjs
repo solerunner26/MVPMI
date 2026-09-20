@@ -15,8 +15,22 @@ export const villages = [
   { en: "Lilvan", gu: "લીલવણ" },
   { en: "Dudhala No 1", gu: "દૂધાળા નં 1" },
   { en: "Talgajarada", gu: "તલગાજરડા" },
-  { en: "Zinzaka", gu: "ઝીંજકા" },
+  { en: "Jinjaka", gu: "જીંજકા" },
 ];
+// The village "ઝીંજકા" was renamed to "જીંજકા" (September 2026). Exact-string
+// aliases keep existing databases, old backups and audit trails consistent.
+export const VILLAGE_RENAMES = { "ઝીંજકા": "જીંજકા", Zinzaka: "Jinjaka" };
+export const renameVillageText = (v) =>
+  typeof v === "string" ? VILLAGE_RENAMES[v] || v : v;
+export function applyVillageRenames(value) {
+  if (Array.isArray(value)) return value.map(applyVillageRenames);
+  if (value !== null && typeof value === "object") {
+    for (const key of Object.keys(value))
+      value[key] = applyVillageRenames(value[key]);
+    return value;
+  }
+  return renameVillageText(value);
+}
 export const hash = (x) => createHash("sha256").update(x).digest("hex");
 export function passwordHash(p) {
   const salt = randomBytes(16).toString("hex");
@@ -199,7 +213,31 @@ export class Store {
         `CREATE TABLE IF NOT EXISTS ${t} (id TEXT PRIMARY KEY, data TEXT NOT NULL)`,
       );
     this.initializeVillages();
+    this.initializeVillageRenames();
     this.initializeNameParts();
+  }
+  // Rename "ઝીંજકા" → "જીંજકા" everywhere (idempotent). Exact-string values
+  // only, so member names and reasons are never touched.
+  initializeVillageRenames() {
+    if (this.get("config", "village-rename-jinjaka-v1")) return;
+    this.tx(() => {
+      for (const table of [
+        "villages",
+        "villageAdmins",
+        "members",
+        "requests",
+        "archive",
+        "rejections",
+      ]) {
+        for (const row of this.all(table)) {
+          const next = applyVillageRenames(structuredClone(row));
+          if (next === row) continue;
+          if (next.id !== row.id) this.del(table, row.id);
+          this.put(table, next);
+        }
+      }
+      this.put("config", { id: "village-rename-jinjaka-v1", at: Date.now() });
+    });
   }
   // Fill three-part names for records created before the split (idempotent).
   initializeNameParts() {
@@ -437,6 +475,8 @@ export class Store {
     };
   }
   validateBackup(b) {
+    // Backups exported before the ઝીંજકા → જીંજકા rename keep working.
+    applyVillageRenames(b);
     // Older backups predate the three-part names; derive the parts on import.
     const withNameParts = (record) => {
       if (record && isRecord(record) && !record.firstName && record.name) {

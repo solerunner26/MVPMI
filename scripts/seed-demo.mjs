@@ -34,7 +34,7 @@ const ADMINISTRATORS = [
     "9001000006",
     "Talgajarada@2026",
   ],
-  ["ઝીંજકા", "Zinzaka", "Nitaben Makwana", "9001000007", "Zinzaka@2026"],
+  ["જીંજકા", "Jinjaka", "Nitaben Makwana", "9001000007", "Jinjaka@2026"],
 ];
 
 const MEMBERS = [
@@ -44,7 +44,7 @@ const MEMBERS = [
   ["Meera Gohil", "લીલવણ", "9003000005", "9003000006", "Surat, Adajan"],
   ["Sanjay Parmar", "દૂધાળા નં 1", "9003000007", "", ""],
   ["Daxa Chudasama", "તલગાજરડા", "9003000008", "", "Bhavnagar"],
-  ["Hardik Makwana", "ઝીંજકા", "9003000009", "9003000010", ""],
+  ["Hardik Makwana", "જીંજકા", "9003000009", "9003000010", ""],
   ["Rekha Rathod", "થોરાળા", "9003000011", "", "Vadodara"],
 ];
 
@@ -131,7 +131,7 @@ store.tx(() => {
       phone: "9002000003",
       phone2: "",
       label2: "work",
-      village: "ઝીંજકા",
+      village: "જીંજકા",
     },
     store.all("villages"),
   );
@@ -171,7 +171,7 @@ store.tx(() => {
   // Contactable main-administrator identity for the public "All admins" page.
   store.put("config", {
     id: "main-admin-contact",
-    name: "મહુવા ક્ષત્રિય રાજપૂત સમાજ · મુખ્ય એડમિન",
+    name: "મુખ્ય એડમિન",
     phone: "9000000000",
   });
 

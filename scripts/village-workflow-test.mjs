@@ -122,7 +122,7 @@ async function loginAsVillageAdmin(page, phone, pass) {
     .fill(phone);
   await page.getByRole("dialog").locator('input[type="password"]').fill(pass);
   await page.getByRole("dialog").getByRole("button", { name: /^Sign in$|^સાઇન ઇન$/ }).click();
-  await page.getByTestId("Village management").waitFor();
+  await page.getByTestId("Dashboard").waitFor();
 }
 
 try {
@@ -197,7 +197,7 @@ try {
     .locator('input[type="password"]')
     .fill("Village@2026!");
   await va.getByRole("dialog").getByRole("button", { name: /^Sign in$|^સાઇન ઇન$/ }).click();
-  await va.getByTestId("Village management").waitFor();
+  await va.getByTestId("Dashboard").waitFor();
 
   // The hidden sun-tap gate stays sealed for village administrators.
   for (let i = 0; i < 5; i++)
@@ -209,7 +209,7 @@ try {
   );
 
   // 4. Village verification and forwarding.
-  await va.getByTestId("Village management").click();
+  await va.getByTestId("Dashboard").click();
   let request = va
     .locator(".workflow-card")
     .filter({ hasText: "Directory Applicant" });
@@ -253,7 +253,7 @@ try {
 
   // 6. Village administrator proposes a member change; only the main
   //    administrator can decide it.
-  await va.getByTestId("Village management").click();
+  await va.getByTestId("Dashboard").click();
   await va.getByRole("button", { name: /My village members/ }).click();
   const memberCard = va
     .locator(".workflow-card")
@@ -283,8 +283,8 @@ try {
   const rejected = await newPage();
   await register(rejected, "Unknown Applicant", "9000000002");
   await va.reload();
-  await va.getByTestId("Village management").waitFor();
-  await va.getByTestId("Village management").click();
+  await va.getByTestId("Dashboard").waitFor();
+  await va.getByTestId("Dashboard").click();
   let rejectCard = va
     .locator(".workflow-card")
     .filter({ hasText: "Unknown Applicant" });
@@ -312,8 +312,8 @@ try {
 
   // 8. Village administrator proposes removal; main administrator decides.
   await va.reload();
-  await va.getByTestId("Village management").waitFor();
-  await va.getByTestId("Village management").click();
+  await va.getByTestId("Dashboard").waitFor();
+  await va.getByTestId("Dashboard").click();
   await va.getByRole("button", { name: /My village members/ }).click();
   const removalCard = va
     .locator(".workflow-card")
@@ -358,7 +358,7 @@ try {
   );
 
   // 10. Administrator account: password change and sign-out.
-  await va.getByTestId("Village management").click();
+  await va.getByTestId("Dashboard").click();
   await va.getByRole("button", { name: /Account/ }).click();
   await va.getByLabel(/Current password/).fill("Village@2026!");
   await va.getByLabel(/New password/).fill("Newer@2026!");
@@ -386,7 +386,7 @@ try {
     .locator('input[type="password"]')
     .fill("Newer@2026!");
   await va.getByRole("dialog").getByRole("button", { name: /^Sign in$|^સાઇન ઇન$/ }).click();
-  await va.getByTestId("Village management").waitFor();
+  await va.getByTestId("Dashboard").waitFor();
 
   // 11. Large-text English dark management view remains usable.
   await admin

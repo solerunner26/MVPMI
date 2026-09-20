@@ -112,28 +112,6 @@ body {
 .main-header i {
   font-size: 23px;
 }
-.wordmark {
-  font-family: Manrope, sans-serif;
-  font-size: 22px;
-  letter-spacing: -1px;
-  font-weight: 800;
-  line-height: 1.1;
-}
-.brand-caption {
-  display: block;
-  font-size: 10px;
-  letter-spacing: 0;
-  margin-top: 5px;
-  color: var(--ink2);
-  font-weight: 500;
-}
-.app .brand-caption .bi {
-  gap: 1px 5px;
-}
-.app .brand-caption .bi > span {
-  font-size: 10px;
-  line-height: 1.3;
-}
 .app .noscroll {
   padding: 14px 20px 28px !important;
   scroll-padding: 16px;
@@ -219,11 +197,60 @@ body {
 .directory-heading {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
+  gap: 10px 16px;
   align-items: center;
+  flex-wrap: wrap;
 }
 .directory-heading h1 {
   font-size: calc(29px * var(--fs));
+}
+.hero-village {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 7px;
+  font-size: var(--f-sm);
+  font-weight: 700;
+  color: var(--ind);
+}
+.hero-village i {
+  font-size: 17px;
+}
+.app .dashboard-trigger {
+  flex: 0 0 auto;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 24px;
+  background: var(--g2);
+  color: var(--ind);
+  font: inherit;
+  font-weight: 700;
+  font-size: var(--f-sm);
+  position: relative;
+}
+.app .dashboard-trigger i {
+  font-size: 22px;
+}
+.dash-badge {
+  position: absolute;
+  top: -5px;
+  right: 0;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: var(--dan);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 20px;
+  text-align: center;
+  box-shadow: 0 0 0 2px var(--page);
 }
 .app .profile-trigger {
   flex: 0 0 48px;
@@ -710,9 +737,6 @@ body {
   padding-left: 12px;
   padding-right: 12px;
 }
-.app[data-reading="large"] .brand-caption {
-  display: none;
-}
 .app[data-reading="large"] .village-grid,
 .app[data-reading="large"] .admin-dashboard-grid {
   grid-template-columns: 1fr !important;
@@ -959,22 +983,8 @@ body {
 .app[data-lang="en"] .bi {
   gap: 0;
 }
-.app[data-lang="gu"] .brand-caption .bi,
-.app[data-lang="en"] .brand-caption .bi {
-  display: block;
-}
 
 /* Community identity: the long community name wraps gracefully at any width. */
-.wordmark {
-  font-size: 15px;
-  letter-spacing: -0.2px;
-  line-height: 1.18;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-.app[data-reading="large"] .wordmark {
-  font-size: 13px;
-}
 .brand-sun .brand-logo {
   width: 36px;
   height: 36px;
@@ -982,11 +992,99 @@ body {
   border-radius: 12px;
   display: block;
 }
-/* All-admins directory cards. */
-.workflow-card.admin-card .admin-name {
+/* All-admins directory: compact, uniform contact rows. */
+.app .admin-intro {
+  margin: 8px 0 0;
+  font-size: var(--f-sm);
+  color: var(--ink2);
+}
+.app .admin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+.app .admin-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--gbd);
+  border-radius: 16px;
+  background: var(--g2);
+}
+.app .admin-avatar {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--grad);
+  color: #fff;
+  font-weight: 800;
+  font-size: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.app .admin-avatar i {
+  font-size: 20px;
+}
+.app .admin-detail {
+  flex: 1;
+  min-width: 0;
+}
+.app .admin-name {
   font-weight: 700;
   font-size: var(--f-md);
+  line-height: 1.25;
+  margin: 0;
 }
-.workflow-card.admin-card.main-admin {
-  border-left: 4px solid var(--ind);
+.app .admin-role {
+  font-size: var(--f-xs);
+  color: var(--ink2);
+  margin: 2px 0 0;
 }
+.app .admin-phone {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--f-sm);
+  font-weight: 700;
+  color: var(--ind);
+  margin: 4px 0 0;
+}
+.app .admin-phone i {
+  font-size: 14px;
+}
+.app .admin-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--f-xs);
+  color: var(--ink2);
+  margin: 2px 0 0;
+}
+.app .admin-actions {
+  display: flex;
+  gap: 8px;
+}
+.app .admin-icon-action {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--g);
+  border: 1px solid var(--gbd);
+  color: var(--ind);
+  font-size: 20px;
+}
+/* Unassigned villages stay readable; only the avatar looks muted. */
+.app .admin-row-empty .admin-avatar {
+  background: var(--g);
+  color: var(--ink2);
+  border: 1px dashed var(--gbd);
+}
+

@@ -559,3 +559,60 @@ test("the all-admins directory lists contactable administrators for everyone", a
   const sathra = directory.villages.find((v) => v.village === "સથરા");
   assert.equal(sathra.admin, null);
 });
+
+test("the ઝીંજકા → જીંજકા rename migrates existing databases and old backups", async (t) => {
+  const { mkdtempSync, rmSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const { tmpdir } = await import("node:os");
+  const { Store, applyVillageRenames } = await import("../server/store.mjs");
+  const dir = mkdtempSync(join(tmpdir(), "rename-"));
+  const path = join(dir, "community.sqlite");
+  try {
+    // A database that still carries the old spelling everywhere.
+    const old = new Store(path);
+    old.tx(() => {
+      old.del("villages", "જીંજકા");
+      old.put("villages", { id: "ઝીંજકા", gu: "ઝીંજકા", en: "Zinzaka", order: 6 });
+      old.put("members", {
+        id: "m-rename",
+        name: "Hardik Makwana",
+        nameGu: "હાર્દિક મકવાણા",
+        phone: "9003000009",
+        village: "ઝીંજકા",
+      });
+      old.put("requests", {
+        id: "r-rename",
+        kind: "new",
+        payload: { name: "Applicant", phone: "9003000099", village: "ઝીંજકા" },
+      });
+      old.put("villageAdmins", { id: "ઝીંજકા", memberId: "m-rename" });
+      old.del("config", "village-rename-jinjaka-v1");
+    });
+    old.db.close();
+
+    // Reopening runs the migration.
+    const migrated = new Store(path);
+    assert.equal(migrated.get("villages", "ઝીંજકા"), null);
+    assert.deepEqual(migrated.get("villages", "જીંજકા").en, "Jinjaka");
+    assert.equal(migrated.get("members", "m-rename").village, "જીંજકા");
+    assert.equal(
+      migrated.get("requests", "r-rename").payload.village,
+      "જીંજકા",
+    );
+    assert.ok(migrated.get("villageAdmins", "જીંજકા"));
+    assert.equal(migrated.get("villageAdmins", "ઝીંજકા"), null);
+    migrated.db.close();
+
+    // Old backups normalize too, and member names are never touched.
+    const backup = {
+      village: "ઝીંજકા",
+      nested: [{ en: "Zinzaka", note: "Zinzaka village" }],
+    };
+    applyVillageRenames(backup);
+    assert.equal(backup.village, "જીંજકા");
+    assert.equal(backup.nested[0].en, "Jinjaka");
+    assert.equal(backup.nested[0].note, "Zinzaka village");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

@@ -57,7 +57,7 @@ export function modernDesign(html) {
   html = replaceElement(
     html,
     brandRow,
-    `<div class="directory-heading"><div><p class="eyebrow">{{ copy.communityPlace }}</p><h1>{{ directoryHeading }}</h1></div><button class="profile-trigger" onClick="{{ goMyProfile }}" data-testid="My profile" title="{{ ui.profile }}" aria-label="{{ ui.profile }}"><i aria-hidden="true" class="ph-duotone ph-user-circle"></i></button></div>`,
+    `<div class="directory-heading"><div><h1>{{ directoryHeading }}</h1><sc-if value="{{ heroVillage }}"><p class="hero-village"><i aria-hidden="true" class="ph-duotone ph-shield-check"></i>{{ heroVillage }}</p></sc-if></div><sc-if value="{{ showDashboard }}"><button class="dashboard-trigger" onClick="{{ openWorkflow }}" data-testid="Dashboard" title="{{ dashboardLabel }}" aria-label="{{ dashboardLabel }}"><i aria-hidden="true" class="ph-duotone ph-squares-four"></i><sc-if value="{{ pendingCount }}"><span class="dash-badge">{{ pendingCount }}</span></sc-if><span class="dash-label">{{ dashboardLabel }}</span></button></sc-if><button class="profile-trigger" onClick="{{ goMyProfile }}" data-testid="My profile" title="{{ ui.profile }}" aria-label="{{ ui.profile }}"><i aria-hidden="true" class="ph-duotone ph-user-circle"></i></button></div>`,
   );
   // Make the directory tooling a coherent search + filter region.
   directory = find(html, '<sc-if value="{{ isDirectory }}">');
@@ -170,7 +170,7 @@ export function modernDesign(html) {
   html = replaceElement(
     html,
     title,
-    `<div class="entry-intro"><p class="eyebrow">{{ copy.welcome }}</p><h1>{{ copy.joinTitle }}</h1></div>`,
+    `<div class="entry-intro"><p class="eyebrow">{{ copy.welcome }}</p><h1>{{ copy.communityName }}</h1></div>`,
   );
   // Preferences use native segmented buttons, not four permanently-visible tools.
   const prefs = find(html, '<sc-if value="{{ preferencesOpen }}">');
@@ -179,7 +179,7 @@ export function modernDesign(html) {
   let content = html.slice(panel, panelEnd);
   content = content.replace(
     "<h2>{{ copy.preferences }}</h2>",
-    '<header class="sheet-heading"><div><p class="eyebrow">{{ copy.communityName }}</p><h2>{{ copy.preferences }}</h2></div><button class="sheet-close" aria-label="{{ ui.dismissSettings }}" onClick="{{ closePreferences }}"><i aria-hidden="true" class="ph-duotone ph-x"></i></button></header><h3 class="settings-label">{{ copy.language }}</h3>',
+    '<header class="sheet-heading"><div><h2>{{ copy.preferences }}</h2></div><button class="sheet-close" aria-label="{{ ui.dismissSettings }}" onClick="{{ closePreferences }}"><i aria-hidden="true" class="ph-duotone ph-x"></i></button></header><h3 class="settings-label">{{ copy.language }}</h3>',
   );
   content = content
     .replace(
@@ -213,7 +213,7 @@ export function modernDesign(html) {
   const frameStart = find(html, ">", frame) + 1;
   html =
     html.slice(0, frameStart) +
-    `<header class="main-header"><div class="brand-lockup"><button class="brand-sun" title="{{ communityName }}" data-testid="Brand logo" onClick="{{ secretTap }}">${brandLogo}</button><span class="wordmark">{{ copy.communityName }}<span class="brand-caption">{{ copy.connected }}</span></span></div><div class="header-actions"><sc-if value="{{ showAllAdmins }}"><button class="preferences-trigger" data-testid="All admins" onClick="{{ openAllAdmins }}" title="{{ ui.allAdmins }}" aria-label="{{ ui.allAdmins }}"><i aria-hidden="true" class="ph-duotone ph-users-three"></i></button></sc-if><sc-if value="{{ showVillageAdminButton }}"><button class="preferences-trigger" data-testid="Village admin sign in" onClick="{{ openVillageAdminHeader }}" title="{{ villageAdminButtonLabel }}" aria-label="{{ villageAdminButtonLabel }}"><i aria-hidden="true" class="ph-duotone ph-shield-check"></i></button></sc-if><button class="language-trigger" onClick="{{ toggleLang }}" data-testid="Language" aria-label="{{ ui.language }}" title="{{ ui.language }}"><i aria-hidden="true" class="ph-duotone ph-translate"></i></button><button class="preferences-trigger" onClick="{{ openPreferences }}" data-testid="Reading settings" title="{{ ui.preferences }}" aria-label="{{ ui.preferences }}"><i aria-hidden="true" class="ph-duotone ph-sliders-horizontal"></i></button></div></header>` +
+    `<header class="main-header"><div class="brand-lockup"><button class="brand-sun" title="{{ communityName }}" data-testid="Brand logo" onClick="{{ secretTap }}">${brandLogo}</button></div><div class="header-actions"><sc-if value="{{ showAllAdmins }}"><button class="preferences-trigger" data-testid="All admins" onClick="{{ openAllAdmins }}" title="{{ ui.allAdmins }}" aria-label="{{ ui.allAdmins }}"><i aria-hidden="true" class="ph-duotone ph-users-three"></i></button></sc-if><sc-if value="{{ showVillageAdminButton }}"><button class="preferences-trigger" data-testid="Village admin sign in" onClick="{{ openVillageAdminHeader }}" title="{{ villageAdminButtonLabel }}" aria-label="{{ villageAdminButtonLabel }}"><i aria-hidden="true" class="ph-duotone ph-shield-check"></i></button></sc-if><button class="language-trigger" onClick="{{ toggleLang }}" data-testid="Language" aria-label="{{ ui.language }}" title="{{ ui.language }}"><i aria-hidden="true" class="ph-duotone ph-translate"></i></button><button class="preferences-trigger" onClick="{{ openPreferences }}" data-testid="Reading settings" title="{{ ui.preferences }}" aria-label="{{ ui.preferences }}"><i aria-hidden="true" class="ph-duotone ph-sliders-horizontal"></i></button></div></header>` +
     html.slice(frameStart);
   html = html.replace(
     '<div class="bi" style="font-weight:700;font-size:var(--f-lg)"><span class="gu" lang="gu">{{ me.nameGu }}</span><span class="en" lang="en">{{ me.name }}</span></div>',

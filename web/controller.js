@@ -15,6 +15,7 @@ class Component extends DesignComponent {
     return singleLanguageStatus(value, this.state.lang);
   }
   printPdf(members) {
+    members = [...members].sort(memberNameOrder(this.state.lang));
     const frame = document.createElement("iframe");
     frame.title = this.P("પ્રિન્ટ પૂર્વદર્શન", "Print preview");
     frame.style.cssText = "position:fixed;width:0;height:0;border:0";
@@ -578,7 +579,17 @@ class Component extends DesignComponent {
         })
       : null;
     v.isAdminUser = s.role === "admin" || !!s.villageAdmin;
-    v.showVillageAdminButton = s.role !== "admin";
+    v.isMainAdmin = s.role === "admin";
+    // Signed-in village administrators reach their workspace through the
+    // Dashboard button next to "My profile", not through the header shield.
+    v.showVillageAdminButton = s.role !== "admin" && !s.villageAdmin;
+    v.showDashboard = !!s.villageAdmin;
+    v.pendingCount = Math.min(99, (s.reviewQueue || []).length);
+    v.dashboardLabel = bilingual("ડેશબોર્ડ", "Dashboard", s.lang);
+    v.heroVillage = s.villageAdmin
+      ? this.V(s.villageAdminVillage) +
+        this.P(" · ગામ એડમિન", " · Village administrator")
+      : "";
     v.villageAdminButtonLabel = s.villageAdmin
       ? bilingual("ગામની વિનંતીઓ તપાસો", "Review village requests", s.lang)
       : bilingual("ગામ એડમિન સાઇન ઇન", "Village admin sign in", s.lang);
@@ -700,11 +711,15 @@ class Component extends DesignComponent {
     v.editSubmitGu = s.adminEditingId ? "ફેરફાર સાચવો" : "મંજૂરી માટે મોકલો";
     v.editSubmitEn = s.adminEditingId ? "Save changes" : "Send for approval";
     if (v.me && s.meId) {
-      v.me.rows.push({
-        gu: "હાલ :",
-        en: "Current location",
-        value: s.members.find((m) => m.id === s.meId)?.currentLocation || "—",
-      });
+      // Blank rows waste space: હાલ location only appears when filled in.
+      const currentLocation =
+        s.members.find((m) => m.id === s.meId)?.currentLocation || "";
+      if (currentLocation.trim())
+        v.me.rows.push({
+          gu: "હાલ :",
+          en: "Current location",
+          value: currentLocation,
+        });
     }
     v.noResults = !v.showTiles && !v.shortQuery && v.sections.length === 0;
     v.index = [];
@@ -1136,7 +1151,7 @@ class Component extends DesignComponent {
     v.villagesSelected = !v.hasQuery && s.dirMode !== "all";
     v.directoryHeading =
       v.hasQuery || !v.inVillageView || s.dirMode === "all"
-        ? uiText("directoryTitle", s.lang)
+        ? uiText("communityName", s.lang)
         : this.V(s.dirMode);
     v.allMembersSelected = s.dirMode === "all" && !s.query;
     v.chooseLight = () => this.set("theme", "light");
