@@ -27,7 +27,7 @@ export function villageWorkflow(html) {
     html.indexOf("</header>", html.indexOf('<header class="main-header"')) + 9;
   html =
     html.slice(0, headerEnd) +
-    '<sc-if value="{{ canReview }}"><button class="workflow-launch" data-testid="Village management" onClick="{{ openWorkflow }}">{{ workflowLabel }}</button></sc-if>{{ workflowPanel }}' +
+    '<sc-if value="{{ canReview }}"><button class="workflow-launch" data-testid="Village management" onClick="{{ openWorkflow }}">{{ workflowLabel }}</button></sc-if>{{ villageAdminEntry }}{{ villageLoginPanel }}{{ workflowPanel }}' +
     html.slice(headerEnd);
   for (const [handler, value] of [
     ["setVillage", "signupVillage"],

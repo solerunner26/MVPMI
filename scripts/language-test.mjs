@@ -1,5 +1,8 @@
 import { chooseLanguage } from "./preferences-checks.mjs";
-import {appointFirstRepresentative} from "./preferences-checks.mjs";
+import {
+  enrollAdministrator,
+  forwardRequest,
+} from "../server/village-approval.mjs";
 import { openMemberHelp } from "./preferences-checks.mjs";
 import { checkBilingualSorting } from "./bilingual-sort-checks.mjs";
 import assert from "node:assert/strict";
@@ -12,6 +15,13 @@ const { app, store } = createApp({
   adminPassword: "LanguageTest@2026",
   gateCode: "5831",
   development: true,
+});
+enrollAdministrator(store, {
+  village: "થોરાળા",
+  name: "Thorala Village Administrator",
+  phone: "7990000010",
+  pass: "Village@2026!",
+  reason: "Seeded for the language flow",
 });
 const server = app.listen(0, "127.0.0.1");
 await new Promise((r) => server.once("listening", r));
@@ -68,14 +78,18 @@ try {
     "1.65",
   );
   await page.getByTestId("Reading settings").click();
-  await chooseLanguage(page,"en");
+  await chooseLanguage(page, "en");
   await setTextSize(page, 100);
   await page.getByRole("button", { name: /Close/ }).click();
   await selectedLanguage(page, "en", "English signup");
-  const villageSelect=page.getByRole('combobox',{name:/Village|ગામ/});
-  assert.equal(await villageSelect.locator('option').count(),8,'Seven fixed villages plus prompt');
-  await villageSelect.selectOption('થોરાળા');
-  assert.equal(await villageSelect.inputValue(),'થોરાળા');
+  const villageSelect = page.getByRole("combobox", { name: /Village|ગામ/ });
+  assert.equal(
+    await villageSelect.locator("option").count(),
+    8,
+    "Seven fixed villages plus prompt",
+  );
+  await villageSelect.selectOption("થોરાળા");
+  assert.equal(await villageSelect.inputValue(), "થોરાળા");
   await page.reload();
   await page.getByTestId("Language").waitFor();
   await selectedLanguage(page, "en", "persisted language");
@@ -85,12 +99,19 @@ try {
   await switchTo(page, "gu");
   await page.locator("input").nth(0).fill("Test Member");
   await page.locator("input").nth(1).fill("9000000001");
-  await page.getByRole("combobox",{name:/Village|ગામ/}).selectOption("થોરાળા");
+  await page
+    .getByRole("combobox", { name: /Village|ગામ/ })
+    .selectOption("થોરાળા");
   await page.getByRole("button", { name: /રિક્વેસ્ટ મોકલો/ }).click();
   await page.getByRole("dialog").waitFor();
   assert.match(await page.getByRole("dialog").innerText(), /આર્કાઇવ/);
   await page.getByRole("button", { name: /વિનંતી મોકલો/ }).click();
   await page.getByText("એડમિનની મંજૂરીની રાહમાં", { exact: true }).waitFor();
+  forwardRequest(
+    store,
+    store.all("requests").find((r) => r.kind === "new").id,
+    "Verified community member",
+  );
   await selectedLanguage(page, "gu", "pending Gujarati");
   await switchTo(page, "en");
   await selectedLanguage(page, "en", "pending English");
@@ -124,7 +145,9 @@ try {
     (await panel.locator(".app").boundingBox()).width > 800,
     "Admin expands on desktop",
   );
-  await appointFirstRepresentative(panel,store.all('requests').find(r=>r.kind==='new').id);
+  await panel.getByText("New requests", { exact: true }).click();
+  await panel.getByRole("button", { name: /Approve/ }).click();
+  await panel.getByRole("button", { name: /Back to dashboard/ }).click();
   for (const section of [
     "Total members",
     "New requests",

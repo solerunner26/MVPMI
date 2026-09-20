@@ -1,4 +1,4 @@
-import {appointFirstRepresentative} from "./preferences-checks.mjs";
+import { forwardRequest } from "../server/village-approval.mjs";
 import {
   checkModernPreferences,
   checkModernDirectory,
@@ -31,6 +31,14 @@ const { app, store } = createApp({
   gateCode: "5831",
   development: true,
 });
+import { enrollAdministrator } from "../server/village-approval.mjs";
+enrollAdministrator(store, {
+  village: "થોરાળા",
+  name: "Thorala Village Administrator",
+  phone: "7990000010",
+  pass: "Village@2026!",
+  reason: "Seeded for the browser flow",
+});
 const server = app.listen(0, "127.0.0.1");
 await new Promise((r) => server.once("listening", r));
 const url = "http://127.0.0.1:" + server.address().port;
@@ -61,10 +69,17 @@ try {
   await checkModernPreferences(page);
   await page.locator("input").nth(0).fill("Test Community Member");
   await page.locator("input").nth(1).fill("9000000001");
-  await page.getByRole("combobox",{name:/Village|ગામ/}).selectOption("થોરાળા");
+  await page
+    .getByRole("combobox", { name: /Village|ગામ/ })
+    .selectOption("થોરાળા");
   await page.getByRole("button", { name: /Send request/ }).click();
   await page.getByRole("button", { name: /Submit request/ }).click();
   await page.getByRole("button", { name: /Withdraw/ }).waitFor();
+  forwardRequest(
+    store,
+    store.all("requests").find((r) => r.kind === "new").id,
+    "Verified community member",
+  );
   await page.reload();
   await page.getByRole("button", { name: /Withdraw/ }).waitFor();
   assert(
@@ -88,16 +103,20 @@ try {
   await panel.getByPlaceholder("admin", { exact: true }).fill("admin");
   await panel.locator("input[type=password]").fill("TestPreview@2026");
   await panel.getByRole("button", { name: /Sign in/ }).click();
-  await appointFirstRepresentative(panel,store.all('requests').find(r=>r.kind==='new').id);
+  await panel.getByText("New requests", { exact: true }).click();
+  await panel.getByRole("button", { name: /Approve/ }).click();
+  await panel
+    .getByRole("button", { name: /Back to dashboard|ડેશબોર્ડ પર પાછા/ })
+    .click();
   await page.reload();
   await page.getByRole("button", { name: /All Members/ }).waitFor();
   await page.getByRole("button", { name: /All Members/ }).click();
-  await page.getByTestId("Call").waitFor();
+  await page.getByTestId("Call").first().waitFor();
   await page.screenshot({ path: "test-results/directory.png" });
   await checkModernDirectory(page);
   await checkContactActions(browser, context, url);
   await checkTextSizes(context, url);
-  await page.getByPlaceholder("Search name or number").fill("900");
+  await page.getByPlaceholder("Search name or number").fill("Test Community");
   assert.equal(await page.getByTestId("Call").count(), 1);
   await page.reload();
   await page.getByRole("button", { name: /All Members/ }).waitFor();
@@ -110,7 +129,10 @@ try {
   const stateBefore = await page.evaluate(() =>
     fetch("/api/state").then((r) => r.json()),
   );
-  assert.equal(stateBefore.members[0].name, "Test Community Member");
+  assert.equal(
+    stateBefore.members.find((m) => m.phone === "9000000001").name,
+    "Test Community Member",
+  );
   assert.equal(stateBefore.updateRequests.length, 1);
   await panel.reload();
   await panel.getByText("Update requests", { exact: true }).click();
@@ -137,15 +159,21 @@ try {
   );
   await panel.reload();
   await panel.getByText("Members", { exact: true }).click();
-  await panel.getByTestId("Edit").click();
+  // Several members exist; edit the enrolled test member specifically.
+  await panel
+    .locator("div", { hasText: "Updated Test Member" })
+    .filter({ has: panel.getByTestId("Edit") })
+    .getByTestId("Edit")
+    .first()
+    .click();
   await panel.getByRole("button", { name: /Save changes/ }).waitFor();
   const hostileName = '<img src=x onerror="window.__attack=1">';
   await panel.locator("input").nth(0).fill(hostileName);
   await panel.getByRole("button", { name: /Save changes/ }).click();
-  await panel.getByTestId("Edit").waitFor();
+  await panel.getByTestId("Edit").first().waitFor();
   await page.reload();
   await page.getByRole("button", { name: /All Members/ }).click();
-  await page.getByTestId("Call").waitFor();
+  await page.getByTestId("Call").first().waitFor();
   assert((await page.locator("body").innerText()).includes(hostileName));
   assert.equal(await page.evaluate(() => window.__attack), undefined);
   assert.equal(

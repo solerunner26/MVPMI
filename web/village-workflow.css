@@ -169,3 +169,8 @@
     flex: 1 1 100%;
   }
 }
+
+.app .workflow-launch.secondary {
+  background: var(--g2);
+  color: var(--ink);
+}

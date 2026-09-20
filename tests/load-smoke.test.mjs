@@ -26,7 +26,7 @@ test("local 1,001-member read smoke test preserves authorization and bounded out
     const start = performance.now();
     last = await u("state");
     durations.push(performance.now() - start);
-    assert.equal(last.members.length, 1001);
+    assert.equal(last.members.length, 1002);
   }
   durations.sort((a, b) => a - b);
   const bytes = Buffer.byteLength(JSON.stringify(last));
@@ -36,7 +36,7 @@ test("local 1,001-member read smoke test preserves authorization and bounded out
   assert.deepEqual((await outsider("state")).members, []);
   t.diagnostic(
     JSON.stringify({
-      members: 1001,
+      members: 1002,
       requests: 20,
       p50Milliseconds: Math.round(durations[10]),
       p95Milliseconds: Math.round(durations[18]),

@@ -218,7 +218,7 @@ export class Store {
           action,
           reason,
           actor,
-          actorName:this.get("members",actor)?.nameGu||actor,
+          actorName: this.get("members", actor)?.nameGu || actor,
           level,
           category,
           at: Date.now(),
@@ -337,11 +337,17 @@ export class Store {
         409,
       );
   }
-  dropAssignments(memberId){
-    for(const a of this.all('villageAdmins').filter(a=>a.memberId===memberId)){
-      this.del('villageAdmins',a.id);
-      for(const r of this.all('requests').filter(r=>r.payload?.village===a.id&&r.verification)){
-        r.reviewHistory=[...(r.reviewHistory||[]),r.verification];delete r.verification;this.put('requests',r);
+  dropAssignments(memberId) {
+    for (const a of this.all("villageAdmins").filter(
+      (a) => a.memberId === memberId,
+    )) {
+      this.del("villageAdmins", a.id);
+      for (const r of this.all("requests").filter(
+        (r) => r.payload?.village === a.id && r.verification,
+      )) {
+        r.reviewHistory = [...(r.reviewHistory || []), r.verification];
+        delete r.verification;
+        this.put("requests", r);
       }
     }
   }
@@ -356,7 +362,7 @@ export class Store {
   data() {
     return {
       villages: this.all("villages"),
-      villageAdmins: this.all("villageAdmins"),
+      villageAdmins: this.all("villageAdmins").map(({ pass, ...a }) => a),
       rejections: this.all("rejections"),
       members: this.all("members"),
       requests: this.all("requests"),
@@ -579,7 +585,18 @@ export class Store {
           "assignedAt",
           "assignedBy",
           "reason",
+          "username",
+          "passChangedAt",
         ]);
+        if (a.username !== undefined && !/^\d{10}$/.test(a.username))
+          fail("Invalid administrator username");
+        if (a.pass !== undefined)
+          fail("Administrator password hashes must not be exported");
+        if (
+          a.passChangedAt !== undefined &&
+          (!Number.isFinite(a.passChangedAt) || a.passChangedAt < 0)
+        )
+          fail("Invalid password date");
         const m = byId.get(a.memberId);
         if (
           !m ||

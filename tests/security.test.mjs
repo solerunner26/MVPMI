@@ -19,12 +19,19 @@ const protectedRoutes = [
   ["admin/alerts/unknown/block", {}],
   ["admin/requests/unknown/approve", {}],
   ["admin/requests/unknown/reject", {}],
+  ["village/requests/unknown/forward", { reason: "Attempted action" }],
+  ["village/members/unknown/update", { reason: "Attempted action" }],
+  ["village/members/unknown/delete", { reason: "Attempted action" }],
+  ["village/password", { current: "Attempt@2026!", next: "Attempt@2026!" }],
 ];
 for (const role of ["guest", "pending", "member"])
   test(`${role}: every admin data/mutation endpoint requires admin authorization`, async (t) => {
-    const { client, enroll } = await fixture(t),
+    const { client, enroll, ensureAdmin } = await fixture(t),
       u = client();
-    if (role === "pending") await u("enrollment", example);
+    if (role === "pending") {
+      await ensureAdmin("Thorala");
+      await u("enrollment", example);
+    }
     if (role === "member") await enroll(u);
     for (const [path, body] of protectedRoutes) await u(path, body, 403);
   });
@@ -116,27 +123,32 @@ test("state and update snapshots expose only public profile fields, even for res
 });
 
 test("approval carries consent evidence and rejects double approval", async (t) => {
-  const { client, admin, store } = await fixture(t),
+  const { client, admin, store, ensureAdmin, va } = await fixture(t),
     u = client();
+  await ensureAdmin("Thorala");
   await u("enrollment", example);
   const r = (await admin("state")).newRequests[0];
-  await admin("admin/village-admins/" + encodeURIComponent("થોરાળા"), {
-    requestId: r.id,
+  await va("થોરાળા")("village/requests/" + r.id + "/forward", {
+    reason: "Verified community member",
     identityConfirmed: true,
-    reason: "Known first village representative",
   });
-  const m = store.all("members")[0];
+  await admin("admin/requests/" + r.id + "/approve", {});
+  const m = store.all("members").find((x) => x.phone === example.phone);
   assert.equal(m.consentVersion, "development-disclosure-v1");
   assert.ok(m.consentAt);
   assert.ok(m.createdAt);
   assert.ok(m.approvedBy);
   await admin("admin/requests/" + r.id + "/approve", {}, 409);
-  assert.equal(store.all("members").length, 1);
+  assert.equal(
+    store.all("members").filter((x) => x.phone === example.phone).length,
+    1,
+  );
 });
 
 test("reject enrollment/update/deletion paths preserve the correct directory state", async (t) => {
-  const { client, admin, enroll } = await fixture(t),
+  const { client, admin, enroll, ensureAdmin } = await fixture(t),
     u = client();
+  await ensureAdmin("Thorala");
   await u("enrollment", example);
   let s = await admin("state");
   await admin("admin/requests/" + s.newRequests[0].id + "/reject", {
@@ -148,7 +160,10 @@ test("reject enrollment/update/deletion paths preserve the correct directory sta
   await u("profile/update", { ...example, phone: "9000000002" });
   s = await admin("state");
   await admin("admin/requests/" + s.updateRequests[0].id + "/reject", {});
-  assert.equal((await u("state")).members[0].phone, example.phone);
+  assert.equal(
+    (await u("state")).members.find((m) => m.phone === example.phone).phone,
+    example.phone,
+  );
   await u("profile/delete", {});
   s = await admin("state");
   await admin("admin/requests/" + s.deleteRequests[0].id + "/reject", {});
@@ -322,9 +337,16 @@ test("XLSX contains literal text, not executable spreadsheet formulas", async (t
   const bytes = await admin("admin/export.xlsx");
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(bytes);
-  const cell = workbook.worksheets[0].getCell("B2");
-  assert.equal(cell.type, ExcelJS.ValueType.String);
-  assert.equal(cell.value, '=HYPERLINK("https://example.invalid")');
+  let found = false;
+  workbook.worksheets[0].eachRow((row) => {
+    const cell = row.getCell(2);
+    if (
+      cell.type === ExcelJS.ValueType.String &&
+      cell.value === '=HYPERLINK("https://example.invalid")'
+    )
+      found = true;
+  });
+  assert.ok(found, "Literal formula-looking name is exported as text");
 });
 
 test("response cache policy and HttpOnly session flags", async (t) => {
@@ -371,17 +393,16 @@ test("oversized JSON requests fail with 413 without exposing payloads", async (t
 });
 
 test("simultaneous approval is consumed once and leaves one approved member", async (t) => {
-  const { url, client, admin, store, enroll } = await fixture(t),
+  const { url, client, admin, store, enroll, va } = await fixture(t),
     u = client();
-  const local = client();
-  await enroll(local, {
+  await enroll(client(), {
     ...example,
     name: "Verifier Fixture",
     phone: "7999999991",
   });
   await u("enrollment", example);
   const id = (await admin("state")).newRequests[0].id;
-  await local("village/requests/" + id + "/forward", {
+  await va("થોરાળા")("village/requests/" + id + "/forward", {
     reason: "Verified in person",
     identityConfirmed: true,
   });
@@ -417,5 +438,6 @@ test("simultaneous approval is consumed once and leaves one approved member", as
     store.all("members").filter((m) => m.phone === example.phone).length,
     1,
   );
-  assert.equal(store.all("members").length, 2);
+  // Village administrator, verifier fixture and the approved applicant.
+  assert.equal(store.all("members").length, 3);
 });

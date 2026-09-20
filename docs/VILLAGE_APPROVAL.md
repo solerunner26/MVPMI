@@ -1,136 +1,120 @@
 # Village verification and management — 20 September 2026
 
-This change adds the community's own two-stage approval flow and the related
-functional changes requested after the modern redesign. The pre-edit checkpoint
-is the tag **`Pre-Village-Approval`** (and
-`/home/user/checkpoints/MVPMI-Pre-Village-Approval.zip` in the development
-workspace). The original dossier, `cp001`, `cp002` and the modern redesign
-remain unchanged.
+Two-stage community approval with separate village-administrator sign-in,
+managed villages and identity-safe rejoining. Pre-edit checkpoints:
+**`Pre-Village-Approval`** (first version) and commit `9111cc7` (before the
+admin-first/login separation). `cp001`, `cp002`, the dossier and the modern
+redesign remain unchanged.
 
-## Who can do what
+## Setup order: administrators come first
 
-| Ability                                              | Village administrator                         | Main administrator                                                |
-| ---------------------------------------------------- | --------------------------------------------- | ----------------------------------------------------------------- |
-| See new applications                                 | Only for their own assigned village           | All villages                                                      |
-| Verify identity and forward for final approval       | Yes (mandatory reason + identity attestation) | No — forwards always come from the village admin                  |
-| Final approval that grants directory access          | No                                            | Yes, and only after a live village verification                   |
-| Reject / close an application (mandatory reason)     | Yes, their village                            | Yes, any village                                                  |
-| Assign or remove village administrators              | No                                            | Yes, any time                                                     |
-| Add villages                                         | No                                            | Yes; immediately available for signup and profile village changes |
-| Read the rejection ledger and removed-member archive | No                                            | Yes                                                               |
+1. The **main administrator** launches the app and enrolls one administrator
+   per village (name, phone, initial password) after confirming the person's
+   identity in person. Enrollment creates the administrator's membership and
+   credentials in one audited step.
+2. **Joining stays closed until a village has an administrator.** The server
+   rejects applications for administrator-less villages, and the village
+   dropdown marks them "એડમિન નિયુક્ત નથી · no admin yet". New villages added
+   later follow the same rule.
+3. Once enrolled, community members of that village can apply; applications
+   wait in that village's queue.
 
-- One active administrator per village. Assigning a replacement immediately
-  revokes the previous administrator's authority, returns their pending queue
-  to the unverified state and moves any outstanding verification into a
-  review-history list, so a replacement must verify independently.
-- A village administrator cannot verify their own request (matched by session
-  owner or by phone number).
-- Authority is tied to live membership: deleting or village-changing the member
-  record removes their assignment the same way.
+## Separate logins
+
+|              | Village administrator                                                                                                                       | Main administrator                                    |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| Entrance     | Visible **"ગામ એડમિન સાઇન ઇન / Village admin sign in"** button                                                                              | Hidden: 5 taps on the sun logo + gate code + password |
+| Credentials  | Phone number + password (set at enrollment, 12-hour session)                                                                                | Username + password (30-minute session)               |
+| Scope        | Only their own village                                                                                                                      | Everything                                            |
+| Sun-tap gate | **Sealed** — the hidden entrance never opens for a signed-in village administrator, and only the main administrator knows the code/password | Owner                                                 |
+
+- Being the assigned member is not enough: the review facility requires the
+  explicit sign-in, so an ordinary browser session of the same person (family
+  member, borrowed phone) has no admin power. The assigned member's own
+  session instead sees a "sign in as village administrator" invitation.
+- Passwords: administrators change their own (Account tab); the main
+  administrator can reset any village's administrator password after
+  re-confirming identity. Hashes are scrypt, never exported in backups, and
+  all sign-ins are rate-limited and audited.
+- Replacing or removing an administrator revokes live sessions immediately
+  (authority is re-checked against the current assignment on every request)
+  and returns pending verifications to the queue for independent review.
 
 ## Application lifecycle
 
-1. Applicant submits the joining form (name, numbers, optional **હાલ :** current
-   location, village). The village list is seeded with the original seven
-   villages and can be extended only by the main administrator.
-2. The request waits in the **village queue**. Guests and pending applicants
-   still receive no directory records.
-3. The village administrator verifies the person and **forwards** the request
-   with a mandatory reason (5–500 characters) and an explicit identity
-   attestation. Forwarding is refused when the village has no administrator —
-   there is no silent bypass.
-4. The main administrator gives **final approval**. The server independently
-   re-checks the verification against the current assignment before granting
-   access.
-5. Rejection or closing (by either administrator) records a mandatory reason
-   and category, and moves the application to a separate **rejection ledger**
-   (new table `rejections`), not the removed-member archive. The applicant sees
-   the reason and may submit a new application; the ledger keeps one row per
-   phone number with the full decision history, and is visible only to the main
-   administrator.
+1. Applicant submits the joining form (name, numbers, optional **હાલ :**
+   current location, village).
+2. The village administrator verifies the person and **forwards** with a
+   mandatory reason (5–500 characters) and an explicit identity attestation.
+   Self-verification (own session or own phone number) is refused.
+3. The main administrator gives **final approval**; the server re-checks the
+   verification against the _current_ assignment before granting access.
+4. Rejection/closing (by either administrator) requires a reason and category,
+   and records the decision in a separate **rejection ledger** (table
+   `rejections`), never in the removed-member archive. The applicant sees the
+   reason; only the main administrator sees the ledger (one row per phone
+   number with the full decision history).
 
-## First village administrator
+## Member changes and removals — both admins, one decision
 
-A village with no administrator cannot forward anything. To bootstrap, the main
-administrator may appoint a **trusted representative** directly from that
-village's pending applications after confirming the person's identity. This
-explicit appointment creates the member and the assignment in one audited step
-(`representative.appoint`). It is the only path that grants membership without a
-separate village verification, it is refused when an assignment already exists,
-and it must not be used for ordinary approvals.
+Village administrators can **propose** changes (name, numbers, હાલ location)
+and removals for members of their own village from the "My village members"
+tab. Every proposal becomes a request that only the **main administrator** can
+approve or reject; a village administrator can never change or remove a member
+alone, cannot touch other villages' members, and cannot propose changes to
+their own administrator record (the main administrator handles that). Members'
+own self-service requests continue to work the same way. Village changes
+always route through the destination village's verification and then the main
+administrator.
 
 ## Deleted members, archived identity, new devices
 
-- **Access codes are retired.** The old issue/redeem endpoints answer
-  `410 Gone`, and codes that existed before migration are deleted. A member who
-  wants to return submits a new application and passes both stages again.
-- The removed-member archive keeps **one identity per person** (`personId`) and
-  a unique set of phone numbers (`numbers`, primary and secondary merged). A
-  rejoin is only approved after the main administrator explicitly confirms the
-  matching archived identity, and the restored member keeps the original member
-  id instead of creating a duplicate person.
-- An **active** member who loses their device/reinstalls also gets no automatic
-  access. Their new application reaches the main administrator with a visible
-  "existing member matches this number" notice; approving it requires
-  explicitly confirming the replacement, which revokes the previous device's
-  membership in the same transaction (one member, one live device identity).
-- Phone collisions are checked against primary and secondary numbers of members
-  and open requests. Archived numbers never auto-grant anything and conflicting
-  archives require main-administrator review.
+- **Access codes are retired** (old endpoints answer 410; pre-existing codes
+  are deleted at migration). Deleted members reapply through both stages.
+- The archive keeps **one identity per person** (`personId`) with a unique set
+  of phone numbers; rejoining requires the main administrator to confirm the
+  matching archived identity, and the restored member keeps the original id.
+- An active member on a new device also gets no automatic access: the main
+  administrator explicitly confirms the replacement, which revokes the old
+  device's membership in the same transaction.
+- Phone collisions (primary and secondary) block enrollment and are reviewed
+  by the main administrator; nothing is auto-merged or auto-blacklisted.
 
-## Villages, location and header controls
+## Villages, location, header controls
 
-- Village dropdowns (signup, profile edit, admin selection) read the managed
-  `villages` table. Adding a village requires both Gujarati and English names
-  and rejects duplicates; the original seven can never be removed by restore
-  validation.
-- Profile village changes create update requests that now pass through the
-  **destination** village administrator and then the main administrator; the
-  previous approved details stay live until then. Direct admin edits cannot
-  change a member's village out from under an assignment — those also go
-  through review.
-- **હાલ :** current location / address is a single optional text field (max 240
-  characters) next to the secondary number. It is independent of the secondary
-  number and shown to approved members in the directory and profile.
-- Language and dark/light theme are header-only controls. The duplicates inside
-  reading settings were removed, and a theme toggle now sits beside the language
-  button. The 85–165% slider and all other preferences remain unchanged.
+- The village table is seeded with the original seven villages. Only the main
+  administrator adds villages (Gujarati + English names, duplicates refused);
+  they appear immediately in signup and profile edits.
+- **હાલ :** current location/address is a single optional field (max 240
+  characters) next to the secondary number, visible to approved members.
+- Language and dark/light theme are header-only controls; the duplicates in
+  reading settings are gone. The 85–165% slider and other preferences remain.
 
 ## Data, migration and backup
 
-- New tables in the same SQLite database: `villages`, `villageAdmins`,
-  `rejections`. "Separate records" means separate tables and admin-only API
-  surfaces, not a separate physical database.
-- On first launch after the change, the seven villages are seeded, legacy
-  rejected-application archive rows move into the rejection ledger, and any
-  pre-existing recovery codes are deleted. Approved-member archive rows are
-  preserved.
-- Backup format is now **schema version 2** (adds the three governance tables
-  and strict validation of assignments, rejection events, archive numbers and
-  per-person history). Restores re-require village verification for staged
-  requests; restoring is refused if the original villages are missing.
+- New tables in the same SQLite database: `villages`, `villageAdmins`
+  (including credential hashes, which are stripped from every export),
+  `rejections`.
+- Backup schema version 2 validates villages, assignments (without hashes),
+  rejection events, archive numbers and per-person history; restores drop
+  staged verifications so requests need fresh village review; the original
+  seven villages must be present.
+- Demo data: `node scripts/seed-demo.mjs` (synthetic only, idempotent);
+  logins listed in [DEMO_LOGINS.md](DEMO_LOGINS.md).
 
 ## Verification
 
-- `npm run check` passes: **88 Node tests** (including the new
+- `npm run check` passes: **92 Node tests** (14 in
   `tests/village-approval.test.mjs`), UI, embedded, 29-state accessibility,
-  language, the new `scripts/village-workflow-test.mjs` browser suite and
-  material suites, plus `npm audit` (0 vulnerabilities).
-- The retired access-code suite (`tests/member-recovery.test.mjs`) was removed
-  with the feature; retired endpoints and identity-safe reapplication are
-  covered by the new tests.
-- The workflow suite exercises the real UI in a browser: enrollment with
-  location, first-admin appointment, village forwarding, main approval, the
-  rejection ledger, dynamic village addition, edit-form location, both
-  themes/languages and 165% text. Screenshots and raw axe results are kept in
-  ignored `test-results/village-workflow/`.
+  language, the 14-screen `scripts/village-workflow-test.mjs` browser suite
+  (admin-first enrollment, separate sign-in, sealed gate, forwarding, final
+  approval, proposals, rejection ledger, removal, closed new villages) and
+  materials, plus `npm audit` (0 vulnerabilities).
 
 ## Limits
 
-- Verification still relies on administrators personally knowing the applicant;
-  there is no SMS phone-ownership proof (unchanged, disclosed in the consent
-  dialog).
-- The main administrator's explicit confirmations (representative appointment,
-  archive identity match, device replacement) are trust decisions, not
-  cryptographic identity proof.
-- No push/SMS notifications: applicants must reopen the app to see status.
+- Identity still relies on administrators personally knowing the applicant;
+  there is no SMS phone-ownership proof (disclosed in the consent dialog).
+- The main administrator's confirmations (enrollment, archive identity,
+  device replacement) are trust decisions, not cryptographic proof.
+- No push/SMS notifications; applicants must reopen the app to see status.

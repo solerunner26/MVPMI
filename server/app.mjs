@@ -4,6 +4,7 @@ import {
   assertVerified,
   decisionReason,
   needsVerification,
+  activeAdminMember,
 } from "./village-approval.mjs";
 import { isDeepStrictEqual } from "node:util";
 import { installSessions } from "./session.mjs";
@@ -112,7 +113,9 @@ export function createApp({
       blocked: false,
     });
   const state = (req) => {
-    const me = store.all("members").find((m) => m.owner === req.session.owner),
+    const me =
+        store.all("members").find((m) => m.owner === req.session.owner) ||
+        activeAdminMember(store, req),
       requests = store.all("requests");
     const mine = requests.find(
       (r) => r.owner === req.session.owner && r.kind === "new",
@@ -168,7 +171,7 @@ export function createApp({
       development,
     };
   };
-  installVillageApproval(app, store, { admin, state });
+  installVillageApproval(app, store, { admin, state, rate });
   app.get("/api/state", (req, res) => res.json(state(req)));
   app.post("/api/enrollment", (req, res) => {
     rate("enroll:" + req.session.id, 30, 3600000);
@@ -181,6 +184,11 @@ export function createApp({
       fail("Phone verification required", 403);
     if (req.body.consent !== true) fail("Consent is required");
     const p = profile(req.body, store.all("villages"));
+    if (!store.get("villageAdmins", p.village))
+      fail(
+        "આ ગામ માટે ગામ એડમિન હજુ નિયુક્ત નથી · This village has no administrator yet. Enrollment opens after the main administrator appoints one.",
+        409,
+      );
     store.unique(p, req.session.owner, undefined, true);
     store.tx(() => {
       for (const r of store
@@ -417,7 +425,7 @@ export function createApp({
                 409,
               );
             store.unique(r.payload, m.owner, r.id);
-            if(m.village!==r.payload.village)store.dropAssignments(m.id);
+            if (m.village !== r.payload.village) store.dropAssignments(m.id);
             store.put("members", { ...m, ...r.payload });
           } else store.remove(m, "દૂર કરી · Removed on request");
         }
@@ -565,7 +573,13 @@ export function createApp({
   app.use("/api", (req, res) => res.status(404).json({ error: "Not found" }));
   app.use(express.static("dist", { index: "index.html" }));
   app.use((err, req, res, next) => {
-    if (!err.status) console.error("Unexpected server error:", err.name);
+    if (!err.status)
+      console.error(
+        "Unexpected server error:",
+        err.name,
+        err.message,
+        err.stack.split("\n")[1],
+      );
     const status = err.status || 500;
     res.status(status).json({
       error:

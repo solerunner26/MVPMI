@@ -1,42 +1,100 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { fixture, example } from "./helpers.mjs";
+import { fixture, example, VA_PASS } from "./helpers.mjs";
+
 const reason = "Known personally in this village";
 const forward = { reason, identityConfirmed: true };
-async function scenario(t) {
-  const f = await fixture(t);
-  const local = f.client();
-  const rep = await f.enroll(local, {
-    ...example,
-    name: "Village Representative",
-    phone: "7999999991",
-  });
-  return { ...f, local, rep };
-}
-test("new enrollment cannot bypass independent village and main approval", async (t) => {
-  const f = await scenario(t),
+
+test("applications stay closed until the main administrator enrolls a village administrator", async (t) => {
+  const f = await fixture(t),
     guest = f.client();
+  const blocked = await guest("enrollment", example, 409);
+  assert.match(blocked.error, /This village has no administrator yet/);
+  await f.admin("admin/village-admins/" + encodeURIComponent("થોરાળા"), {
+    name: "Thorala Administrator",
+    phone: "7990000010",
+    pass: "Village@2026!",
+    reason,
+    identityConfirmed: true,
+  });
   await guest("enrollment", example);
-  const r = f.store.all("requests")[0];
   assert.equal((await guest("state")).applicationStage, "village");
-  assert.deepEqual((await guest("state")).members, []);
+  const r = f.store.all("requests")[0];
   await f.admin(`admin/requests/${r.id}/approve`, {}, 409);
   await guest(`village/requests/${r.id}/forward`, forward, 403);
-  await f.local(`village/requests/${r.id}/forward`, { reason }, 400);
-  await f.local(`village/requests/${r.id}/forward`, forward);
-  assert.equal((await guest("state")).applicationStage, "main");
-  assert.deepEqual((await guest("state")).members, []);
-  await f.local(`admin/requests/${r.id}/approve`, {}, 403);
-  await f.admin(`admin/requests/${r.id}/approve`, {});
-  assert.equal((await guest("state")).role, "member");
 });
+
+test("village administrators sign in separately and member sessions hold no admin power", async (t) => {
+  const f = await fixture(t),
+    anyone = f.client();
+  await f.ensureAdmin("Thorala");
+  const assignment = f.store.get("villageAdmins", "થોરાળા");
+  const applicant = f.client();
+  await applicant("enrollment", { ...example, phone: "9000000002" });
+  const r = f.store.all("requests")[0];
+  await anyone(
+    "village/login",
+    { phone: assignment.username, pass: "Wrong@2026" },
+    401,
+  );
+  await anyone("village/login", { phone: "8000000000", pass: VA_PASS }, 401);
+  await anyone("village/login", { phone: assignment.username, pass: VA_PASS });
+  assert.equal((await anyone("state")).villageAdmin, true);
+  assert.match((await anyone("state")).villageAdminName, /^Administrator/);
+  // Signed-in administrator acts only on their own village queue.
+  await anyone(`village/requests/${r.id}/forward`, forward);
+  await f.admin(`admin/requests/${r.id}/approve`, {});
+  await anyone("village/logout", {});
+  assert.equal((await anyone("state")).villageAdmin, false);
+  // A member who is later appointed administrator gains no power in their own
+  // browser session; they must use the separate administrator sign-in.
+  const memberSession = f.client();
+  await memberSession("enrollment", { ...example, phone: "9000000003" });
+  const own = f.store
+    .all("requests")
+    .find((x) => x.payload.phone === "9000000003");
+  const va2 = f.client();
+  await va2("village/login", { phone: assignment.username, pass: VA_PASS });
+  await va2(`village/requests/${own.id}/forward`, forward);
+  await f.admin(`admin/requests/${own.id}/approve`, {});
+  const appointed = f.store
+    .all("members")
+    .find((m) => m.phone === "9000000003");
+  await f.admin("admin/village-admins/" + encodeURIComponent("થોરાળા"), {
+    memberId: appointed.id,
+    pass: VA_PASS,
+    reason,
+    identityConfirmed: true,
+  });
+  assert.equal((await va2("state")).villageAdmin, false);
+  const state = await memberSession("state");
+  assert.equal(state.villageAdmin, false);
+  assert.equal(state.villageAdminEligible, true);
+  assert.deepEqual(state.reviewQueue, []);
+  const later = f.client();
+  await later("enrollment", { ...example, phone: "9000000008" });
+  const laterRequest = f.store
+    .all("requests")
+    .find((x) => x.payload.phone === "9000000008");
+  await memberSession(
+    `village/requests/${laterRequest.id}/forward`,
+    forward,
+    403,
+  );
+  const va3 = f.client();
+  await va3("village/login", { phone: appointed.phone, pass: VA_PASS });
+  await va3(`village/requests/${laterRequest.id}/forward`, forward);
+  await f.admin(`admin/requests/${laterRequest.id}/approve`, {});
+});
+
 test("local rejection requires reason, retains phone and decision, never enters removed-members archive", async (t) => {
-  const f = await scenario(t),
+  const f = await fixture(t),
     guest = f.client();
+  await f.ensureAdmin("Thorala");
   await guest("enrollment", example);
   let r = f.store.all("requests")[0];
-  await f.local(`village/requests/${r.id}/reject`, { reason: "" }, 400);
-  await f.local(`village/requests/${r.id}/reject`, {
+  await f.va("થોરાળા")(`village/requests/${r.id}/reject`, { reason: "" }, 400);
+  await f.va("થોરાળા")(`village/requests/${r.id}/reject`, {
     reason: "Cannot recognise this applicant",
     category: "not-community",
   });
@@ -47,77 +105,191 @@ test("local rejection requires reason, retains phone and decision, never enters 
     (await guest("state")).lastDecision.reason,
     "Cannot recognise this applicant",
   );
-  assert.deepEqual((await f.local("state")).rejectedApplications, []);
+  assert.deepEqual((await f.va("થોરાળા")("state")).rejectedApplications, []);
   await guest("enrollment", example);
   r = f.store.all("requests")[0];
-  await f.local(`village/requests/${r.id}/close`, {
+  await f.va("થોરાળા")(`village/requests/${r.id}/close`, {
     reason: "Applicant withdrew the request",
     category: "other",
   });
   assert.equal(f.store.all("rejections").length, 1);
   assert.equal(f.store.all("rejections")[0].events.length, 2);
 });
+
 test("reassignment revokes authority immediately and invalidates outstanding verification", async (t) => {
-  const f = await scenario(t),
-    replacement = f.client(),
+  const f = await fixture(t),
     applicant = f.client();
+  await f.ensureAdmin("Thorala");
+  const replacement = f.client();
   const next = await f.enroll(replacement, {
     ...example,
     name: "Replacement Admin",
-    phone: "7999999992",
+    phone: "7990000012",
   });
-  await applicant("enrollment", example);
-  const r = f.store.all("requests")[0];
-  await f.local(`village/requests/${r.id}/forward`, forward);
+  await applicant("enrollment", { ...example, phone: "9000000004" });
+  const r = f.store
+    .all("requests")
+    .find((x) => x.payload.phone === "9000000004");
+  await f.va("થોરાળા")(`village/requests/${r.id}/forward`, forward);
   await f.admin("admin/village-admins/" + encodeURIComponent("થોરાળા"), {
     memberId: next.id,
+    pass: "Village@2026!",
     reason,
+    identityConfirmed: true,
   });
-  assert.equal((await f.local("state")).villageAdmin, false);
-  assert.equal((await replacement("state")).villageAdmin, true);
+  assert.equal((await f.va("થોરાળા")("state")).villageAdmin, false);
   await f.admin(`admin/requests/${r.id}/approve`, {}, 409);
-  await f.local(`village/requests/${r.id}/forward`, forward, 403);
-  await replacement(`village/requests/${r.id}/forward`, forward);
+  await f.va("થોરાળા")(`village/requests/${r.id}/forward`, forward, 403);
+  const fresh = f.client();
+  await fresh(
+    "village/login",
+    { phone: "9000000004", pass: "Village@2026!" },
+    401,
+  );
+  await fresh(
+    "village/login",
+    { phone: example.phone, pass: "Village@2026!" },
+    401,
+  );
+  await fresh("village/login", { phone: next.phone, pass: "Village@2026!" });
+  await fresh(`village/requests/${r.id}/forward`, forward);
   await f.admin(`admin/requests/${r.id}/approve`, {});
 });
+
 test("village queues are scoped, self verification is denied, arbitrary villages rejected", async (t) => {
-  const f = await scenario(t),
-    other = f.client();
-  await other("enrollment", { ...example, village: "Sathra" });
-  const r = f.store.all("requests")[0];
-  assert.equal((await f.local("state")).reviewQueue.length, 0);
-  await f.local(`village/requests/${r.id}/reject`, { reason }, 403);
+  const f = await fixture(t);
+  await f.ensureAdmin("Thorala");
+  await f.ensureAdmin("Sathra");
+  const other = f.client();
+  await other("enrollment", {
+    ...example,
+    village: "Sathra",
+    phone: "9000000005",
+  });
+  const r = f.store
+    .all("requests")
+    .find((x) => x.payload.phone === "9000000005");
+  assert.equal((await f.va("થોરાળા")("state")).reviewQueue.length, 0);
+  await f.va("થોરાળા")(`village/requests/${r.id}/reject`, { reason }, 403);
   await f.admin(`admin/requests/${r.id}/approve`, {}, 409);
   await f.client()(
     "enrollment",
-    { ...example, phone: "7999999998", village: "Invented" },
+    { ...example, phone: "9000000006", village: "Invented" },
     400,
   );
-  const own = f.client();
-  await own("enrollment", { ...example, phone: f.rep.phone });
-  const self = f.store
+  const assignment = f.store.get("villageAdmins", "થોરાળા");
+  // The administrator's phone can be claimed on a new device, but only the
+  // main administrator can complete such a replacement.
+  await f.va("થોરાળા")("enrollment", {
+    ...example,
+    phone: assignment.username,
+  });
+  const own = f.store
     .all("requests")
-    .find((r) => r.payload.phone === f.rep.phone);
-  await f.local(`village/requests/${self.id}/forward`, forward, 403);
+    .find((x) => x.payload.phone === assignment.username);
+  await f.va("થોરાળા")(`village/requests/${own.id}/forward`, forward, 403);
 });
-test("only main admin adds villages; duplicates and unassigned automatic approval are blocked", async (t) => {
-  const f = await scenario(t);
-  await f.local("admin/villages", { gu: "નવું ગામ", en: "New Village" }, 403);
+
+test("only main admin adds villages; villages without administrators cannot receive applications", async (t) => {
+  const f = await fixture(t);
+  await f.ensureAdmin("Thorala");
+  await f.va("થોરાળા")(
+    "admin/villages",
+    { gu: "નવું ગામ", en: "New Village" },
+    403,
+  );
   await f.admin("admin/villages", { gu: "નવું ગામ", en: "New Village" });
   assert.equal((await f.client()("state")).villages.length, 8);
   await f.admin("admin/villages", { gu: "નવું ગામ", en: "Other name" }, 409);
   const guest = f.client();
+  await guest(
+    "enrollment",
+    { ...example, village: "New Village", currentLocation: "Adajan, Surat" },
+    409,
+  );
+  await f.ensureAdmin("New Village");
   await guest("enrollment", {
     ...example,
     village: "New Village",
     currentLocation: "Adajan, Surat",
   });
-  const r = f.store.all("requests")[0];
-  assert.equal(r.payload.currentLocation, "Adajan, Surat");
-  await f.admin(`admin/requests/${r.id}/approve`, {}, 409);
+  const r = f.store
+    .all("requests")
+    .find((x) => x.payload.currentLocation === "Adajan, Surat");
+  await f.va("નવું ગામ")(`village/requests/${r.id}/forward`, forward);
+  await f.admin(`admin/requests/${r.id}/approve`, {});
 });
+
+test("village admin proposals always require the main administrator's final decision", async (t) => {
+  const f = await fixture(t),
+    owner = f.client();
+  const member = await f.enroll(owner, example);
+  const va = f.va("થોરાળા");
+  await va(`village/members/${member.id}/update`, {
+    ...example,
+    name: "Proposed Name",
+    currentLocation: "Ring Road, Surat",
+    reason: "Member requested correction in person",
+    identityConfirmed: true,
+  });
+  assert.equal(
+    (await owner("state")).members.find((m) => m.id === member.id).name,
+    example.name,
+  );
+  await va(`admin/requests/${f.store.all("requests")[0].id}/approve`, {}, 403);
+  await va(
+    `village/members/${member.id}/delete`,
+    { reason: "Left the community", identityConfirmed: true },
+    409,
+  );
+  const update = f.store.all("requests").find((r) => r.kind === "update");
+  await f.admin(`admin/requests/${update.id}/approve`, {});
+  const changed = f.store.all("members").find((m) => m.id === member.id);
+  assert.equal(changed.name, "Proposed Name");
+  assert.equal(changed.currentLocation, "Ring Road, Surat");
+  await va(`village/members/${member.id}/delete`, {
+    reason: "Member moved away permanently",
+    identityConfirmed: true,
+  });
+  const del = f.store.all("requests").find((r) => r.kind === "delete");
+  await f.admin(`admin/requests/${del.id}/approve`, {});
+  assert.equal(
+    f.store.all("members").find((m) => m.id === member.id),
+    undefined,
+  );
+  assert.equal(f.store.all("archive").length, 1);
+});
+
+test("village admin proposals are village-scoped and never apply to the admin's own record", async (t) => {
+  const f = await fixture(t);
+  await f.ensureAdmin("Thorala");
+  await f.ensureAdmin("Sathra");
+  const outsider = await f.enroll(f.client(), {
+    ...example,
+    village: "Sathra",
+    phone: "9000000007",
+  });
+  const va = f.va("થોરાળા");
+  await va(
+    `village/members/${outsider.id}/update`,
+    {
+      ...example,
+      village: "Sathra",
+      reason: "Out of scope attempt",
+      identityConfirmed: true,
+    },
+    403,
+  );
+  const assignment = f.store.get("villageAdmins", "થોરાળા");
+  await va(
+    `village/members/${assignment.memberId}/delete`,
+    { reason: "Self removal attempt", identityConfirmed: true },
+    409,
+  );
+});
+
 test("deleted member rejoins through both stages, archive person and numbers remain unique", async (t) => {
-  const f = await scenario(t),
+  const f = await fixture(t),
     old = f.client();
   const member = await f.enroll(old, example);
   await f.admin(`admin/members/${member.id}/delete`, {});
@@ -125,7 +297,7 @@ test("deleted member rejoins through both stages, archive person and numbers rem
   const fresh = f.client();
   await fresh("enrollment", example);
   let r = f.store.all("requests")[0];
-  await f.local(`village/requests/${r.id}/forward`, forward);
+  await f.va("થોરાળા")(`village/requests/${r.id}/forward`, forward);
   await f.admin(`admin/requests/${r.id}/approve`, {}, 409);
   const archived = f.store.all("archive")[0];
   await f.admin(`admin/requests/${r.id}/approve`, {
@@ -142,15 +314,16 @@ test("deleted member rejoins through both stages, archive person and numbers rem
   assert.equal(f.store.all("archive")[0].history.length, 2);
   assert.equal(f.store.all("rejections").length, 0);
 });
+
 test("new device gets no automatic access; verified replacement revokes the previous owner", async (t) => {
-  const f = await scenario(t),
+  const f = await fixture(t),
     old = f.client();
   const member = await f.enroll(old, example);
   const fresh = f.client();
   await fresh("enrollment", example);
   const r = f.store.all("requests")[0];
   assert.deepEqual((await fresh("state")).members, []);
-  await f.local(`village/requests/${r.id}/forward`, forward);
+  await f.va("થોરાળા")(`village/requests/${r.id}/forward`, forward);
   await f.admin(`admin/requests/${r.id}/approve`, {}, 409);
   await f.admin(`admin/requests/${r.id}/approve`, {
     replaceExistingMemberId: member.id,
@@ -164,8 +337,9 @@ test("new device gets no automatic access; verified replacement revokes the prev
     1,
   );
 });
+
 test("phone collision checking covers primary and secondary numbers", async (t) => {
-  const f = await scenario(t),
+  const f = await fixture(t),
     a = f.client();
   await f.enroll(a, { ...example, phone2: "8000000002" });
   await f.client()("enrollment", { ...example, phone: "8000000002" }, 409);
@@ -175,29 +349,76 @@ test("phone collision checking covers primary and secondary numbers", async (t) 
     409,
   );
 });
-test("backup roundtrip preserves governance and rejection records but requires fresh verification", async (t) => {
-  const f = await scenario(t),
+
+test("village admin passwords can be changed by the admin and reset by the main administrator", async (t) => {
+  const f = await fixture(t);
+  await f.ensureAdmin("Thorala");
+  const assignment = f.store.get("villageAdmins", "થોરાળા");
+  const va = f.va("થોરાળા");
+  await va(
+    "village/password",
+    { current: "Wrong@2026", next: "Newer@2026!" },
+    401,
+  );
+  await va("village/password", { current: VA_PASS, next: "weak" }, 400);
+  await va("village/password", { current: VA_PASS, next: "Newer@2026!" });
+  const afterChange = f.client();
+  await afterChange(
+    "village/login",
+    { phone: assignment.username, pass: VA_PASS },
+    401,
+  );
+  await afterChange("village/login", {
+    phone: assignment.username,
+    pass: "Newer@2026!",
+  });
+  await f.admin(
+    "admin/village-admins/" + encodeURIComponent("થોરાળા") + "/password",
+    {
+      pass: "Reset@2026!",
+      reason,
+      identityConfirmed: true,
+    },
+  );
+  const afterReset = f.client();
+  await afterReset(
+    "village/login",
+    { phone: assignment.username, pass: "Newer@2026!" },
+    401,
+  );
+  await afterReset("village/login", {
+    phone: assignment.username,
+    pass: "Reset@2026!",
+  });
+});
+
+test("backup roundtrip preserves governance and rejection records but strips credentials and requires fresh verification", async (t) => {
+  const f = await fixture(t),
     guest = f.client();
+  await f.ensureAdmin("Thorala");
   await guest("enrollment", example);
   const r = f.store.all("requests")[0];
-  await f.local(`village/requests/${r.id}/forward`, forward);
+  await f.va("થોરાળા")(`village/requests/${r.id}/forward`, forward);
   const b = await f.admin("admin/backup");
   assert.equal(b.schemaVersion, 2);
+  assert.equal(b.villageAdmins[0].pass, undefined);
   const preview = await f.admin("admin/restore/validate", b);
   await f.admin("admin/restore", { backup: b, ...preview });
   assert.equal(f.store.get("requests", r.id).verification, undefined);
   await f.admin(`admin/requests/${r.id}/approve`, {}, 409);
 });
+
 test("old access codes cannot be issued or redeemed", async (t) => {
-  const f = await scenario(t);
+  const f = await fixture(t);
+  const member = await f.enroll(f.client(), example);
   await f.admin(
-    `admin/members/${f.rep.id}/recovery`,
+    `admin/members/${member.id}/recovery`,
     { identityVerified: true },
     410,
   );
   await f.client()(
     "member/recover",
-    { phone: f.rep.phone, code: "a".repeat(32) },
+    { phone: member.phone, code: "a".repeat(32) },
     410,
   );
   assert.equal(f.store.all("recoveries").length, 0);

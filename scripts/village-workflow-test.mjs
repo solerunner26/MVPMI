@@ -3,13 +3,10 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import { createApp } from "../server/app.mjs";
 import { launchBrowser } from "./browser.mjs";
-import {
-  appointFirstRepresentative,
-  chooseLanguage,
-  chooseTheme,
-} from "./preferences-checks.mjs";
+import { chooseLanguage, chooseTheme } from "./preferences-checks.mjs";
 import { assertFits, setTextSize } from "./text-size-checks.mjs";
 import { verifyOpaqueModalContrast } from "./modal-contrast-checks.mjs";
+
 const { app, store } = createApp({
   dbPath: ":memory:",
   development: true,
@@ -19,36 +16,56 @@ const { app, store } = createApp({
 const server = app.listen(0);
 await new Promise((r) => server.once("listening", r));
 const url = "http://localhost:" + server.address().port;
-const browser = await launchBrowser(),
-  errors = [],
-  scans = [];
+const browser = await launchBrowser();
+const errors = [];
+const scans = [];
 mkdirSync("test-results/village-workflow", { recursive: true });
-async function newPage() {
-  const c = await browser.newContext({
-    viewport: { width: 360, height: 800 },
+
+async function newPage(width = 360) {
+  const context = await browser.newContext({
+    viewport: { width, height: 800 },
     reducedMotion: "reduce",
   });
-  const p = await c.newPage();
-  p.on("pageerror", (e) => errors.push(e.message));
-  await p.goto(url);
-  await p.getByTestId("Language").waitFor();
-  return p;
+  const page = await context.newPage();
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto(url);
+  await page.getByTestId("Language").waitFor();
+  return page;
 }
-async function register(p, name, phone, location = "") {
-  await p.locator("input").nth(0).fill(name);
-  await p.locator("input").nth(1).fill(phone);
-  await p.getByTestId("Current location").fill(location);
-  await p.getByRole("combobox", { name: /Village|ગામ/ }).selectOption("થોરાળા");
-  await p.getByRole("button", { name: /Send request/ }).click();
-  await p.getByRole("button", { name: /Submit request/ }).click();
-  await p.getByRole("button", { name: /Withdraw/ }).waitFor();
+async function register(page, name, phone, location = "", village = "થોરાળા") {
+  await page.locator("input").nth(0).fill(name);
+  await page.locator("input").nth(1).fill(phone);
+  if (location) await page.getByTestId("Current location").fill(location);
+  await page
+    .getByRole("combobox", { name: /Village|ગામ/ })
+    .selectOption(village);
+  await page.getByRole("button", { name: /Send request/ }).click();
+  await page.getByRole("button", { name: /Submit request/ }).click();
+  await page.getByRole("button", { name: /Withdraw/ }).waitFor();
 }
-async function scan(p, name) {
-  await p
+async function optionState(page, value) {
+  await page.waitForFunction(
+    (value) =>
+      !![...(document.querySelector("select")?.options || [])].find(
+        (o) => o.value === value,
+      ),
+    value,
+    { timeout: 15000 },
+  );
+  return page.evaluate(
+    (value) =>
+      [...(document.querySelector("select")?.options || [])].find(
+        (o) => o.value === value,
+      )?.disabled,
+    value,
+  );
+}
+async function scan(page, name) {
+  await page
     .locator(".preferences-panel")
     .evaluateAll((es) => es.forEach((e) => (e.scrollTop = 0)));
-  await assertFits(p, name);
-  const result = await new AxeBuilder({ page: p })
+  await assertFits(page, name);
+  const result = await new AxeBuilder({ page: page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
     .analyze();
   assert.deepEqual(
@@ -64,106 +81,224 @@ async function scan(p, name) {
       "test-results/village-workflow/incomplete.json",
       JSON.stringify({ name, incomplete: result.incomplete }, null, 2),
     );
-  const verified = await verifyOpaqueModalContrast(p, result.incomplete, name);
+  const verified = await verifyOpaqueModalContrast(
+    page,
+    result.incomplete,
+    name,
+  );
   scans.push({
     name,
     violations: result.violations,
     incomplete: result.incomplete,
     verified,
   });
-  await p.screenshot({
+  await page.screenshot({
     path: "test-results/village-workflow/" + name + ".png",
+    fullPage: true,
   });
 }
-try {
-  const local = await newPage(),
-    member = await newPage(),
-    admin = await newPage();
-  await scan(member, "join-gu");
-  assert.equal(await member.locator("select option").count(), 8);
-  await member.getByTestId("Reading settings").click();
-  assert.equal(
-    await member.locator(".language-options,.theme-options").count(),
-    0,
-  );
-  await member.getByRole("button", { name: /Close/ }).click();
-  await chooseTheme(member, "dark");
-  await scan(member, "join-dark");
-  await chooseTheme(member, "light");
-  await register(local, "Village Representative", "7999999991");
+async function loginAsAdmin(page) {
   for (let i = 0; i < 5; i++)
-    await admin.getByTitle("MVPMl", { exact: true }).click();
+    await page.getByTitle("MVPMl", { exact: true }).click();
+  await page.getByText("Enter access code", { exact: true }).waitFor();
   for (const n of ["5", "8", "3", "1"])
-    await admin.getByRole("button", { name: n, exact: true }).click();
-  await admin.locator("input").nth(0).fill("admin");
-  await admin.locator("input").nth(1).fill("WorkflowTest@2026!");
-  await admin.getByRole("button", { name: /Sign in/ }).click();
-  await admin.getByTestId("Village management").waitFor();
-  await appointFirstRepresentative(admin, store.all("requests")[0].id);
-  await local.reload();
-  await local.getByTestId("Village management").waitFor();
-  await register(member, "Directory Applicant", "9000000001", "Adajan, Surat");
+    await page.getByRole("button", { name: n, exact: true }).click();
+  await page.locator("input").nth(0).fill("admin");
+  await page.locator("input").nth(1).fill("WorkflowTest@2026!");
+  await page.getByRole("button", { name: /Sign in/ }).click();
+  await page.getByTestId("Village management").waitFor();
+}
+async function loginAsVillageAdmin(page, phone, pass) {
+  await page.getByTestId("Village admin sign in").click();
+  await page.getByRole("dialog").waitFor();
+  await page
+    .getByRole("dialog")
+    .locator('input[inputmode="numeric"]')
+    .fill(phone);
+  await page.getByRole("dialog").locator('input[type="password"]').fill(pass);
+  await page.getByRole("button", { name: /Sign in/ }).click();
+  await page.getByTestId("Village management").waitFor();
+}
+
+try {
+  const applicant = await newPage(),
+    admin = await newPage(1200),
+    va = await newPage();
+
+  // 1. Before any administrator exists, joining stays closed.
+  await scan(applicant, "join-closed");
+  const villageSelect = applicant.getByRole("combobox", {
+    name: /Village|ગામ/,
+  });
+  assert.equal(await villageSelect.locator("option").count(), 8);
+  assert.equal(
+    await optionState(applicant, "થોરાળા"),
+    true,
+    "Village without an administrator cannot accept applications",
+  );
+  assert.equal(await applicant.getByTestId("Village admin sign in").count(), 1);
+
+  // 2. Main administrator enrolls the first village administrator directly.
+  await loginAsAdmin(admin);
+  await admin.getByTestId("Village management").click();
+  await admin.getByRole("button", { name: /Villages & admins/ }).click();
+  const card = admin
+    .locator(".workflow-card")
+    .filter({ has: admin.getByRole("heading", { name: /થોરાળા/ }) });
+  await card.getByLabel(/Name/).fill("Thorala Village Administrator");
+  await card.getByLabel(/Phone number \(used to sign in\)/).fill("7990000010");
+  await card.getByLabel(/Current location/).fill("Mahuva main road");
+  await card.getByLabel(/Initial password/).fill("Village@2026!");
+  await card
+    .getByLabel(/Enrollment reason/)
+    .fill("Identity confirmed in person");
+  await card.getByRole("checkbox").check();
+  await scan(admin, "enroll-first-admin");
+  await card.getByRole("button", { name: /Enroll administrator/ }).click();
+  await card.getByText(/Current administrator:/).waitFor();
+  await scan(admin, "admin-assigned");
+  await admin
+    .getByRole("button", { name: /Back to dashboard|ડેશબોર્ડ પર પાછા/ })
+    .click();
+
+  // 3. Joining opens for that village; the separate administrator sign-in works.
+  await applicant.reload();
+  assert.equal(await optionState(applicant, "થોરાળા"), false);
+  await register(
+    applicant,
+    "Directory Applicant",
+    "9000000001",
+    "Adajan, Surat",
+  );
   assert.match(
-    await member.locator("body").innerText(),
+    await applicant.locator("body").innerText(),
     /Waiting for your village/,
   );
-  await admin.getByTestId("Village management").click();
-  await admin.getByRole("button", { name: /Final approval/ }).waitFor();
+  await scan(applicant, "pending-village-stage");
+
+  await va.getByTestId("Village admin sign in").click();
+  await va.getByRole("dialog").waitFor();
+  await scan(va, "admin-login-sheet");
+  await va
+    .getByRole("dialog")
+    .locator('input[inputmode="numeric"]')
+    .fill("7990000010");
+  await va
+    .getByRole("dialog")
+    .locator('input[type="password"]')
+    .fill("Wrong@2026");
+  await va.getByRole("button", { name: /Sign in/ }).click();
+  await va.getByRole("alert").waitFor();
+  await va
+    .getByRole("dialog")
+    .locator('input[type="password"]')
+    .fill("Village@2026!");
+  await va.getByRole("button", { name: /Sign in/ }).click();
+  await va.getByTestId("Village management").waitFor();
+
+  // The hidden sun-tap gate stays sealed for village administrators.
+  for (let i = 0; i < 5; i++)
+    await va.getByTitle("MVPMl", { exact: true }).click();
   assert.equal(
-    await admin.getByRole("button", { name: /Final approval/ }).isDisabled(),
-    true,
+    await va.getByRole("button", { name: "5", exact: true }).count(),
+    0,
+    "Sun-tap gate must not open for village administrators",
   );
-  await scan(admin, "main-awaiting-village");
-  await admin.getByRole("button", { name: /Back to dashboard/ }).click();
-  await local.getByTestId("Village management").click();
-  let card = local
+
+  // 4. Village verification and forwarding.
+  await va.getByTestId("Village management").click();
+  let request = va
     .locator(".workflow-card")
     .filter({ hasText: "Directory Applicant" });
-  await card
+  await request
     .getByLabel(/Verification \/ decision reason/)
     .fill("Known personally; verified in person");
-  await card.getByRole("checkbox").check();
-  await scan(local, "local-verification");
-  await card.getByRole("button", { name: /Verify & forward/ }).click();
-  await card.waitFor({ state: "detached" });
-  await local.getByRole("button", { name: /Back to dashboard/ }).click();
-  await member.reload();
-  await member.getByRole("button", { name: /Withdraw/ }).waitFor();
-  assert.match(await member.locator("body").innerText(), /Village verified/);
-  await admin.reload();
+  await request.getByRole("checkbox").check();
+  await scan(va, "village-verification");
+  await request.getByRole("button", { name: /Verify & forward/ }).click();
+  await request.waitFor({ state: "detached" });
+  await va
+    .getByRole("button", { name: /Back to dashboard|ડેશબોર્ડ પર પાછા/ })
+    .click();
+
+  await applicant.reload();
+  await applicant.getByRole("button", { name: /Withdraw/ }).waitFor();
+  assert.match(await applicant.locator("body").innerText(), /Village verified/);
+  await scan(applicant, "pending-main-stage");
+
+  // 5. Final approval by the main administrator.
   await admin.getByTestId("Village management").click();
-  card = admin
+  request = admin
     .locator(".workflow-card")
     .filter({ hasText: "Directory Applicant" });
-  await card
+  await request
     .getByLabel(/Verification \/ decision reason/)
     .fill("Village verification reviewed");
-  await card.getByRole("checkbox").check();
+  await request.getByRole("checkbox").check();
   await scan(admin, "main-final-review");
-  await card.getByRole("button", { name: /Final approval/ }).click();
-  await card.waitFor({ state: "detached" });
-  await member.reload();
-  await member.getByTestId("My profile").waitFor();
-  await member.getByRole("button", { name: /All Members/ }).click();
-  await member.getByText("હાલ : Adajan, Surat").waitFor();
-  await scan(member, "approved-location");
+  await request.getByRole("button", { name: /Final approval/ }).click();
+  await request.waitFor({ state: "detached" });
+  await admin
+    .getByRole("button", { name: /Back to dashboard|ડેશબોર્ડ પર પાછા/ })
+    .click();
+
+  await applicant.reload();
+  await applicant.getByTestId("My profile").waitFor();
+  await applicant.getByRole("button", { name: /All Members/ }).click();
+  await applicant.getByText("હાલ : Adajan, Surat").waitFor();
+  await scan(applicant, "approved-location");
+
+  // 6. Village administrator proposes a member change; only the main
+  //    administrator can decide it.
+  await va.getByTestId("Village management").click();
+  await va.getByRole("button", { name: /My village members/ }).click();
+  const memberCard = va
+    .locator(".workflow-card")
+    .filter({ hasText: "Directory Applicant" });
+  await memberCard.getByRole("button", { name: /Propose change/ }).click();
+  await memberCard.getByTestId("Current location").fill("Ring Road, Surat");
+  await memberCard.getByLabel(/Proposal reason/).fill("Member moved house");
+  await scan(va, "village-member-proposal");
+  await memberCard
+    .getByRole("button", { name: /Send to main administrator/ })
+    .click();
+  await memberCard.getByText(/Awaiting main-administrator decision/).waitFor();
+  await va
+    .getByRole("button", { name: /Back to dashboard|ડેશબોર્ડ પર પાછા/ })
+    .click();
+
+  await admin.reload();
+  await admin.getByTestId("Village management").waitFor();
+  await admin.getByText("Update requests", { exact: true }).click();
+  await admin.getByRole("button", { name: /Authorize/ }).click();
+  await admin.getByText("Update requests", { exact: true }).waitFor();
+  await applicant.reload();
+  await applicant.getByTestId("My profile").click();
+  await applicant.getByText("Ring Road, Surat").first().waitFor();
+
+  // 7. Rejection with a reason stays visible to the main administrator only.
   const rejected = await newPage();
   await register(rejected, "Unknown Applicant", "9000000002");
-  await local.reload();
-  await local.getByTestId("Village management").click();
-  card = local
+  await va.reload();
+  await va.getByTestId("Village management").waitFor();
+  await va.getByTestId("Village management").click();
+  let rejectCard = va
     .locator(".workflow-card")
     .filter({ hasText: "Unknown Applicant" });
-  await card
+  await rejectCard
     .getByLabel(/Verification \/ decision reason/)
     .fill("Not recognised after identity review");
-  await card.getByLabel(/Rejection category/).selectOption("not-community");
-  await card.getByRole("button", { name: /Reject/ }).click();
-  await card.waitFor({ state: "detached" });
+  await rejectCard
+    .getByLabel(/Rejection category/)
+    .selectOption("not-community");
+  await rejectCard.getByRole("button", { name: /Reject/ }).click();
+  await rejectCard.waitFor({ state: "detached" });
   await rejected.reload();
   await rejected.getByText("Not recognised after identity review").waitFor();
   await scan(rejected, "rejected-feedback");
-  await admin.getByRole("button", { name: /Back to dashboard/ }).click();
+  await admin
+    .getByRole("button", { name: /Back to dashboard|ડેશબોર્ડ પર પાછા/ })
+    .click();
   await admin.reload();
   await admin.getByTestId("Village management").click();
   await admin
@@ -171,6 +306,38 @@ try {
     .click();
   await admin.getByText("9000000002", { exact: true }).waitFor();
   await scan(admin, "rejection-ledger");
+
+  // 8. Village administrator proposes removal; main administrator decides.
+  await va.reload();
+  await va.getByTestId("Village management").waitFor();
+  await va.getByTestId("Village management").click();
+  await va.getByRole("button", { name: /My village members/ }).click();
+  const removalCard = va
+    .locator(".workflow-card")
+    .filter({ hasText: "Directory Applicant" });
+  await removalCard.getByRole("button", { name: /Propose removal/ }).click();
+  await removalCard.getByLabel(/Removal reason/).fill("Left the community");
+  await removalCard
+    .getByRole("button", { name: /Send removal proposal/ })
+    .click();
+  await removalCard.getByText(/Awaiting main-administrator decision/).waitFor();
+  await va
+    .getByRole("button", { name: /Back to dashboard|ડેશબોર્ડ પર પાછા/ })
+    .click();
+  await admin
+    .getByRole("button", { name: /Back to dashboard|ડેશબોર્ડ પર પાછા/ })
+    .click();
+  await admin.reload();
+  await admin.getByText("Delete requests", { exact: true }).click();
+  await admin.getByRole("button", { name: /Remove|કાઢી નાખો/ }).click();
+  await admin.getByRole("button", { name: /Remove from directory/ }).click();
+  await admin.getByText("Delete requests", { exact: true }).waitFor();
+  await applicant.reload();
+  await applicant.getByRole("button", { name: /Send request/ }).waitFor();
+
+  // 9. New villages appear immediately but stay closed until an administrator
+  //    is enrolled.
+  await admin.getByTestId("Village management").click();
   await admin.getByRole("button", { name: /Villages & admins/ }).click();
   const add = admin.locator("form.workflow-card");
   await add.getByLabel(/Gujarati name/).fill("નવું ગામ");
@@ -181,20 +348,47 @@ try {
   await rejected.reload();
   await rejected.getByRole("combobox", { name: /Village|ગામ/ }).waitFor();
   assert.equal(await rejected.locator("select option").count(), 9);
-  await rejected
-    .getByRole("combobox", { name: /Village|ગામ/ })
-    .selectOption("નવું ગામ");
-  await member.getByTestId("My profile").click();
-  await member.getByRole("button", { name: /Edit my details/ }).click();
   assert.equal(
-    await member.getByTestId("Current location").inputValue(),
-    "Adajan, Surat",
+    await optionState(rejected, "નવું ગામ"),
+    true,
+    "A new village without an administrator stays closed",
   );
-  await member
-    .locator('option[value="નવું ગામ"]')
-    .waitFor({ state: "attached" });
-  assert.equal(await member.locator("select option").count(), 9);
-  await admin.getByRole("button", { name: /Back to dashboard/ }).click();
+
+  // 10. Administrator account: password change and sign-out.
+  await va.getByTestId("Village management").click();
+  await va.getByRole("button", { name: /Account/ }).click();
+  await va.getByLabel(/Current password/).fill("Village@2026!");
+  await va.getByLabel(/New password/).fill("Newer@2026!");
+  await scan(va, "village-account");
+  await va.getByRole("button", { name: /Change password/ }).click();
+  await va
+    .getByRole("button", { name: /Sign out village administrator/ })
+    .click();
+  await va.getByTestId("Village admin sign in").waitFor();
+  // The new password is required; the old one no longer works.
+  await va.getByTestId("Village admin sign in").click();
+  await va.getByRole("dialog").waitFor();
+  await va
+    .getByRole("dialog")
+    .locator('input[inputmode="numeric"]')
+    .fill("7990000010");
+  await va
+    .getByRole("dialog")
+    .locator('input[type="password"]')
+    .fill("Village@2026!");
+  await va.getByRole("button", { name: /Sign in/ }).click();
+  await va.getByRole("alert").waitFor();
+  await va
+    .getByRole("dialog")
+    .locator('input[type="password"]')
+    .fill("Newer@2026!");
+  await va.getByRole("button", { name: /Sign in/ }).click();
+  await va.getByTestId("Village management").waitFor();
+
+  // 11. Large-text English dark management view remains usable.
+  await admin
+    .getByRole("button", { name: /Back to dashboard|ડેશબોર્ડ પર પાછા/ })
+    .click();
   await admin.getByTestId("Reading settings").click();
   await setTextSize(admin, 165);
   await admin.getByRole("button", { name: /Close/ }).click();
@@ -203,9 +397,10 @@ try {
   await admin.getByTestId("Village management").click();
   await admin.getByRole("button", { name: /Villages & admins/ }).click();
   await scan(admin, "management-en-dark-165");
+
   assert.deepEqual(errors, []);
   console.log(
-    "PASS: real UI enrollment, first-admin appointment, local forwarding, final approval, rejection ledger, location, dynamic villages, both themes/languages and large-text management.",
+    "PASS: admin-first enrollment, separate village-admin sign-in, sealed sun-tap gate, verification, final approval, member proposals, rejection ledger, removal and closed new villages.",
   );
 } finally {
   writeFileSync(

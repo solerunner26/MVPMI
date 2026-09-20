@@ -1,4 +1,5 @@
 import { chooseLanguage } from "./preferences-checks.mjs";
+import { enrollAdministrator } from "../server/village-approval.mjs";
 import { captureModernVariants } from "./capture-modern.mjs";
 import { verifyOpaqueModalContrast } from "./modal-contrast-checks.mjs";
 import { openMemberHelp } from "./preferences-checks.mjs";
@@ -15,6 +16,13 @@ const { app, store } = createApp({
   adminPassword: "Accessible@2026",
   gateCode: "5831",
   development: true,
+});
+enrollAdministrator(store, {
+  village: "થોરાળા",
+  name: "Thorala Village Administrator",
+  phone: "7990000010",
+  pass: "Village@2026!",
+  reason: "Seeded for the accessibility flow",
 });
 const server = app.listen(0, "127.0.0.1");
 await new Promise((r) => server.once("listening", r));
@@ -71,9 +79,9 @@ try {
   await scan("signup-gu-light");
   await page.getByTestId("Reading settings").click();
   await scan("reading-settings-gu");
-  await chooseLanguage(page,"en");
+  await chooseLanguage(page, "en");
   await scan("reading-settings-en");
-  await chooseLanguage(page,"gu");
+  await chooseLanguage(page, "gu");
   await page.getByRole("button", { name: /બંધ કરો/ }).click();
   await openMemberHelp(page);
   await scan("member-help-gu");
@@ -86,7 +94,9 @@ try {
   await scan("signup-en-light");
   await page.locator("input").nth(0).fill("Synthetic Member");
   await page.locator("input").nth(1).fill("9000000001");
-  await page.getByRole("combobox",{name:/Village|ગામ/}).selectOption("થોરાળા");
+  await page
+    .getByRole("combobox", { name: /Village|ગામ/ })
+    .selectOption("થોરાળા");
   await page.getByRole("button", { name: /Send request/ }).click();
   await page.getByRole("dialog").waitFor();
   await scan("consent-dialog");
@@ -126,7 +136,7 @@ try {
   await scan("village-reordering");
   await page.getByRole("button", { name: /Done/ }).click();
   await page.getByRole("button", { name: /All Members/ }).click();
-  await page.getByTestId("Call").waitFor();
+  await page.getByTestId("Call").first().waitFor();
   await scan("directory-list");
   // Do not launch external apps while scanning the original contact sheets.
   await page.evaluate(() =>
@@ -140,7 +150,7 @@ try {
     ),
   );
   for (const title of ["Call", "WhatsApp"]) {
-    await page.getByTitle(title, { exact: true }).click();
+    await page.getByTitle(title, { exact: true }).first().click();
     await page.getByRole("dialog").waitFor();
     await scan("contact-" + title);
     await page.getByRole("button", { name: /OK/ }).click();

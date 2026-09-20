@@ -139,6 +139,10 @@ class Component extends DesignComponent {
       this.set("workflowOpen", false);
       return true;
     }
+    if (this.state.villageLoginOpen) {
+      this.set("villageLoginOpen", false);
+      return true;
+    }
     if (this._busy) return true;
     if (this.state.recoveryOpen || this.state.recoveryIssued) {
       this.setState({
@@ -419,6 +423,7 @@ class Component extends DesignComponent {
       myRequest: null,
       role: "guest",
       villageAdmin: false,
+      villageLoginOpen: false,
       reviewQueue: [],
       villageAssignments: [],
       rejectedApplications: [],
@@ -554,6 +559,34 @@ class Component extends DesignComponent {
     v.themeIcon =
       s.theme === "dark" ? "ph-duotone ph-sun" : "ph-duotone ph-moon";
     v.canReview = s.role === "admin" || !!s.villageAdmin;
+    v.showVillageAdminEntry =
+      !v.canReview &&
+      (s.role === "guest" || s.role === "pending" || !!s.villageAdminEligible);
+    v.villageAdminEntry = v.showVillageAdminEntry
+      ? React.createElement(
+          "button",
+          {
+            className: "workflow-launch secondary",
+            "data-testid": "Village admin sign in",
+            onClick: () => this.setState({ villageLoginOpen: true }),
+          },
+          bilingual("ગામ એડમિન સાઇન ઇન", "Village admin sign in", s.lang),
+        )
+      : null;
+    v.openVillageLogin = () => this.setState({ villageLoginOpen: true });
+    v.closeVillageLogin = () => this.setState({ villageLoginOpen: false });
+    v.villageLoginPanel = s.villageLoginOpen
+      ? React.createElement(VillageAdminLogin, {
+          lang: s.lang,
+          onClose: () => this.setState({ villageLoginOpen: false }),
+          onAction: async (path, body) => {
+            const data = await this.api(path, body);
+            this.apply(data);
+            if (path === "village/login")
+              this.setState({ villageLoginOpen: false });
+          },
+        })
+      : null;
     v.workflowLabel = bilingual(
       s.role === "admin" ? "ગામ, એડમિન અને ચકાસણી" : "ગામની વિનંતીઓ તપાસો",
       s.role === "admin"
@@ -562,7 +595,13 @@ class Component extends DesignComponent {
       s.lang,
     );
     v.openWorkflow = () =>
-      this.setState({ workflowOpen: true, workflowTab: "requests" });
+      this.run(async () => {
+        // The queue can change while the dashboard is open (a village
+        // administrator may forward); always review the latest server state.
+        const data = await this.api("state");
+        this.apply(data);
+        this.setState({ workflowOpen: true, workflowTab: "requests" });
+      });
     v.workflowPanel =
       s.workflowOpen && v.canReview
         ? React.createElement(VillageWorkflow, {
@@ -645,7 +684,13 @@ class Component extends DesignComponent {
       : "Changes show in the directory only after the admin approves.";
     v.editSubmitGu = s.adminEditingId ? "ફેરફાર સાચવો" : "મંજૂરી માટે મોકલો";
     v.editSubmitEn = s.adminEditingId ? "Save changes" : "Send for approval";
-    if(v.me && s.meId){v.me.rows.push({gu:"હાલ :",en:"Current location",value:s.members.find(m=>m.id===s.meId)?.currentLocation||"—"});}
+    if (v.me && s.meId) {
+      v.me.rows.push({
+        gu: "હાલ :",
+        en: "Current location",
+        value: s.members.find((m) => m.id === s.meId)?.currentLocation || "—",
+      });
+    }
     v.noResults = !v.showTiles && !v.shortQuery && v.sections.length === 0;
     v.index = [];
     v.resetAll = () => {};
@@ -731,6 +776,9 @@ class Component extends DesignComponent {
     v.goDirectory = () =>
       this.set("screen", s.adminEditingId ? "admin" : this.home());
     v.secretTap = () => {
+      // The hidden gate belongs to the main administrator only; a signed-in
+      // village administrator session must never reach it.
+      if (this.state.villageAdmin) return;
       const now = Date.now();
       this._logoTaps = (this._logoTaps || []).filter((t) => now - t < 2500);
       this._logoTaps.push(now);
@@ -838,7 +886,11 @@ class Component extends DesignComponent {
       v[key] = v[key].map((row, i) => ({
         ...row,
         [approve]: () => {
-          if (s.reviewQueue?.some((r) => r.id === s[key][i].id)) {
+          // Village-stage requests must be verified and forwarded in the
+          // review panel; already-verified requests are approved here.
+          if (
+            s.reviewQueue?.some((r) => r.id === s[key][i].id && !r.verification)
+          ) {
             v.openWorkflow();
             return;
           }
@@ -857,7 +909,8 @@ class Component extends DesignComponent {
           else approveRequest();
         },
         onReject: () => {
-          if (s.reviewQueue?.some((r) => r.id === s[key][i].id)) {
+          // New-application rejections always need a reason and category.
+          if (key === "newRequests") {
             v.openWorkflow();
             return;
           }

@@ -37,7 +37,7 @@ async function setup(t, opts = {}) {
       });
       if (r.headers.get("set-cookie"))
         cookie = r.headers.get("set-cookie").split(";")[0];
-      assert.equal(r.status, expected, await r.clone().text());
+      assert.equal(r.status, expected, `${path}: ${await r.clone().text()}`);
       return r.headers.get("content-type")?.includes("json")
         ? r.json()
         : r.arrayBuffer();
@@ -46,7 +46,21 @@ async function setup(t, opts = {}) {
   const admin = client();
   await admin("admin/gate", { code: "5831" });
   await admin("admin/login", { user: "admin", pass: "Testing@2026!" });
-  return { store, client, admin, base };
+  await admin("admin/village-admins/" + encodeURIComponent("થોરાળા"), {
+    name: "Thorala Administrator",
+    phone: "7990000010",
+    pass: "Village@2026!",
+    reason: "Known village administrator",
+    identityConfirmed: true,
+  });
+  const va = client();
+  await va("village/login", { phone: "7990000010", pass: "Village@2026!" });
+  const forward = (id) =>
+    va("village/requests/" + id + "/forward", {
+      reason: "Verified community member",
+      identityConfirmed: true,
+    });
+  return { store, client, admin, va, forward, base };
 }
 test("approval gate, ownership, request replacement, withdrawal and admin-only archive", async (t) => {
   const { client, admin } = await setup(t);
@@ -69,29 +83,36 @@ test("approval gate, ownership, request replacement, withdrawal and admin-only a
   assert.equal((await a("state")).role, "guest");
 });
 test("approve, search data, update stays private, direct admin edit, delete revokes access", async (t) => {
-  const { client, admin } = await setup(t),
+  const { client, admin, forward } = await setup(t),
     a = client();
   await a("enrollment", form);
   let s = await admin("state");
-  await admin("admin/village-admins/" + encodeURIComponent("થોરાળા"), {
-    requestId: s.newRequests[0].id,
-    identityConfirmed: true,
-    reason: "Known first village representative",
-  });
+  await forward(s.newRequests[0].id);
+  await admin("admin/requests/" + s.newRequests[0].id + "/approve", {});
   s = await a("state");
   assert.equal(s.role, "member");
-  assert.equal(s.members.length, 1);
-  assert.equal(s.members[0].owner, undefined);
+  assert.equal(s.members.length, 2);
+  const mine = s.members.find((m) => m.phone === form.phone);
+  assert.equal(mine.owner, undefined);
   await a("profile/update", { ...form, name: "New Name", phone: "9000000002" });
-  assert.equal((await a("state")).members[0].phone, form.phone);
+  assert.equal(
+    (await a("state")).members.find((m) => m.phone === form.phone).phone,
+    form.phone,
+  );
   s = await admin("state");
   const update = s.updateRequests[0].id;
   await admin("admin/requests/" + update + "/approve", {});
-  assert.equal((await a("state")).members[0].nameGu, "New Name");
+  assert.equal(
+    (await a("state")).members.find((m) => m.phone === "9000000002").nameGu,
+    "New Name",
+  );
   await admin("admin/requests/" + update + "/approve", {}, 409);
   const id = (await a("state")).meId;
   await admin("admin/members/" + id, { ...form, name: "Direct Admin Edit" });
-  assert.equal((await a("state")).members[0].name, "Direct Admin Edit");
+  assert.equal(
+    (await a("state")).members.find((m) => m.phone === form.phone).name,
+    "Direct Admin Edit",
+  );
   await a("profile/delete", {});
   await a("profile/delete", {});
   s = await admin("state");
@@ -102,15 +123,12 @@ test("approve, search data, update stays private, direct admin edit, delete revo
   await a("profile/update", form, 403);
 });
 test("backup validation is atomic, roundtrip restores links, export is a genuine XLSX", async (t) => {
-  const { client, admin } = await setup(t),
+  const { client, admin, forward } = await setup(t),
     a = client();
   await a("enrollment", form);
   let s = await admin("state");
-  await admin("admin/village-admins/" + encodeURIComponent("થોરાળા"), {
-    requestId: s.newRequests[0].id,
-    identityConfirmed: true,
-    reason: "Known first village representative",
-  });
+  await forward(s.newRequests[0].id);
+  await admin("admin/requests/" + s.newRequests[0].id + "/approve", {});
   const backup = await admin("admin/backup");
   assert.equal(backup.schemaVersion, 2);
   assert.equal(backup.sessions, undefined);
@@ -119,8 +137,13 @@ test("backup validation is atomic, roundtrip restores links, export is a genuine
     { ...backup, members: [...backup.members, ...backup.members] },
     400,
   );
-  assert.equal((await a("state")).members.length, 1);
-  await admin("admin/members/" + backup.members[0].id + "/delete", {});
+  assert.equal((await a("state")).members.length, 2);
+  await admin(
+    "admin/members/" +
+      backup.members.find((m) => m.phone === form.phone).id +
+      "/delete",
+    {},
+  );
   const diff = await admin("admin/restore/validate", backup);
   await admin("admin/restore", {
     backup,
@@ -132,7 +155,7 @@ test("backup validation is atomic, roundtrip restores links, export is a genuine
   assert.equal(xlsx.subarray(0, 2).toString(), "PK");
 });
 test("server rejects invalid fields, ignores injected approval, rejects stale updates", async (t) => {
-  const { client, admin } = await setup(t),
+  const { client, admin, forward } = await setup(t),
     a = client();
   await a("enrollment", { ...form, phone2: "1234567890" }, 400);
   await a("enrollment", { ...form, village: "Unknown" }, 400);
@@ -140,17 +163,14 @@ test("server rejects invalid fields, ignores injected approval, rejects stale up
   await a("enrollment", { ...form, role: "admin", status: "approved" });
   assert.equal((await a("state")).role, "pending");
   let s = await admin("state");
-  await admin("admin/village-admins/" + encodeURIComponent("થોરાળા"), {
-    requestId: s.newRequests[0].id,
-    identityConfirmed: true,
-    reason: "Known first village representative",
-  });
+  await forward(s.newRequests[0].id);
+  await admin("admin/requests/" + s.newRequests[0].id + "/approve", {});
   await a("profile/update", { ...form, name: "Requested Name" });
   s = await admin("state");
-  await admin("admin/members/" + s.members[0].id, {
-    ...form,
-    name: "Concurrent Admin Edit",
-  });
+  await admin(
+    "admin/members/" + s.members.find((m) => m.phone === form.phone).id,
+    { ...form, name: "Concurrent Admin Edit" },
+  );
   await admin("admin/requests/" + s.updateRequests[0].id + "/approve", {}, 409);
 });
 test("authentication, failed attempt auditing, device blocking and logout", async (t) => {
