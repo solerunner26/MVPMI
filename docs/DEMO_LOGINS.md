@@ -3,7 +3,8 @@
 
 ## Main administrator
 
-Hidden entrance: tap the **MVPMl sun logo 5 times quickly** on any screen, then:
+Hidden entrance: tap the **community logo in the header 5 times quickly** on
+any screen, then:
 
 - Gate code: **5831**
 - Username: **admin**
@@ -14,8 +15,17 @@ in, and village administrators never receive the gate code or main password.
 
 ## Village administrators (separate sign-in)
 
-Use the visible **"ગામ એડમિન સાઇન ઇન / Village admin sign in"** button and sign in
-with the phone number and password. The sign-in lasts 12 hours.
+Use the header **shield button ("ગામ એડમિન સાઇન ઇન / Village admin sign in"**,
+right beside the language button) and sign in with the phone number and
+password. The sign-in lasts 12 hours; the button then becomes
+"ગામની વિનંતીઓ તપાસો / Review village requests" and opens the requests workspace.
+
+## All-admins page (no sign-in needed)
+
+The header **"બધા એડમિન / All admins"** button opens the public administrator
+directory — the main administrator (**9000000000**, synthetic) and every
+village administrator with call and WhatsApp links. It works for visitors who
+have not signed in at all.
 
 | Village                    | Name                | Phone      | Password         |
 | -------------------------- | ------------------- | ---------- | ---------------- |

@@ -9,9 +9,11 @@ redesign remain unchanged.
 ## Setup order: administrators come first
 
 1. The **main administrator** launches the app and enrolls one administrator
-   per village (name, phone, initial password) after confirming the person's
-   identity in person. Enrollment creates the administrator's membership and
-   credentials in one audited step.
+   per village after confirming the person's identity in person. The
+   enrollment form takes the name in **three parts** (first, middle/father's,
+   surname) plus phone, current location and the initial password; a change
+   reason is no longer required — only the identity attestation. Enrollment
+   creates the administrator's membership and credentials in one audited step.
 2. **Joining stays closed until a village has an administrator.** The server
    rejects applications for administrator-less villages, and the village
    dropdown marks them "એડમિન નિયુક્ત નથી · no admin yet". New villages added
@@ -46,13 +48,25 @@ redesign remain unchanged.
 
 ## Application lifecycle
 
-1. Applicant submits the joining form (name, numbers, optional **હાલ :**
-   current location, village).
-2. The village administrator verifies the person and **forwards** with a
-   mandatory reason (5–500 characters) and an explicit identity attestation.
-   Self-verification (own session or own phone number) is refused.
+1. Applicant submits the joining form. Names are entered in **three parts**
+   (first, middle/father's — optional, surname) and composed into the stored
+   full name; numbers, optional **હાલ :** current location and the village
+   complete the application.
+2. The village administrator of that village verifies the person and
+   **forwards** with a mandatory reason (5–500 characters) and an explicit
+   identity attestation. Self-verification (own session or own phone number)
+   is refused. Typos spotted along the way can be **corrected before
+   forwarding** — the correction updates the request, is appended to its
+   `corrections[]` history and shows a badge in the queue.
 3. The main administrator gives **final approval**; the server re-checks the
-   verification against the _current_ assignment before granting access.
+   verification against the _current_ assignment before granting access. The
+   main administrator can also **correct details before approving** (useful
+   when a request arrives forwarded with a small error), and may move a
+   request to another village, which restarts verification there.
+- Corrections are strictly scoped: a village administrator can only correct
+  requests in their own village and only before forwarding (409 after); the
+  main administrator's correct endpoint is the only one allowed afterwards.
+  Every correction is audited (`village.request.correct`).
 4. Rejection/closing (by either administrator) requires a reason and category,
    and records the decision in a separate **rejection ledger** (table
    `rejections`), never in the removed-member archive. The applicant sees the
@@ -93,6 +107,17 @@ administrator.
   characters) next to the secondary number, visible to approved members.
 - Language and dark/light theme are header-only controls; the duplicates in
   reading settings are gone. The 85–165% slider and other preferences remain.
+- The header carries the community name **મહુવા ક્ષત્રિય રાજપૂત સમાજ** and one
+  uniform row of same-shaped buttons: **All admins**, the village-admin
+  shield (sign-in, or "ગામની વિનંતીઓ તપાસો" once signed in), **language**,
+  **dark/light theme** and **reading settings**.
+- **One language at a time.** The app starts in Gujarati; the header language
+  button toggles Gujarati/English, and only the selected script is rendered.
+  Directory sorting follows the visible script.
+- The **All-admins page is public**: any visitor, signed in or not, sees the
+  main administrator and every village administrator with call and WhatsApp
+  links (config entry `main-admin-contact`; villages without an administrator
+  are marked unassigned).
 
 ## Data, migration and backup
 
@@ -108,12 +133,14 @@ administrator.
 
 ## Verification
 
-- `npm run check` passes: **92 Node tests** (14 in
-  `tests/village-approval.test.mjs`), UI, embedded, 29-state accessibility,
-  language, the 14-screen `scripts/village-workflow-test.mjs` browser suite
-  (admin-first enrollment, separate sign-in, sealed gate, forwarding, final
-  approval, proposals, rejection ledger, removal, closed new villages) and
-  materials, plus `npm audit` (0 vulnerabilities).
+- `npm run check` passes: **97 Node tests** (19 in
+  `tests/village-approval.test.mjs`, including three-part names, scoped
+  corrections, village moves, reasonless administrator changes and the
+  all-admins directory), UI, embedded, 29-state accessibility, language, the
+  `scripts/village-workflow-test.mjs` browser suite (admin-first enrollment,
+  separate sign-in, sealed gate, forwarding, final approval, proposals,
+  rejection ledger, removal, closed new villages) and materials, plus
+  `npm audit` (0 vulnerabilities).
 
 ## Limits
 
