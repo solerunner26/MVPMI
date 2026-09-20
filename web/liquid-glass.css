@@ -17,11 +17,14 @@
   --chip: #fffaf2;
   --grad: #b2402c;
   --blur: none;
-  --glass-tint: rgba(255, 250, 243, 0.94);
-  --rim: rgba(255, 255, 255, 0.92);
-  --reflection: rgba(255, 255, 255, 0.95);
-  --edge-depth: rgba(132, 65, 28, 0.14);
-  --optical-blur: blur(12px) saturate(125%);
+  /* Liquid Glass: translucent surfaces, bright thin rims, soft depth. */
+  --glass-tint: rgba(255, 251, 244, 0.6);
+  --glass-strong: rgba(255, 252, 247, 0.88);
+  --glass-border: rgba(255, 255, 255, 0.6);
+  --rim: rgba(255, 255, 255, 0.85);
+  --reflection: rgba(255, 255, 255, 0.8);
+  --edge-depth: rgba(132, 65, 28, 0.16);
+  --optical-blur: blur(18px) saturate(140%);
   --shadow: 0 1px 2px #50281205;
   --raised-shadow: 0 2px 3px #5028120d, 0 8px 20px #5028120d;
   --modal-shadow: 0 12px 40px #32140729;
@@ -54,10 +57,12 @@
   --fieldBd: #a08170;
   --gbd: #604234;
   --chip: #33221a;
-  --glass-tint: rgba(41, 27, 22, 0.94);
-  --rim: rgba(245, 210, 172, 0.24);
-  --reflection: rgba(255, 232, 197, 0.4);
-  --edge-depth: rgba(0, 0, 0, 0.4);
+  --glass-tint: rgba(30, 18, 14, 0.62);
+  --glass-strong: rgba(37, 23, 18, 0.9);
+  --glass-border: rgba(255, 214, 176, 0.22);
+  --rim: rgba(255, 214, 176, 0.3);
+  --reflection: rgba(255, 226, 192, 0.34);
+  --edge-depth: rgba(0, 0, 0, 0.45);
   --shadow: 0 1px 2px #0002;
   --raised-shadow: 0 2px 3px #0003, 0 8px 20px #0003;
   --modal-shadow: 0 12px 40px #0007;
@@ -75,23 +80,28 @@
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
-.app [data-glass="2"],
-.app [data-glass="4"] {
+/* Controls (2): translucent glass chip — tint, thin bright rim, inner light
+   edge, soft shadow. Real backdrop blur is reserved for large surfaces so
+   lists never pay for it (see the blur grants below). */
+.app [data-glass="2"] {
   background: var(--glass-tint) !important;
-  border: 1px solid var(--gbd);
+  border: 1px solid var(--glass-border);
   box-shadow:
     var(--raised-shadow),
     inset 0 1px 0 var(--rim),
-    inset 0 -2px 2px var(--edge-depth) !important;
+    inset 0 -2px 3px var(--edge-depth) !important;
   border-radius: var(--r-control);
 }
+/* Modals and sheets (4): stronger glass — a higher-opacity tint over a deep
+   blur, lit top rim and a reflection hairline; text stays foreground-sharp. */
 .app [data-glass="4"] {
-  /* Stable reading scrim: underlying contact rows must never compete with dialog text. */
-  background: var(--sheet) !important;
+  background: var(--glass-strong) !important;
+  border: 1px solid var(--glass-border);
   border-radius: var(--r-modal) !important;
   box-shadow:
     var(--modal-shadow),
-    inset 0 1px 0 var(--rim) !important;
+    inset 0 1px 0 var(--rim),
+    inset 0 -3px 6px var(--edge-depth) !important;
 }
 .app [data-glass="2"]::before,
 .app [data-glass="4"]::before {
@@ -105,7 +115,10 @@
   border-top: 1px solid var(--reflection);
   border-radius: 50%;
 }
-.app[data-material="blur"] [data-glass="2"],
+/* Performance budget: real backdrop blur only on large surfaces — the
+   reading slider and modal sheets. Buttons and inputs keep the translucent
+   tint without blur: glass to the eye, cheap in scrolling lists. */
+.app[data-material="blur"] .reading-control,
 .app[data-material="blur"] [data-glass="4"] {
   -webkit-backdrop-filter: var(--optical-blur);
   backdrop-filter: var(--optical-blur);
@@ -114,8 +127,28 @@
 .app [data-glass="3"] {
   box-shadow:
     var(--raised-shadow),
-    inset 0 1px 0 #ffffff55,
-    inset 0 -2px 2px #3a100e26 !important;
+    0 6px 16px rgba(178, 64, 44, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -3px 6px rgba(58, 16, 14, 0.22) !important;
+}
+/* Deliberate press feedback: a short settle, never a bounce. */
+.app button:not(:disabled):active,
+.app a[role="button"]:not(:disabled):active,
+.app input[type="checkbox"]:active {
+  transform: scale(0.97);
+}
+.app button:disabled,
+.app a[role="button"]:disabled {
+  opacity: 0.55;
+  filter: saturate(0.6);
+}
+.app button[aria-pressed="true"],
+.app button[role="switch"][aria-checked="true"] {
+  border-color: var(--ind) !important;
+  box-shadow:
+    var(--raised-shadow),
+    inset 0 1px 0 var(--rim),
+    inset 0 0 0 1px var(--ind) !important;
 }
 .app .gu {
   font-family: "Noto Sans Gujarati", sans-serif;

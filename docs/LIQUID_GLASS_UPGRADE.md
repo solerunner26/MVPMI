@@ -127,3 +127,33 @@ Current evidence:
 - Baseline screenshots: `test-results/pre-liquid-glass/`; upgraded captures: `test-results/liquid-glass/`. Generated artifacts stay out of Git.
 
 Automated results do **not** replace real-device TalkBack, OS font-scale, low-end frame-time/battery, native dialler/WhatsApp, Gujarati proofreading or elderly-user acceptance checks. Visual approval is still required. No production-readiness claim is made.
+
+## Refinement — 20 September 2026 (v0.2.0)
+
+The modern redesign had quietly neutralised the glass layer (0.96-alpha tint,
+shadows and rims stripped). This refinement restores genuine Liquid Glass on
+the modern editorial palette, checkpointed at tag
+`Pre-LiquidGlass-Refinement`:
+
+- **Surfaces**: translucent white glass in light theme
+  (`rgba(255,255,255,.6)` controls, `.88` reading sheets) and darker
+  translucent glass in dark theme (`rgba(35,31,27,.62/.9)`), each with a thin
+  bright inner rim, an inner light edge, a reflection hairline on modals and
+  soft layered shadows.
+- **Where glass lives**: header bar, header trigger chips, floating Dashboard
+  and workflow buttons, search, reading slider, sheets/dialogs and the
+  all-admins quick actions. Directory rows, member cards and forms stay on
+  quiet opaque surfaces for scanning (no stacked glass).
+- **Performance budget**: real `backdrop-filter` runs only on modal sheets
+  and the reading control (0 layers while browsing, 1 with a sheet open);
+  buttons use the translucent tint without blur so long lists never pay.
+- **Accessibility fallbacks**: `prefers-reduced-transparency`, forced colors,
+  save-data and ≤2-core devices keep fully opaque surfaces; measured text
+  contrast on composited glass: ink 13.7–15.9:1, secondary 5.3–8.8:1, icons
+  ≥6.5:1 (requirements 4.5:1 / 3:1).
+- **States**: press (short settle scale), hover (rim brightens), disabled
+  (dimmed, desaturated), selected/pressed toggles (accent ring), focus
+  (3px outline).
+- Verified by the full battery: 99 Node tests, UI, language, 29-screen
+  accessibility, embedded, village workflow and 20-state material suites.
+  Screenshots: `docs/modern-design/glass-refinement/`.

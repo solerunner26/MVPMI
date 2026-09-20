@@ -15,10 +15,17 @@ body {
   --ink: #25221f;
   --ink2: #696058;
   --ink2sec: #696058;
-  --glass-tint: rgba(255, 255, 255, 0.96);
+  /* Liquid Glass on the modern palette: translucent white surfaces, thin
+     bright rims, soft depth. Contrast stays >= 4.5:1 (measured). */
+  --glass-tint: rgba(255, 255, 255, 0.6);
+  --glass-strong: rgba(255, 255, 255, 0.88);
+  --glass-border: rgba(255, 255, 255, 0.65);
+  --rim: rgba(255, 255, 255, 0.9);
+  --reflection: rgba(255, 255, 255, 0.85);
+  --edge-depth: rgba(50, 35, 24, 0.1);
+  --optical-blur: blur(18px) saturate(140%);
   --shadow: 0 3px 20px #32231806;
   --raised-shadow: 0 4px 16px #3223180a;
-  --edge-depth: transparent;
   --f-md: calc(16px * var(--fs));
   --f-sm: max(13px, calc(14px * var(--fs)));
   --f-lg: calc(21px * var(--fs));
@@ -40,24 +47,15 @@ body {
   --ink: #faf6ef;
   --ink2: #c4b8aa;
   --ink2sec: #c4b8aa;
-  --glass-tint: rgba(35, 31, 27, 0.97);
-  --edge-depth: transparent;
-}
-.app [data-glass="1"],
-.app [data-glass="2"],
-.app [data-glass="3"] {
-  box-shadow: none !important;
-}
-.app [data-glass]::before {
-  display: none !important;
+  --glass-tint: rgba(35, 31, 27, 0.62);
+  --glass-strong: rgba(35, 31, 27, 0.9);
+  --glass-border: rgba(255, 226, 192, 0.2);
+  --rim: rgba(255, 226, 192, 0.26);
+  --reflection: rgba(255, 232, 200, 0.3);
+  --edge-depth: rgba(0, 0, 0, 0.5);
 }
 .app [data-glass="1"] {
-  border: 0 !important;
   border-radius: var(--r-group) !important;
-}
-.app [data-glass="2"] {
-  background: var(--g2) !important;
-  border-color: transparent !important;
 }
 .app button,
 .app a[role="button"] {
@@ -75,6 +73,20 @@ body {
   outline: 3px solid var(--ind);
   outline-offset: 3px;
 }
+/* Subtle scenic wash: gives the translucent glass something to sit on.
+   Restrained decoration; content surfaces stay opaque and scannable. */
+.app .screen-frame {
+  background:
+    radial-gradient(120% 70% at 85% -10%, rgba(233, 161, 59, 0.16), transparent 60%),
+    radial-gradient(110% 60% at -10% 108%, rgba(178, 64, 44, 0.1), transparent 55%),
+    var(--page);
+}
+.app[data-theme="dark"] .screen-frame {
+  background:
+    radial-gradient(120% 70% at 85% -10%, rgba(233, 161, 59, 0.08), transparent 60%),
+    radial-gradient(110% 60% at -10% 108%, rgba(164, 56, 38, 0.18), transparent 55%),
+    var(--page);
+}
 .app .main-header {
   position: relative;
   z-index: 7;
@@ -86,7 +98,10 @@ body {
   min-height: 76px;
   box-sizing: border-box;
   flex: 0 0 auto;
-  background: var(--page);
+  /* Liquid Glass bar: translucent tint over the page wash, lit lower rim. */
+  background: var(--glass-tint);
+  border-bottom: 1px solid var(--glass-border);
+  box-shadow: inset 0 -1px 0 var(--edge-depth);
 }
 .brand-lockup,
 .header-actions {
@@ -575,7 +590,14 @@ body {
   padding: 24px;
   border-radius: 30px 30px 0 0 !important;
   margin: 0 auto;
-  box-shadow: 0 -12px 60px #21150e20 !important;
+  border-top: 1px solid var(--glass-border);
+  box-shadow:
+    0 -12px 60px #21150e20,
+    inset 0 1px 0 var(--rim) !important;
+  background: var(--glass-strong) !important;
+}
+/* Reading surfaces keep full opacity when the device needs it. */
+.app[data-material="opaque"] .preferences-panel {
   background: var(--sheet) !important;
 }
 .sheet-heading {
@@ -1070,6 +1092,7 @@ body {
   display: flex;
   gap: 8px;
 }
+/* All-admins quick actions: glass chips with a lit rim. */
 .app .admin-icon-action {
   flex: 0 0 44px;
   width: 44px;
@@ -1078,10 +1101,16 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--g);
-  border: 1px solid var(--gbd);
+  background: var(--glass-tint);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    var(--shadow),
+    inset 0 1px 0 var(--rim);
   color: var(--ind);
   font-size: 20px;
+}
+.app .admin-icon-action:hover {
+  border-color: var(--ind);
 }
 /* Unassigned villages stay readable; only the avatar looks muted. */
 .app .admin-row-empty .admin-avatar {
@@ -1090,3 +1119,35 @@ body {
   border: 1px dashed var(--gbd);
 }
 
+/* ------------------------------------------------------------------ */
+/* Liquid Glass controls and sheets created by the UI adapters (header
+   triggers, floating buttons, React sheets). The build-time data-glass
+   tags cover everything present in the source template; these rules give
+   adapter-created controls the identical recipe: translucent tint, thin
+   bright rim, inner light edge, soft shadow. No backdrop blur on buttons
+   so scrolling lists stay cheap. */
+.app .main-header .preferences-trigger,
+.app .main-header .language-trigger,
+.app .main-header .theme-trigger,
+.app .profile-trigger,
+.app .dashboard-trigger {
+  background: var(--glass-tint);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    var(--raised-shadow),
+    inset 0 1px 0 var(--rim),
+    inset 0 -2px 3px var(--edge-depth);
+}
+.app[data-material="opaque"] .main-header .preferences-trigger,
+.app[data-material="opaque"] .main-header .language-trigger,
+.app[data-material="opaque"] .main-header .theme-trigger,
+.app[data-material="opaque"] .profile-trigger,
+.app[data-material="opaque"] .dashboard-trigger {
+  background: var(--g2);
+  border-color: var(--gbd);
+}
+.app[data-material="blur"] .preferences-panel,
+.app[data-material="blur"] .workflow-panel {
+  -webkit-backdrop-filter: var(--optical-blur);
+  backdrop-filter: var(--optical-blur);
+}
