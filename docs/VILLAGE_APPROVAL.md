@@ -30,8 +30,12 @@ redesign remain unchanged.
 
 - Being the assigned member is not enough: the review facility requires the
   explicit sign-in, so an ordinary browser session of the same person (family
-  member, borrowed phone) has no admin power. The assigned member's own
-  session instead sees a "sign in as village administrator" invitation.
+  member, borrowed phone) has no admin power.
+- The **"ગામ એડમિન સાઇન ઇન / Village admin sign in"** entry is visible to every
+  session that is not already signed in as an administrator (main or village)
+  — including approved members, so a member promoted to village administrator
+  can reach it on their own device. The sheet itself rejects anyone without
+  valid credentials.
 - Passwords: administrators change their own (Account tab); the main
   administrator can reset any village's administrator password after
   re-confirming identity. Hashes are scrypt, never exported in backups, and

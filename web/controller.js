@@ -559,9 +559,11 @@ class Component extends DesignComponent {
     v.themeIcon =
       s.theme === "dark" ? "ph-duotone ph-sun" : "ph-duotone ph-moon";
     v.canReview = s.role === "admin" || !!s.villageAdmin;
-    v.showVillageAdminEntry =
-      !v.canReview &&
-      (s.role === "guest" || s.role === "pending" || !!s.villageAdminEligible);
+    // The sign-in entry stays available to every session that is not already
+    // an administrator (main or village), so a member promoted to village
+    // administrator can reach it on their own device. The sheet itself
+    // rejects anyone without valid credentials.
+    v.showVillageAdminEntry = !v.canReview;
     v.villageAdminEntry = v.showVillageAdminEntry
       ? React.createElement(
           "button",
