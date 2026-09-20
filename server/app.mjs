@@ -1,4 +1,10 @@
-import { installMemberRecovery } from "./member-recovery.mjs";
+import {
+  installVillageApproval,
+  villageState,
+  assertVerified,
+  decisionReason,
+  needsVerification,
+} from "./village-approval.mjs";
 import { isDeepStrictEqual } from "node:util";
 import { installSessions } from "./session.mjs";
 import express from "express";
@@ -40,6 +46,7 @@ export function createApp({
       changedAt: Date.now(),
     });
   }
+  store.initializeVillages();
   app.disable("x-powered-by");
   app.use((req, res, next) => {
     res.set("X-Content-Type-Options", "nosniff");
@@ -114,6 +121,7 @@ export function createApp({
       ? requests
       : requests.filter((r) => r.owner === req.session.owner);
     return {
+      ...villageState(store, req),
       role: req.isAdmin ? "admin" : me ? "member" : mine ? "pending" : "guest",
       meId: me?.id || null,
       myRequest: mine ? { ...mine.payload, id: mine.id } : null,
@@ -160,13 +168,7 @@ export function createApp({
       development,
     };
   };
-  installMemberRecovery(app, store, {
-    admin,
-    rate,
-    state,
-    secure,
-    development,
-  });
+  installVillageApproval(app, store, { admin, state });
   app.get("/api/state", (req, res) => res.json(state(req)));
   app.post("/api/enrollment", (req, res) => {
     rate("enroll:" + req.session.id, 30, 3600000);
@@ -178,8 +180,8 @@ export function createApp({
     )
       fail("Phone verification required", 403);
     if (req.body.consent !== true) fail("Consent is required");
-    const p = profile(req.body);
-    store.unique(p, req.session.owner);
+    const p = profile(req.body, store.all("villages"));
+    store.unique(p, req.session.owner, undefined, true);
     store.tx(() => {
       for (const r of store
         .all("requests")
@@ -212,7 +214,7 @@ export function createApp({
   });
   app.post("/api/profile/update", (req, res) => {
     const m = member(req),
-      p = profile(req.body);
+      p = profile(req.body, store.all("villages"));
     store.unique(p, m.owner);
     if (
       !development &&
@@ -354,11 +356,50 @@ export function createApp({
       fail("Invalid action");
     store.tx(() => {
       if (req.params.action === "approve") {
+        assertVerified(store, r);
         if (r.kind === "new") {
+          const existing = store
+            .all("members")
+            .find((m) => m.phone === r.payload.phone);
+          if (existing) {
+            if (
+              req.body.replaceExistingMemberId !== existing.id ||
+              req.body.identityConfirmed !== true
+            )
+              fail(
+                "Confirm the existing member before replacing device access",
+                409,
+              );
+            decisionReason(req.body.reason);
+            store.del("members", existing.id);
+            store.audit(
+              req.session.owner,
+              "member.device-replacement",
+              existing.id,
+            );
+          }
+          const archived = store
+            .all("archive")
+            .filter((a) =>
+              [a.phone, a.phone2, ...(a.numbers || [])].some(
+                (n) => n && [r.payload.phone, r.payload.phone2].includes(n),
+              ),
+            );
+          if (
+            archived.length &&
+            (archived.length !== 1 ||
+              req.body.archiveId !== archived[0].id ||
+              req.body.identityConfirmed !== true)
+          )
+            fail("Confirm the matching archive identity before rejoining", 409);
           store.unique(r.payload, r.owner, r.id);
           store.put("members", {
             ...r.payload,
-            id: randomUUID(),
+            id:
+              existing?.id ||
+              archived[0]?.personId ||
+              archived[0]?.snapshot?.id ||
+              randomUUID(),
             owner: r.owner,
             createdAt: r.createdAt,
             approvedAt: Date.now(),
@@ -376,11 +417,20 @@ export function createApp({
                 409,
               );
             store.unique(r.payload, m.owner, r.id);
+            if(m.village!==r.payload.village)store.dropAssignments(m.id);
             store.put("members", { ...m, ...r.payload });
           } else store.remove(m, "દૂર કરી · Removed on request");
         }
-      } else if (r.kind === "new")
-        store.archive(r.payload, "નામંજૂર · Rejected by admin");
+      } else if (needsVerification(r)) {
+        store.rejectRequest(
+          r,
+          "reject",
+          decisionReason(req.body.reason),
+          req.session.owner,
+          "main",
+          req.body.category,
+        );
+      }
       store.del("requests", r.id);
       store.audit(req.session.owner, "request." + req.params.action, r.id);
     });
@@ -389,7 +439,9 @@ export function createApp({
   app.post("/api/admin/members/:id", admin, (req, res) => {
     const m = store.get("members", req.params.id);
     if (!m) fail("Member not found", 404);
-    const p = profile(req.body);
+    const p = profile(req.body, store.all("villages"));
+    if (p.village !== m.village)
+      fail("Village changes require the destination village review", 409);
     store.unique(p, m.owner);
     store.tx(() => {
       store.put("members", { ...m, ...p });

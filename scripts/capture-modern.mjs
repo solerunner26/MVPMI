@@ -1,3 +1,4 @@
+import { chooseLanguage,chooseTheme } from "./preferences-checks.mjs";
 import { mkdirSync } from "node:fs";
 import { setTextSize, assertFits } from "./text-size-checks.mjs";
 // Optional visual evidence only; drives public controls, never rewrites app state.
@@ -16,16 +17,8 @@ export async function captureModernVariants(page, name) {
   );
   const set = async (lang, theme, size) => {
     await page.getByTestId("Reading settings").click();
-    await page
-      .locator(".language-options")
-      .getByRole("button", {
-        name: lang === "gu" ? "ગુજરાતી" : "English",
-        exact: true,
-      })
-      .click();
-    await page
-      .getByTestId(theme === "dark" ? "Dark theme" : "Light theme")
-      .click();
+    await chooseLanguage(page,lang);
+    await chooseTheme(page,theme);
     await setTextSize(page, size);
     await page.getByRole("button", { name: /Close|બંધ કરો/ }).click();
     await page

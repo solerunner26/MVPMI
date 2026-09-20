@@ -1,3 +1,4 @@
+import { chooseLanguage } from "./preferences-checks.mjs";
 import { captureModernVariants } from "./capture-modern.mjs";
 import { verifyOpaqueModalContrast } from "./modal-contrast-checks.mjs";
 import { openMemberHelp } from "./preferences-checks.mjs";
@@ -70,15 +71,9 @@ try {
   await scan("signup-gu-light");
   await page.getByTestId("Reading settings").click();
   await scan("reading-settings-gu");
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "English", exact: true })
-    .click();
+  await chooseLanguage(page,"en");
   await scan("reading-settings-en");
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "ગુજરાતી", exact: true })
-    .click();
+  await chooseLanguage(page,"gu");
   await page.getByRole("button", { name: /બંધ કરો/ }).click();
   await openMemberHelp(page);
   await scan("member-help-gu");
@@ -91,7 +86,7 @@ try {
   await scan("signup-en-light");
   await page.locator("input").nth(0).fill("Synthetic Member");
   await page.locator("input").nth(1).fill("9000000001");
-  await page.locator("input").nth(2).fill("Thorala");
+  await page.getByRole("combobox",{name:/Village|ગામ/}).selectOption("થોરાળા");
   await page.getByRole("button", { name: /Send request/ }).click();
   await page.getByRole("dialog").waitFor();
   await scan("consent-dialog");

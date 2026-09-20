@@ -1,3 +1,4 @@
+import {chooseTheme} from "./preferences-checks.mjs";
 import assert from "node:assert/strict";
 import { assertFits, setTextSize } from "./text-size-checks.mjs";
 export async function checkModernPreferences(page) {
@@ -17,23 +18,8 @@ export async function checkModernPreferences(page) {
   );
   await page.getByTestId("Reading settings").click();
   assert.equal(await page.getByRole("dialog").count(), 1);
-  for (const theme of ["Dark", "Light"]) {
-    await page.getByTestId(theme + " theme").click();
-    assert.equal(
-      await page.locator(".app").getAttribute("data-theme"),
-      theme.toLowerCase(),
-    );
-    assert.equal(
-      await page.getByTestId(theme + " theme").getAttribute("aria-pressed"),
-      "true",
-    );
-    assert.equal(
-      await page
-        .getByTestId((theme === "Dark" ? "Light" : "Dark") + " theme")
-        .getAttribute("aria-pressed"),
-      "false",
-    );
-  }
+  assert.equal(await page.locator('.language-options,.theme-options').count(),0,'Settings must not duplicate the header controls');
+  for (const theme of ['dark','light']){await chooseTheme(page,theme);assert.equal(await page.locator('.app').getAttribute('data-theme'),theme);}
   for (const size of [85, 165, 100]) {
     await setTextSize(page, size);
     await assertFits(page, "Modern preferences " + size);
@@ -57,7 +43,7 @@ export async function checkModernPreferences(page) {
   assert.equal(await page.evaluate(() => window.mvpmiBack()), true);
   assert.equal(await page.getByRole("dialog").count(), 0);
   console.log(
-    "PASS: dock removed; one global header; mutually exclusive theme segments; 85–165% preferences; focus return and non-stacking help.",
+    "PASS: dock removed; one global header; header-only language/theme controls; 85–165% preferences; focus return and non-stacking help.",
   );
 }
 export async function checkModernDirectory(page) {

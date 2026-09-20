@@ -51,12 +51,30 @@ export async function fixture(t, options = {}) {
   const admin = client();
   await admin("admin/gate", { code: "5831" });
   await admin("admin/login", { user: "admin", pass: "Testing@2026!" });
+  const localClients = new Map();
   const enroll = async (user, p = example) => {
     await user("enrollment", p);
     const request = (await admin("state")).newRequests.find(
       (r) => r.phone === p.phone,
     );
-    await admin("admin/requests/" + request.id + "/approve", {});
+    const r = store.get("requests", request.id);
+    if (!store.get("villageAdmins", r.payload.village)) {
+      await admin(
+        "admin/village-admins/" + encodeURIComponent(r.payload.village),
+        {
+          requestId: r.id,
+          identityConfirmed: true,
+          reason: "Known test representative",
+        },
+      );
+      localClients.set(r.payload.village, user);
+    } else {
+      await localClients.get(r.payload.village)(
+        "village/requests/" + r.id + "/forward",
+        { identityConfirmed: true, reason: "Verified test community member" },
+      );
+      await admin("admin/requests/" + request.id + "/approve", {});
+    }
     return (await user("state")).members.find(
       (m) => m.id === store.all("members").find((x) => x.phone === p.phone).id,
     );

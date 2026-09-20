@@ -8,9 +8,15 @@ Development implementation of the supplied Gujarati/English community-directory 
 
 The whole-app redesign is implemented: **no permanent bottom settings bar**; a compact global header and preferences sheet; connected language/theme segments; a search-led directory with illustrated village tiles; labelled Call/WhatsApp actions; and coordinated forms, profile, dialogs and eight-card admin dashboard. Gujarati-first visible bilingual content and the 85–165% slider remain.
 
-See the [before/after review, screenshots, test evidence and limits](docs/MODERN_REDESIGN.md). `npm run check` passes **87 Node tests** and all browser/contact/embedded/recovery/language/material suites. App accessibility has zero reported violations; four modal contrast uncertainties receive independent checks with raw axe results retained (details in the report). Physical-device and visual acceptance are not claimed.
+See the [before/after review, screenshots, test evidence and limits](docs/MODERN_REDESIGN.md). `npm run check` passes **88 Node tests** and all browser/contact/embedded/village/language/material suites. App accessibility has zero reported violations; four modal contrast uncertainties receive independent checks with raw axe results retained (details in the report). Physical-device and visual acceptance are not claimed.
 
 **Pre-edit checkpoint:** `Pre-Modern-Redesign` → `6812495`. Earlier checkpoints and original assets are unchanged. Open preferences using the sliders control at the top right; language also has a direct header control.
+
+## Village verification and management — 20 September 2026
+
+Each community village now has its own administrator. New applications wait for village verification, are forwarded with a mandatory reason, and receive directory access only after main-administrator approval. Rejected/closed applications are kept in a separate admin-only ledger (distinct from the removed-member archive), villages are managed by the main administrator (seeded with the original seven), an optional **હાલ :** current-location field joins the form, language/theme are header-only controls, and access-code recovery is retired in favour of identity-checked reapplication. See the [full flow, data model, evidence and limits](docs/VILLAGE_APPROVAL.md).
+
+**Pre-edit checkpoint:** `Pre-Village-Approval` (tag).
 
 ## Previous Liquid Glass review (superseded presentation)
 
@@ -22,7 +28,7 @@ That checkpoint’s validation included 80 Node tests, browser/contact/recovery/
 
 ## Historical changes after cp001 (superseded presentation)
 
-The following describes the earlier checkpoint, not the current bilingual/slider design. Gujarati is the default UI language; switching shows only the chosen language. Reading settings are available before enrollment, and language/theme/help controls use a reserved toolbar. The revision also adds accessible village reordering, short-name search, full-width phone values, clearer approval/confirmation copy and a wider desktop admin view. User-entered names are not automatically translated. Administrator-assisted member recovery is now available; see [the recovery guide](docs/ADMIN_ASSISTED_RECOVERY.md). SMS phone-ownership verification and production release requirements remain separate. The source checkpoint `cp001` is unchanged.
+The following describes the earlier checkpoint, not the current bilingual/slider design. Gujarati is the default UI language; switching shows only the chosen language. Reading settings are available before enrollment, and language/theme/help controls use a reserved toolbar. The revision also adds accessible village reordering, short-name search, full-width phone values, clearer approval/confirmation copy and a wider desktop admin view. User-entered names are not automatically translated. Administrator-assisted member recovery was added at that checkpoint; access codes were later retired in favour of two-stage reapplication (see [the village verification guide](docs/VILLAGE_APPROVAL.md)). SMS phone-ownership verification and production release requirements remain separate. The source checkpoint `cp001` is unchanged.
 
 The development preview now uses an expiring, tab-scoped session transport so cookie-blocking browsers can sign in. It still requires the gate and admin password; the transport is disabled outside development. If all browser storage is blocked, it persists only until the page reloads.
 
@@ -54,7 +60,9 @@ Open `http://localhost:3000`. The server binds to `0.0.0.0`; the UI calls same-o
 - Enrollment, request editing/replacement (archives old payload), withdrawal, approval and rejection.
 - Member profile edits remain pending until approval. Delete requests preserve access until approved.
 - Direct admin edits/deletes; dependent request cleanup; stale-update and duplicate-phone checks.
-- Seven village tiles, all-member list, bilingual name/number search, optional second number, live counts and statistics.
+- Village tiles seeded with the original seven villages, all-member list, bilingual name/number search, optional second number and optional current location (હાલ :), live counts and statistics. The main administrator can add villages at runtime.
+- Two-stage approval: village-administrator verification and forwarding, then main-administrator approval. Mandatory reasons and categories; separate rejection ledger for non-community/incomplete applications; archived removed members keep one unique identity and number set.
+- Header-only language and dark/light theme controls; reading settings keep the 85–165% slider and other preferences.
 - Original light/dark styling, sun and waiting animations, Gujarati/English language switching, four text-size presets (Default, Big, Bigger, Biggest); preferences persist without persisting the directory in localStorage.
 - Browser dialer links (not automatic calls), clipboard copy where supported, and WhatsApp chat URLs.
 - Hidden admin gate, scrypt password hashes, opaque HttpOnly session cookies, 30-minute admin sessions, server-side attempt limits, security alerts, session blocking, and sign-out.
@@ -101,13 +109,13 @@ gradle assembleDebug -PcommunityUrl=https://your-development-host.example
 
 `server/index.mjs` intentionally refuses to launch without `DEVELOPMENT_MODE=true`.
 
-1. **Member SMS ownership verification and recovery.** Development identity is an opaque browser session, not a verified phone number. A new browser cannot reclaim an existing profile. New-number verification and reinstalls require a designed recovery flow and an SMS provider.
+1. **Member SMS ownership verification.** Development identity is an opaque browser session, not a verified phone number. Access codes are retired: deleted members reapply through both stages, and an active member on a new device needs a main-administrator-confirmed replacement (no automatic access). New-number verification still requires an SMS provider.
 2. **Android compatibility and accessibility.** Finish the native implementation/decide the hybrid approach, test actual low-end devices, OS font scaling, TalkBack, touch tile-reordering and Gujarati conjunct rendering. No app can promise every Android version.
 3. **Privacy policy and retention.** The UI discloses member visibility and archive retention, but there is no approved retention duration/legal policy or automatic purge. Backups contain personal data in plaintext; store securely. Archive isolation currently means a separate server-side table with admin-only API access, not a separate physical database.
-4. **Notifications and recovery.** Security alerts are in-app only; no push/SMS intrusion notifications. No member approval notifications, co-admin recovery or delegated roles.
+4. **Notifications and delegation.** Security alerts are in-app only; no push/SMS intrusion notifications and no member approval notifications. Village administrators are delegated, village-scoped roles; there is still no co-administrator recovery of the main account.
 5. **Operations.** HTTPS, `COOKIE_SECURE=true`, encrypted server storage/backups, infrastructure rate limits, monitoring, scheduled backups, migrations, cleanup and deployment hardening are required. Current rate limits deliberately use the socket address and ignore untrusted forwarded-IP headers; shared proxies can share a limit.
 6. **Offline and scaling.** No persistent offline directory or conflict queue. Existing data stays in page memory during a disconnect; revocation is enforced at the next successful server request. Add indexed relational queries/pagination for larger communities.
-7. **Remaining design features.** Villages are fixed in code, mobile long-press tile reordering is unimplemented, and backup is directory-data recovery rather than a full authentication/security-system restore. PDF and file sharing still depend on browser support.
+7. **Remaining design features.** Villages are main-administrator managed (seeded with the original seven), but mobile long-press tile reordering is unimplemented, and backup restores directory and governance data rather than the full authentication/security system. PDF and file sharing still depend on browser support.
 
 See `docs/IMPLEMENTATION.md` for the architecture and next steps. Do not remove the development guard until these decisions and security work are complete.
 

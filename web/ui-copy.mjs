@@ -73,7 +73,6 @@ export const UI_COPY = {
   recoverAccess: ["પ્રવેશ પાછો મેળવો", "Recover access"],
   recoveryCode: ["પ્રવેશ પાછો મેળવવાનો કોડ", "Recovery code"],
   recoveryPhone: ["નોંધાયેલ પોતાનો ફોન નંબર", "Registered personal number"],
-  issueRecovery: ["પ્રવેશ કોડ આપો", "Issue recovery code"],
   verifyIdentity: [
     "મેં ઓળખ ચકાસી છે — કોડ આપો",
     "I verified identity — issue code",

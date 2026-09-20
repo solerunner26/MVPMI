@@ -8,7 +8,7 @@ export async function checkBilingualSorting(browser, store, url) {
   await page.getByTestId("Language").waitFor();
   await page.locator("input").nth(0).fill("Alpha Test");
   await page.locator("input").nth(1).fill("9000000061");
-  await page.locator("input").nth(2).fill("Thorala");
+  await page.getByRole("combobox",{name:/Village|ગામ/}).selectOption("થોરાળા");
   await page.getByRole("button", { name: /Send request/ }).click();
   await page.getByRole("button", { name: /Submit request/ }).click();
   await page.getByRole("button", { name: /Withdraw/ }).waitFor();

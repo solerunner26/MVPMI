@@ -59,12 +59,13 @@ test("approval gate, ownership, request replacement, withdrawal and admin-only a
   await a("enrollment", { ...form, name: "Edited Name" });
   const state = await admin("state");
   assert.equal(state.newRequests.length, 1);
-  assert.equal(state.archive.length, 1);
+  assert.equal(state.archive.length, 0);
+  assert.equal(state.rejectedApplications.length, 1);
   await b("enrollment", form, 409);
   assert.equal((await b("state")).myRequest, null);
   assert.equal((await a("state")).archive.length, 0);
   await a("enrollment/withdraw", {});
-  assert.equal((await admin("state")).archive.length, 2);
+  assert.equal((await admin("state")).rejectedApplications[0].events.length, 2);
   assert.equal((await a("state")).role, "guest");
 });
 test("approve, search data, update stays private, direct admin edit, delete revokes access", async (t) => {
@@ -72,7 +73,11 @@ test("approve, search data, update stays private, direct admin edit, delete revo
     a = client();
   await a("enrollment", form);
   let s = await admin("state");
-  await admin("admin/requests/" + s.newRequests[0].id + "/approve", {});
+  await admin("admin/village-admins/" + encodeURIComponent("થોરાળા"), {
+    requestId: s.newRequests[0].id,
+    identityConfirmed: true,
+    reason: "Known first village representative",
+  });
   s = await a("state");
   assert.equal(s.role, "member");
   assert.equal(s.members.length, 1);
@@ -101,9 +106,13 @@ test("backup validation is atomic, roundtrip restores links, export is a genuine
     a = client();
   await a("enrollment", form);
   let s = await admin("state");
-  await admin("admin/requests/" + s.newRequests[0].id + "/approve", {});
+  await admin("admin/village-admins/" + encodeURIComponent("થોરાળા"), {
+    requestId: s.newRequests[0].id,
+    identityConfirmed: true,
+    reason: "Known first village representative",
+  });
   const backup = await admin("admin/backup");
-  assert.equal(backup.schemaVersion, 1);
+  assert.equal(backup.schemaVersion, 2);
   assert.equal(backup.sessions, undefined);
   await admin(
     "admin/restore/validate",
@@ -131,7 +140,11 @@ test("server rejects invalid fields, ignores injected approval, rejects stale up
   await a("enrollment", { ...form, role: "admin", status: "approved" });
   assert.equal((await a("state")).role, "pending");
   let s = await admin("state");
-  await admin("admin/requests/" + s.newRequests[0].id + "/approve", {});
+  await admin("admin/village-admins/" + encodeURIComponent("થોરાળા"), {
+    requestId: s.newRequests[0].id,
+    identityConfirmed: true,
+    reason: "Known first village representative",
+  });
   await a("profile/update", { ...form, name: "Requested Name" });
   s = await admin("state");
   await admin("admin/members/" + s.members[0].id, {

@@ -1,6 +1,7 @@
+import { chooseLanguage } from "./preferences-checks.mjs";
+import {appointFirstRepresentative} from "./preferences-checks.mjs";
 import { openMemberHelp } from "./preferences-checks.mjs";
 import { checkBilingualSorting } from "./bilingual-sort-checks.mjs";
-import { checkAdminRecovery } from "./recovery-checks.mjs";
 import assert from "node:assert/strict";
 import { launchBrowser } from "./browser.mjs";
 import { createApp } from "../server/app.mjs";
@@ -67,27 +68,24 @@ try {
     "1.65",
   );
   await page.getByTestId("Reading settings").click();
-  await page
-    .getByRole("dialog")
-    .getByRole("button", { name: "English", exact: true })
-    .click();
+  await chooseLanguage(page,"en");
   await setTextSize(page, 100);
   await page.getByRole("button", { name: /Close/ }).click();
   await selectedLanguage(page, "en", "English signup");
-  await page.locator("input").nth(2).fill("Thoralaa");
-  await selectedLanguage(page, "en", "English village suggestion");
-  await page.getByRole("button", { name: /Did you mean "Thorala"/ }).click();
-  assert.equal(await page.locator("input").nth(2).inputValue(), "Thorala");
+  const villageSelect=page.getByRole('combobox',{name:/Village|ગામ/});
+  assert.equal(await villageSelect.locator('option').count(),8,'Seven fixed villages plus prompt');
+  await villageSelect.selectOption('થોરાળા');
+  assert.equal(await villageSelect.inputValue(),'થોરાળા');
   await page.reload();
   await page.getByTestId("Language").waitFor();
   await selectedLanguage(page, "en", "persisted language");
   await openMemberHelp(page);
-  await page.getByText(/known community administrator/).waitFor();
+  await page.getByText(/Access codes are no longer used/).waitFor();
   await page.getByRole("button", { name: /Understood/ }).click();
   await switchTo(page, "gu");
   await page.locator("input").nth(0).fill("Test Member");
   await page.locator("input").nth(1).fill("9000000001");
-  await page.locator("input").nth(2).fill("Thorala");
+  await page.getByRole("combobox",{name:/Village|ગામ/}).selectOption("થોરાળા");
   await page.getByRole("button", { name: /રિક્વેસ્ટ મોકલો/ }).click();
   await page.getByRole("dialog").waitFor();
   assert.match(await page.getByRole("dialog").innerText(), /આર્કાઇવ/);
@@ -126,9 +124,7 @@ try {
     (await panel.locator(".app").boundingBox()).width > 800,
     "Admin expands on desktop",
   );
-  await panel.getByText("New requests", { exact: true }).click();
-  await panel.getByRole("button", { name: /Approve/ }).click();
-  await panel.getByRole("button", { name: /Back to dashboard/ }).click();
+  await appointFirstRepresentative(panel,store.all('requests').find(r=>r.kind==='new').id);
   for (const section of [
     "Total members",
     "New requests",
@@ -204,7 +200,7 @@ try {
   await switchTo(page, "gu");
   await selectedLanguage(page, "gu", "profile Gujarati");
   await page.screenshot({ path: "test-results/gujarati-profile.png" });
-  await checkAdminRecovery(browser, panel, page, url);
+  // Access-code recovery was explicitly retired; the staged rejoin suite replaces it.
   await checkBilingualSorting(browser, store, url);
   assert.deepEqual(errors, []);
   console.log(

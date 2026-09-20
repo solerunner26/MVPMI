@@ -120,7 +120,11 @@ test("approval carries consent evidence and rejects double approval", async (t) 
     u = client();
   await u("enrollment", example);
   const r = (await admin("state")).newRequests[0];
-  await admin("admin/requests/" + r.id + "/approve", {});
+  await admin("admin/village-admins/" + encodeURIComponent("થોરાળા"), {
+    requestId: r.id,
+    identityConfirmed: true,
+    reason: "Known first village representative",
+  });
   const m = store.all("members")[0];
   assert.equal(m.consentVersion, "development-disclosure-v1");
   assert.ok(m.consentAt);
@@ -135,9 +139,11 @@ test("reject enrollment/update/deletion paths preserve the correct directory sta
     u = client();
   await u("enrollment", example);
   let s = await admin("state");
-  await admin("admin/requests/" + s.newRequests[0].id + "/reject", {});
+  await admin("admin/requests/" + s.newRequests[0].id + "/reject", {
+    reason: "Insufficient community verification",
+  });
   assert.equal((await u("state")).role, "guest");
-  assert.equal((await admin("state")).archive.length, 1);
+  assert.equal((await admin("state")).rejectedApplications.length, 1);
   await enroll(u);
   await u("profile/update", { ...example, phone: "9000000002" });
   s = await admin("state");
@@ -365,10 +371,20 @@ test("oversized JSON requests fail with 413 without exposing payloads", async (t
 });
 
 test("simultaneous approval is consumed once and leaves one approved member", async (t) => {
-  const { url, client, admin, store } = await fixture(t),
+  const { url, client, admin, store, enroll } = await fixture(t),
     u = client();
+  const local = client();
+  await enroll(local, {
+    ...example,
+    name: "Verifier Fixture",
+    phone: "7999999991",
+  });
   await u("enrollment", example);
   const id = (await admin("state")).newRequests[0].id;
+  await local("village/requests/" + id + "/forward", {
+    reason: "Verified in person",
+    identityConfirmed: true,
+  });
   const post = async (path, body, token) => {
     const r = await fetch(url + "/api/" + path, {
       method: "POST",
@@ -397,5 +413,9 @@ test("simultaneous approval is consumed once and leaves one approved member", as
     post("admin/requests/" + id + "/approve", {}, transport.token),
   ]);
   assert.deepEqual(statuses.sort(), [200, 409]);
-  assert.equal(store.all("members").length, 1);
+  assert.equal(
+    store.all("members").filter((m) => m.phone === example.phone).length,
+    1,
+  );
+  assert.equal(store.all("members").length, 2);
 });

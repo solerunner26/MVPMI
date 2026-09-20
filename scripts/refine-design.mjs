@@ -169,7 +169,7 @@ export function refineDesign(template) {
   );
   memberPart = memberPart.replace(
     '<button onClick="{{ m.onAdminEdit }}"',
-    '<button class="recovery-issue-button" onClick="{{ m.onRecover }}" data-testid="Issue recovery">{{ ui.issueRecovery }}</button><button onClick="{{ m.onAdminEdit }}"',
+    '<button onClick="{{ m.onAdminEdit }}"',
   );
   template =
     template.slice(0, memberStart) + memberPart + template.slice(memberEnd);

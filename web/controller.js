@@ -60,9 +60,9 @@ class Component extends DesignComponent {
         effects: p.effects !== false,
         tileOrder:
           Array.isArray(p.tileOrder) &&
-          p.tileOrder.length === 7 &&
-          new Set(p.tileOrder).size === 7 &&
-          p.tileOrder.every((g) => VILLAGE_LIST.some((v) => v.gu === g))
+          p.tileOrder.length <= 1000 &&
+          new Set(p.tileOrder).size === p.tileOrder.length &&
+          p.tileOrder.every((g) => typeof g === "string" && g.length <= 80)
             ? p.tileOrder
             : null,
       });
@@ -135,6 +135,10 @@ class Component extends DesignComponent {
     super.componentWillUnmount();
   }
   handleBack() {
+    if (this.state.workflowOpen) {
+      this.set("workflowOpen", false);
+      return true;
+    }
     if (this._busy) return true;
     if (this.state.recoveryOpen || this.state.recoveryIssued) {
       this.setState({
@@ -343,6 +347,25 @@ class Component extends DesignComponent {
   }
   apply(data, initial = false, screen) {
     if (!this._alive) return;
+    if (data.villages) {
+      VILLAGE_LIST.splice(
+        0,
+        VILLAGE_LIST.length,
+        ...data.villages.map((v) => ({ gu: v.gu, en: v.en })),
+      );
+      VILLAGES.splice(
+        0,
+        VILLAGES.length,
+        ...data.villages.map((v) => [v.en, v.gu, TEHSIL_EN, TEHSIL_GU]),
+      );
+      const order = (this.state.tileOrder || []).filter((g) =>
+        data.villages.some((v) => v.gu === g),
+      );
+      data.tileOrder = [
+        ...order,
+        ...data.villages.map((v) => v.gu).filter((g) => !order.includes(g)),
+      ];
+    }
     const current = this.state;
     const patch = {
       ...data,
@@ -395,6 +418,11 @@ class Component extends DesignComponent {
       meId: null,
       myRequest: null,
       role: "guest",
+      villageAdmin: false,
+      reviewQueue: [],
+      villageAssignments: [],
+      rejectedApplications: [],
+      workflowOpen: false,
       screen: "signup",
       confirm: null,
       dial: null,
@@ -523,6 +551,84 @@ class Component extends DesignComponent {
   renderVals(primaryOnly = false) {
     const v = super.renderVals(),
       s = this.state;
+    v.themeIcon =
+      s.theme === "dark" ? "ph-duotone ph-sun" : "ph-duotone ph-moon";
+    v.canReview = s.role === "admin" || !!s.villageAdmin;
+    v.workflowLabel = bilingual(
+      s.role === "admin" ? "ગામ, એડમિન અને ચકાસણી" : "ગામની વિનંતીઓ તપાસો",
+      s.role === "admin"
+        ? "Villages, admins & verification"
+        : "Review village requests",
+      s.lang,
+    );
+    v.openWorkflow = () =>
+      this.setState({ workflowOpen: true, workflowTab: "requests" });
+    v.workflowPanel =
+      s.workflowOpen && v.canReview
+        ? React.createElement(VillageWorkflow, {
+            data: s,
+            lang: s.lang,
+            initialTab: s.workflowTab || "requests",
+            onClose: () => this.set("workflowOpen", false),
+            onAction: async (path, body) => {
+              const data = await this.api(path, body);
+              this.apply(data);
+            },
+          })
+        : null;
+    const registry = s.villages || VILLAGE_LIST;
+    const villageField = (form, key) =>
+      React.createElement(VillageField, {
+        villages: registry,
+        lang: s.lang,
+        value:
+          registry.find((v) => v.gu === form.village || v.en === form.village)
+            ?.gu || "",
+        onChange: (value) =>
+          this.setState((st) => ({
+            [key]: { ...(st[key] || form), village: value },
+          })),
+      });
+    const locationField = (form, key) =>
+      React.createElement(LocationField, {
+        lang: s.lang,
+        value: form.currentLocation || "",
+        onChange: (value) =>
+          this.setState((st) => ({
+            [key]: { ...(st[key] || form), currentLocation: value },
+          })),
+      });
+    v.signupVillage = villageField(s.form, "form");
+    v.signupLocation = locationField(s.form, "form");
+    v.editVillageField = villageField(s.edit || v.edit, "edit");
+    v.editLocation = locationField(s.edit || v.edit, "edit");
+    v.applicationFeedback =
+      s.applicationStage || s.lastDecision
+        ? React.createElement(
+            "div",
+            { className: "application-feedback", role: "status" },
+            s.applicationStage
+              ? bilingual(
+                  s.applicationStage === "main"
+                    ? "ગામની ચકાસણી પૂર્ણ. મુખ્ય એડમિનની મંજૂરી બાકી છે."
+                    : "ગામના એડમિનની ચકાસણી બાકી છે.",
+                  s.applicationStage === "main"
+                    ? "Village verified. Waiting for main-admin approval."
+                    : "Waiting for your village administrator to verify your application.",
+                  s.lang,
+                )
+              : React.createElement(
+                  React.Fragment,
+                  null,
+                  bilingual(
+                    "પાછલી વિનંતી બંધ / નામંજૂર થઈ: ",
+                    "Previous application closed / rejected: ",
+                    s.lang,
+                  ),
+                  s.lastDecision.reason,
+                ),
+          )
+        : null;
     v.loaded = !!s.loaded;
     v.busy = !!s.busy || (!s.loaded && s.connected !== false);
     v.connectionError = s.connected === false;
@@ -539,6 +645,7 @@ class Component extends DesignComponent {
       : "Changes show in the directory only after the admin approves.";
     v.editSubmitGu = s.adminEditingId ? "ફેરફાર સાચવો" : "મંજૂરી માટે મોકલો";
     v.editSubmitEn = s.adminEditingId ? "Save changes" : "Send for approval";
+    if(v.me && s.meId){v.me.rows.push({gu:"હાલ :",en:"Current location",value:s.members.find(m=>m.id===s.meId)?.currentLocation||"—"});}
     v.noResults = !v.showTiles && !v.shortQuery && v.sections.length === 0;
     v.index = [];
     v.resetAll = () => {};
@@ -551,10 +658,10 @@ class Component extends DesignComponent {
       this.confirmAction(
         "સંમતિ અને ગોપનીયતા",
         "Consent & privacy",
-        "Your name, numbers and village will be shared only with approved community members. Withdrawn, rejected and removed details are retained in an admin-only archive. Submit only your own details. In this development preview, phone ownership is not SMS-verified.",
+        "Your name, numbers, current location and village will be shared only with approved community members. Withdrawn, rejected and removed details are retained in an admin-only archive. Submit only your own details. In this development preview, phone ownership is not SMS-verified.",
         () =>
           this.mutate("enrollment", { ...s.form, consent: true }, "pending"),
-        "તમારું નામ, ફોન નંબર અને ગામ ફક્ત મંજૂર થયેલા સભ્યો જોઈ શકશે. રદ, નામંજૂર કે દૂર કરેલી માહિતી એડમિનના ખાનગી આર્કાઇવમાં રહેશે. ફક્ત તમારી પોતાની વિગતો મોકલો. આ પરીક્ષણ આવૃત્તિમાં ફોનની માલિકી SMS દ્વારા ચકાસાતી નથી.",
+        "તમારું નામ, ફોન નંબર, હાલનું સ્થળ અને ગામ ફક્ત મંજૂર થયેલા સભ્યો જોઈ શકશે. રદ, નામંજૂર કે દૂર કરેલી માહિતી એડમિનના ખાનગી આર્કાઇવમાં રહેશે. ફક્ત તમારી પોતાની વિગતો મોકલો. આ પરીક્ષણ આવૃત્તિમાં ફોનની માલિકી SMS દ્વારા ચકાસાતી નથી.",
         "વિનંતી મોકલો",
         "Submit request",
       );
@@ -609,6 +716,14 @@ class Component extends DesignComponent {
     v.goEditProfile = () => {
       this.setState({ adminEditingId: null });
       edit();
+      this.refresh();
+      this.setState((st) => ({
+        edit: {
+          ...st.edit,
+          currentLocation:
+            s.members.find((m) => m.id === s.meId)?.currentLocation || "",
+        },
+      }));
     };
     v.goMyProfile = () => {
       if (s.meId) this.setState({ screen: "profile", adminEditingId: null });
@@ -723,6 +838,10 @@ class Component extends DesignComponent {
       v[key] = v[key].map((row, i) => ({
         ...row,
         [approve]: () => {
+          if (s.reviewQueue?.some((r) => r.id === s[key][i].id)) {
+            v.openWorkflow();
+            return;
+          }
           const approveRequest = () =>
             this.mutate("admin/requests/" + s[key][i].id + "/approve");
           if (key === "deleteRequests")
@@ -737,7 +856,11 @@ class Component extends DesignComponent {
             );
           else approveRequest();
         },
-        onReject: () =>
+        onReject: () => {
+          if (s.reviewQueue?.some((r) => r.id === s[key][i].id)) {
+            v.openWorkflow();
+            return;
+          }
           this.confirmAction(
             "વિનંતી નામંજૂર કરવી છે?",
             "Reject this request?",
@@ -750,7 +873,8 @@ class Component extends DesignComponent {
               : "આ વિનંતી નામંજૂર થશે. સભ્યની હાલની પ્રોફાઇલ બદલાશે નહીં.",
             "વિનંતી નામંજૂર કરો",
             "Reject request",
-          ),
+          );
+        },
       }));
     v.updateRequests = v.updateRequests.map((row, i) => {
       const r = s.updateRequests[i],
@@ -811,6 +935,8 @@ class Component extends DesignComponent {
       ...section,
       items: section.items.map((m) => ({
         ...m,
+        currentLocation:
+          s.members.find((row) => row.id === m.id)?.currentLocation || "",
         numbers: m.numbers.map((n) => {
           const links = contactLinks(
             n.phone,
@@ -954,8 +1080,10 @@ class Component extends DesignComponent {
     v.chooseEnglish = () => this.set("lang", "en");
     v.guSelected = s.lang === "gu";
     v.enSelected = s.lang === "en";
-    v.waitBodyGu = UI_COPY.waitBody[0];
-    v.waitBodyEn = UI_COPY.waitBody[1];
+    v.waitBodyGu =
+      "ગામના એડમિનની ચકાસણી અને મુખ્ય એડમિનની મંજૂરી પછી યાદી ખુલશે. તમે એપ બંધ કરી શકો છો.";
+    v.waitBodyEn =
+      "Directory access opens after village verification and main-admin approval. You can close the app and return later.";
     v.submittedDate = s.requestAt
       ? new Date(s.requestAt).toLocaleString(
           s.lang === "gu" ? "gu-IN" : "en-IN",
@@ -965,127 +1093,18 @@ class Component extends DesignComponent {
     v.steps = v.steps.map((step, i) =>
       i === 1 ? { ...step, gu: "તપાસની રાહમાં", en: "Awaiting review" } : step,
     );
-    v.memberHelp = () =>
-      this.setState({
-        preferencesOpen: false,
-        recoveryOpen: true,
-        recoveryPhone: "",
-        recoveryCode: "",
-        recoveryError: null,
-      });
-    v.recoveryOpen = !!s.recoveryOpen;
-    v.recoveryEligible = s.role === "guest";
-    v.recoveryPhone = s.recoveryPhone || "";
-    v.recoveryCode = s.recoveryCode || "";
-    v.setRecoveryPhone = (event) =>
-      this.set("recoveryPhone", dg(event.target.value).slice(0, 10));
-    v.setRecoveryCode = (event) =>
-      this.set("recoveryCode", event.target.value.slice(0, 48));
-    v.closeRecovery = () =>
-      this.setState({
-        recoveryOpen: false,
-        recoveryCode: "",
-        recoveryPhone: "",
-        recoveryError: null,
-      });
-    v.recoveryError = s.recoveryError ? errorText(s.recoveryError, s.lang) : "";
-    v.redeemRecovery = () =>
-      this.run(async () => {
-        try {
-          const { recoveryTransport, ...data } = await this.api(
-            "member/recover",
-            { phone: s.recoveryPhone || "", code: s.recoveryCode || "" },
-          );
-          this._transport = recoveryTransport?.token;
-          this._transportPromise = Promise.resolve();
-          try {
-            if (recoveryTransport)
-              sessionStorage.setItem(
-                "mvpmi-preview-session",
-                JSON.stringify(recoveryTransport),
-              );
-            else sessionStorage.removeItem("mvpmi-preview-session");
-          } catch {}
-          this.apply(data, false, "directory");
-          this.setState({
-            recoveryOpen: false,
-            recoveryCode: "",
-            recoveryPhone: "",
-            recoveryError: null,
-          });
-          this.flash(UI_COPY.recoverySuccess[0], UI_COPY.recoverySuccess[1]);
-        } catch (error) {
-          this.set("recoveryError", error.message);
-        }
-      });
-    v.members = v.members.map((row) => ({
-      ...row,
-      onRecover: () =>
-        this.confirmAction(
-          "સભ્યની ઓળખ ચકાસી છે?",
-          "Have you verified this member?",
-          "Verify " +
-            row.name +
-            " through a trusted, independent channel. Do not rely on someone just knowing a phone number. The code restores member access only and signs out old devices when used.",
-          () =>
-            this.run(async () => {
-              const result = await this.api(
-                "admin/members/" + row.id + "/recovery",
-                { identityVerified: true },
-              );
-              this.setState({
-                confirm: null,
-                recoveryIssued: result.code,
-                recoveryExpiresAt: result.expiresAt,
-                recoveryMember: this.P(row.nameGu, row.name),
-                recoveryMemberGu: row.nameGu,
-                recoveryMemberEn: row.name,
-                copyStatus: "",
-              });
-            }),
-          row.nameGu +
-            " ની ઓળખ વિશ્વસનીય રીતે ચકાસો. ફક્ત ફોન નંબર જાણવો એ ઓળખનો પુરાવો નથી. કોડ ફક્ત સભ્યનો પ્રવેશ પાછો આપશે અને વાપર્યા પછી જૂના ઉપકરણોનો પ્રવેશ બંધ થશે.",
-          UI_COPY.verifyIdentity[0],
-          UI_COPY.verifyIdentity[1],
-        ),
-    }));
-    v.showRecoveryIssued = s.role === "admin" && !!s.recoveryIssued;
-    v.recoveryIssued =
-      (s.recoveryIssued || "").match(/.{1,4}/g)?.join(" ") || "";
-    v.recoveryMember = s.recoveryMember
-      ? this.P(
-          s.recoveryMemberGu || s.recoveryMember,
-          s.recoveryMemberEn || s.recoveryMember,
-        )
-      : "";
-    v.recoveryCodeExpired =
-      !!s.recoveryExpiresAt && Date.now() >= s.recoveryExpiresAt;
-    v.recoveryExpiry = s.recoveryExpiresAt
-      ? new Date(s.recoveryExpiresAt).toLocaleTimeString(
-          s.lang === "gu" ? "gu-IN" : "en-IN",
-        )
-      : "";
-    v.copyStatus = s.copyStatus ? this.P("કોડ કોપી થયો.", "Code copied.") : "";
-    v.copyRecovery = () =>
-      this.run(async () => {
-        try {
-          await navigator.clipboard.writeText(s.recoveryIssued);
-          this.set("copyStatus", true);
-        } catch {
-          this.flash(
-            "કોડ પસંદ કરીને જાતે કોપી કરો.",
-            "Select the displayed code and copy it manually.",
-          );
-        }
-      });
-    v.closeIssuedRecovery = () =>
-      this.setState({
-        recoveryIssued: null,
-        recoveryMember: null,
-        recoveryMemberGu: null,
-        recoveryMemberEn: null,
-        copyStatus: "",
-      });
+    v.memberHelp = () => {
+      this.set("preferencesOpen", false);
+      this.confirmAction(
+        "પ્રવેશ માટે ફરી વિનંતી",
+        "Apply again for access",
+        "Access codes are no longer used. Submit your own details from the joining form. Your village administrator verifies you, then the main administrator approves access. A matching archived or active phone is reviewed, never automatically granted access.",
+        () => this.set("confirm", null),
+        "પ્રવેશ કોડ હવે વપરાતા નથી. જોડાવાના ફોર્મથી તમારી વિગતો મોકલો. ગામના એડમિનની ચકાસણી પછી મુખ્ય એડમિન મંજૂરી આપશે. જૂના નંબરનો મેળ હોય તો પણ આપમેળે પ્રવેશ મળતો નથી.",
+        "સમજાયું",
+        "Understood",
+      );
+    };
     v.reordering = !!s.reordering;
     v.reorderStatus = s.reorderStatus ? uiText("savedOrder", s.lang) : "";
     v.reorderLabel = uiText(s.reordering ? "done" : "reorder", s.lang);

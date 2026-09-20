@@ -1,3 +1,5 @@
+> **Retired 20 September 2026.** Access codes no longer grant access. Deleted members reapply through village verification and main-administrator approval; active members on a new device need a main-administrator-confirmed replacement. See [VILLAGE_APPROVAL.md](VILLAGE_APPROVAL.md). The text below is the historical record of the removed feature.
+
 # Administrator-assisted member recovery
 
 This is the recovery method selected by the owner. It is a manual, administrator-assisted identity process, **not SMS verification** and not a way to recover an administrator password.

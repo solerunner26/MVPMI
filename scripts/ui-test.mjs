@@ -1,3 +1,4 @@
+import {appointFirstRepresentative} from "./preferences-checks.mjs";
 import {
   checkModernPreferences,
   checkModernDirectory,
@@ -60,7 +61,7 @@ try {
   await checkModernPreferences(page);
   await page.locator("input").nth(0).fill("Test Community Member");
   await page.locator("input").nth(1).fill("9000000001");
-  await page.locator("input").nth(2).fill("Thorala");
+  await page.getByRole("combobox",{name:/Village|ગામ/}).selectOption("થોરાળા");
   await page.getByRole("button", { name: /Send request/ }).click();
   await page.getByRole("button", { name: /Submit request/ }).click();
   await page.getByRole("button", { name: /Withdraw/ }).waitFor();
@@ -87,8 +88,7 @@ try {
   await panel.getByPlaceholder("admin", { exact: true }).fill("admin");
   await panel.locator("input[type=password]").fill("TestPreview@2026");
   await panel.getByRole("button", { name: /Sign in/ }).click();
-  await panel.getByText("New requests", { exact: true }).click();
-  await panel.getByRole("button", { name: /Approve/ }).click();
+  await appointFirstRepresentative(panel,store.all('requests').find(r=>r.kind==='new').id);
   await page.reload();
   await page.getByRole("button", { name: /All Members/ }).waitFor();
   await page.getByRole("button", { name: /All Members/ }).click();

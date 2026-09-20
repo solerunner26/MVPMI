@@ -59,7 +59,7 @@ const text = (v, min, max, label) => {
     fail("Invalid " + label);
   return v.trim();
 };
-export function profile(p) {
+export function profile(p, registry = villages) {
   if (!isRecord(p)) fail("Invalid profile");
   const name = text(p.name, 3, 120, "name"),
     nameGu = text(
@@ -86,18 +86,19 @@ export function profile(p) {
   if (phone2 === phone) fail("Both numbers must be different");
   const village =
     typeof p.village === "string" &&
-    villages.find(
+    registry.find(
       (v) =>
         v.gu === p.village.trim() ||
         v.en.toLowerCase() === p.village.trim().toLowerCase(),
     );
   if (!village)
-    fail(
-      "આપેલા સાત ગામમાંથી પસંદ કરો · Choose one of the seven community villages",
-    );
+    fail("યાદીમાંથી ગામ પસંદ કરો · Choose a community village from the list");
   if (p.label2 !== undefined && !["work", "other"].includes(p.label2))
     fail("Invalid second-number label");
   return {
+    ...(p.currentLocation !== undefined
+      ? { currentLocation: text(p.currentLocation, 0, 240, "current location") }
+      : {}),
     name,
     nameGu,
     phone,
@@ -109,6 +110,7 @@ export function profile(p) {
   };
 }
 export const profileKeys = [
+  "currentLocation",
   "name",
   "nameGu",
   "phone",
@@ -136,6 +138,9 @@ const memberKeys = [
   "consentVersion",
 ];
 const tables = new Set([
+  "villages",
+  "villageAdmins",
+  "rejections",
   "members",
   "requests",
   "archive",
@@ -160,6 +165,67 @@ export class Store {
       this.db.exec(
         `CREATE TABLE IF NOT EXISTS ${t} (id TEXT PRIMARY KEY, data TEXT NOT NULL)`,
       );
+    this.initializeVillages();
+  }
+  initializeVillages() {
+    if (this.get("config", "village-workflow-v1")) return;
+    this.tx(() => {
+      villages.forEach((v, i) =>
+        this.put("villages", { ...v, id: v.gu, order: i }),
+      );
+      for (const a of this.all("archive")) {
+        if (!a.snapshot?.id && !a.approvedAt) {
+          this.rejectRequest(
+            { id: a.id, payload: a.snapshot || a, owner: a.owner },
+            "closed",
+            a.status || "Legacy request",
+            "migration",
+            "legacy",
+            "legacy",
+          );
+          this.del("archive", a.id);
+        }
+      }
+      this.db.exec("DELETE FROM recoveries");
+      this.put("config", { id: "village-workflow-v1", at: Date.now() });
+    });
+  }
+  rejectRequest(r, action, reason, actor, level, category = "other") {
+    if (
+      ![
+        "not-community",
+        "duplicate",
+        "insufficient",
+        "other",
+        "legacy",
+      ].includes(category)
+    )
+      fail("Invalid rejection category");
+    const p = r.payload || r.old;
+    const previous = this.all("rejections").find((a) => a.phone === p.phone);
+    this.put("rejections", {
+      id: previous?.id || randomUUID(),
+      name: p.nameGu || p.name,
+      phone: p.phone,
+      phone2: p.phone2 || "",
+      village: p.village,
+      category,
+      events: [
+        ...(previous?.events || []),
+        {
+          requestId: r.id || randomUUID(),
+          owner: r.owner,
+          action,
+          reason,
+          actor,
+          actorName:this.get("members",actor)?.nameGu||actor,
+          level,
+          category,
+          at: Date.now(),
+          snapshot: publicProfile(p),
+        },
+      ],
+    });
   }
   all(t) {
     return this.db
@@ -205,9 +271,40 @@ export class Store {
     });
   }
   archive(p, reason) {
+    if (!p.id && !p.approvedAt) {
+      this.rejectRequest(
+        { payload: p, owner: p.owner },
+        "closed",
+        reason,
+        "system",
+        "system",
+      );
+      return;
+    }
+    const previous = this.all("archive").find(
+      (a) => a.personId === p.id || a.snapshot?.id === p.id,
+    );
+    const numbers = [
+      ...new Set(
+        [...(previous?.numbers || []), p.phone, p.phone2].filter(Boolean),
+      ),
+    ];
+    if (
+      this.all("archive").some(
+        (a) =>
+          a.id !== previous?.id &&
+          [a.phone, a.phone2, ...(a.numbers || [])].some(
+            (n) => n && numbers.includes(n),
+          ),
+      )
+    )
+      fail("Archive phone conflict needs main-admin review", 409);
     this.put("archive", {
       ...p,
-      id: randomUUID(),
+      id: previous?.id || randomUUID(),
+      personId: p.id,
+      numbers,
+      history: [...(previous?.history || []), { at: Date.now(), reason }],
       snapshot: p,
       name: p.nameGu || p.name,
       nameLatin: p.name,
@@ -217,16 +314,22 @@ export class Store {
       archivedAt: Date.now(),
     });
   }
-  unique(p, owner, excludeRequest) {
+  unique(p, owner, excludeRequest, allowClaim = false) {
+    const numbers = [p.phone, p.phone2].filter(Boolean);
     if (
       this.all("members").some(
-        (m) => m.phone === p.phone && m.owner !== owner,
+        (m) =>
+          m.owner !== owner &&
+          [m.phone, m.phone2].some((n) => n && numbers.includes(n)) &&
+          !(allowClaim && m.phone === p.phone),
       ) ||
       this.all("requests").some(
         (r) =>
           r.id !== excludeRequest &&
           r.owner !== owner &&
-          r.payload?.phone === p.phone,
+          [r.payload?.phone, r.payload?.phone2].some(
+            (n) => n && numbers.includes(n),
+          ),
       )
     )
       fail(
@@ -234,8 +337,17 @@ export class Store {
         409,
       );
   }
+  dropAssignments(memberId){
+    for(const a of this.all('villageAdmins').filter(a=>a.memberId===memberId)){
+      this.del('villageAdmins',a.id);
+      for(const r of this.all('requests').filter(r=>r.payload?.village===a.id&&r.verification)){
+        r.reviewHistory=[...(r.reviewHistory||[]),r.verification];delete r.verification;this.put('requests',r);
+      }
+    }
+  }
   remove(m, reason) {
     this.del("recoveries", m.id);
+    this.dropAssignments(m.id);
     this.archive(m, reason);
     this.del("members", m.id);
     for (const r of this.all("requests").filter((r) => r.memberId === m.id))
@@ -243,6 +355,9 @@ export class Store {
   }
   data() {
     return {
+      villages: this.all("villages"),
+      villageAdmins: this.all("villageAdmins"),
+      rejections: this.all("rejections"),
       members: this.all("members"),
       requests: this.all("requests"),
       archive: this.all("archive"),
@@ -253,7 +368,7 @@ export class Store {
   }
   snapshot() {
     return {
-      schemaVersion: 1,
+      schemaVersion: 2,
       exportedAt: new Date().toISOString(),
       ...this.data(),
     };
@@ -263,9 +378,46 @@ export class Store {
       if (!isRecord(p) || Object.keys(p).some((k) => !allowed.includes(k)))
         fail("Unknown or invalid backup fields");
     };
-    keys(b, ["schemaVersion", "exportedAt", "members", "requests", "archive"]);
+    keys(b, [
+      "schemaVersion",
+      "exportedAt",
+      "members",
+      "requests",
+      "archive",
+      "villages",
+      "villageAdmins",
+      "rejections",
+    ]);
+    const registry = b.schemaVersion === 2 ? b.villages : villages;
     if (
-      b.schemaVersion !== 1 ||
+      !Array.isArray(registry) ||
+      registry.length < 7 ||
+      registry.length > 1000
+    )
+      fail("Invalid villages backup");
+    const villageIds = new Set(),
+      englishNames = new Set();
+    for (const v of registry) {
+      text(v.gu, 2, 80, "village");
+      text(v.en, 2, 80, "village");
+      if (b.schemaVersion === 2) {
+        keys(v, ["id", "gu", "en", "order"]);
+        if (v.id !== v.gu || !Number.isInteger(v.order))
+          fail("Invalid village record");
+      }
+      if (villageIds.has(v.gu) || englishNames.has(v.en.toLowerCase()))
+        fail("Duplicate village");
+      villageIds.add(v.gu);
+      englishNames.add(v.en.toLowerCase());
+    }
+    if (
+      villages.some(
+        (v) => !registry.some((x) => x.gu === v.gu && x.en === v.en),
+      )
+    )
+      fail("Original villages must be retained");
+    if (
+      ![1, 2].includes(b.schemaVersion) ||
       typeof b.exportedAt !== "string" ||
       !Number.isFinite(Date.parse(b.exportedAt)) ||
       !["members", "requests", "archive"].every(
@@ -276,7 +428,7 @@ export class Store {
     const id = (x) => text(x, 1, 128, "record identity");
     const canonical = (p, allowed = profileKeys) => {
       keys(p, allowed);
-      const clean = profile(p);
+      const clean = profile(p, registry);
       if (profileKeys.some((k) => p[k] !== clean[k]))
         fail("Backup profiles must use canonical, complete fields");
     };
@@ -305,6 +457,7 @@ export class Store {
         fail("Duplicate member");
       ids.add(m.id);
       reserve(m.phone, m.owner);
+      if (m.phone2) reserve(m.phone2, m.owner);
       owners.add(m.owner);
       byId.set(m.id, m);
     }
@@ -322,6 +475,8 @@ export class Store {
         "consentAt",
         "consentVersion",
         "reason",
+        "verification",
+        "reviewHistory",
       ]);
       id(r.id);
       id(r.owner);
@@ -374,6 +529,9 @@ export class Store {
         "status",
         "when",
         "archivedAt",
+        "personId",
+        "numbers",
+        "history",
       ]);
       id(a.id);
       if (archiveIds.has(a.id)) fail("Duplicate archive record");
@@ -405,6 +563,108 @@ export class Store {
         else canonical(a.snapshot);
       }
     }
+    if (b.schemaVersion === 2) {
+      if (
+        !Array.isArray(b.villageAdmins) ||
+        !Array.isArray(b.rejections) ||
+        b.rejections.length > 50000
+      )
+        fail("Invalid governance backup");
+      const assigned = new Set();
+      for (const a of b.villageAdmins) {
+        keys(a, [
+          "id",
+          "memberId",
+          "version",
+          "assignedAt",
+          "assignedBy",
+          "reason",
+        ]);
+        const m = byId.get(a.memberId);
+        if (
+          !m ||
+          m.village !== a.id ||
+          assigned.has(a.id) ||
+          !villageIds.has(a.id)
+        )
+          fail("Invalid village assignment");
+        assigned.add(a.id);
+        id(a.version);
+        id(a.assignedBy);
+        text(a.reason, 5, 500, "assignment reason");
+        if (!Number.isFinite(a.assignedAt)) fail("Invalid assignment date");
+      }
+      const rejectedPhones = new Set();
+      for (const r of b.rejections) {
+        keys(r, [
+          "id",
+          "name",
+          "phone",
+          "phone2",
+          "village",
+          "category",
+          "events",
+        ]);
+        id(r.id);
+        text(r.name, 1, 120, "name");
+        if (
+          !/^[6-9]\d{9}$/.test(r.phone) ||
+          rejectedPhones.has(r.phone) ||
+          !Array.isArray(r.events) ||
+          r.events.length > 10000
+        )
+          fail("Invalid rejection records");
+        rejectedPhones.add(r.phone);
+        for (const e of r.events) {
+          keys(e, [
+            "requestId",
+            "owner",
+            "action",
+            "reason",
+            "actor",
+            "actorName",
+            "level",
+            "category",
+            "at",
+            "snapshot",
+          ]);
+          id(e.requestId);
+          text(e.reason, 1, 512, "reason");
+          id(e.actor);
+          id(e.level);
+          id(e.action);
+          if (!Number.isFinite(e.at)) fail("Invalid rejection date");
+          canonical(e.snapshot);
+        }
+      }
+    }
+    const archivedPhones = new Set();
+    for (const a of b.archive) {
+      if (
+        a.numbers !== undefined &&
+        (!Array.isArray(a.numbers) ||
+          a.numbers.some((n) => !/^[6-9]\d{9}$/.test(n)))
+      )
+        fail("Invalid archive numbers");
+      for (const n of new Set(
+        [a.phone, a.phone2, ...(a.numbers || [])].filter(Boolean),
+      )) {
+        if (archivedPhones.has(n)) fail("Duplicate archive phone");
+        archivedPhones.add(n);
+      }
+      if (
+        a.history !== undefined &&
+        (!Array.isArray(a.history) ||
+          a.history.length > 10000 ||
+          a.history.some(
+            (e) =>
+              !Number.isFinite(e.at) ||
+              typeof e.reason !== "string" ||
+              e.reason.length > 512,
+          ))
+      )
+        fail("Invalid archive history");
+    }
     return b;
   }
   restore(b, actor, expectedDigest) {
@@ -416,9 +676,26 @@ export class Store {
           409,
         );
       this.db.exec("DELETE FROM recoveries");
-      for (const t of ["members", "requests", "archive"]) {
+      for (const t of [
+        "members",
+        "requests",
+        "archive",
+        "villages",
+        "villageAdmins",
+        "rejections",
+      ]) {
         this.db.exec(`DELETE FROM ${t}`);
-        for (const x of b[t]) this.put(t, x);
+        for (const raw of b[t] ||
+          (t === "villages"
+            ? villages.map((v, i) => ({ ...v, id: v.gu, order: i }))
+            : [])) {
+          const x = structuredClone(raw);
+          if (t === "requests") {
+            delete x.verification;
+            delete x.reviewHistory;
+          }
+          this.put(t, x);
+        }
       }
       this.audit(actor, "restore", b.exportedAt);
     });
