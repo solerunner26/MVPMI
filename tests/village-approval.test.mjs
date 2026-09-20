@@ -423,3 +423,139 @@ test("old access codes cannot be issued or redeemed", async (t) => {
   );
   assert.equal(f.store.all("recoveries").length, 0);
 });
+
+test("three-part names compose the stored full name and legacy names split once", async (t) => {
+  const f = await fixture(t), u = f.client();
+  const member = await f.enroll(u, {
+    ...example,
+    firstName: "Kishor",
+    middleName: "Sinh",
+    surname: "Chudasama",
+    name: undefined,
+    phone: "9000000011",
+  });
+  assert.equal(member.name, "Kishor Sinh Chudasama");
+  assert.equal(member.firstName, "Kishor");
+  assert.equal(member.middleName, "Sinh");
+  assert.equal(member.surname, "Chudasama");
+  const legacy = await f.enroll(f.client(), {
+    ...example,
+    name: "Legacy Three Token",
+    phone: "9000000012",
+  });
+  assert.equal(legacy.firstName, "Legacy");
+  assert.equal(legacy.middleName, "Three");
+  assert.equal(legacy.surname, "Token");
+});
+
+test("village administrators correct applicant details before forwarding; corrections stay village-scoped", async (t) => {
+  const f = await fixture(t), applicant = f.client();
+  await f.ensureAdmin("Thorala");
+  await f.ensureAdmin("Sathra");
+  await applicant("enrollment", example);
+  const r = f.store.all("requests")[0];
+  const va = f.va("થોરાળા");
+  await f.va("સથરા")(`village/requests/${r.id}/correct`, {
+    firstName: "Corrected",
+    surname: "Applicant",
+    phone: example.phone,
+    reason: "Out of scope attempt",
+  }, 403);
+  await va(`village/requests/${r.id}/correct`, {
+    firstName: "Corected",
+    middleName: "",
+    surname: "AplecANT",
+    phone: example.phone,
+    phone2: "",
+    label2: "work",
+    currentLocation: "Fixed address",
+  });
+  let payload = f.store.get("requests", r.id).payload;
+  assert.equal(payload.firstName, "Corected");
+  assert.equal(payload.surname, "AplecANT");
+  assert.equal(payload.currentLocation, "Fixed address");
+  assert.equal(f.store.get("requests", r.id).corrections.length, 1);
+  await va(`village/requests/${r.id}/forward`, forward);
+  await va(`village/requests/${r.id}/correct`, {
+    firstName: "Late",
+    surname: "Edit",
+    phone: example.phone,
+  }, 409);
+  await f.admin(`admin/requests/${r.id}/correct`, {
+    firstName: "Corrected",
+    middleName: "",
+    surname: "Applicant",
+    phone: example.phone,
+    phone2: "",
+    label2: "work",
+  });
+  payload = f.store.get("requests", r.id).payload;
+  assert.equal(payload.name, "Corrected Applicant");
+  await f.admin(`admin/requests/${r.id}/approve`, {});
+  const member = f.store.all("members").find((m) => m.phone === example.phone);
+  assert.equal(member.name, "Corrected Applicant");
+  assert.equal(member.surname, "Applicant");
+});
+
+test("main administrator may move a request to another village, restarting verification", async (t) => {
+  const f = await fixture(t), applicant = f.client();
+  await f.ensureAdmin("Thorala");
+  await f.ensureAdmin("Sathra");
+  await applicant("enrollment", example);
+  const r = f.store.all("requests")[0];
+  await f.va("થોરાળા")(`village/requests/${r.id}/forward`, forward);
+  await f.admin(`admin/requests/${r.id}/correct`, {
+    firstName: "Moved",
+    middleName: "",
+    surname: "Member",
+    phone: example.phone,
+    phone2: "",
+    label2: "work",
+    village: "સથરા",
+  });
+  const moved = f.store.get("requests", r.id);
+  assert.equal(moved.payload.village, "સથરા");
+  assert.equal(moved.verification, undefined);
+  assert.equal(moved.reviewHistory.length, 1);
+  await f.admin(`admin/requests/${r.id}/approve`, {}, 409);
+  await f.va("સથરા")(`village/requests/${r.id}/forward`, forward);
+  await f.admin(`admin/requests/${r.id}/approve`, {});
+});
+
+test("administrator changes and password resets no longer require a reason", async (t) => {
+  const f = await fixture(t);
+  await f.ensureAdmin("Thorala");
+  const replacement = f.client();
+  const next = await f.enroll(replacement, { ...example, name: "Reasonless Replacement", phone: "9000000013" });
+  await f.admin("admin/village-admins/" + encodeURIComponent("થોરાળા"), {
+    memberId: next.id,
+    pass: "Village@2026!",
+    identityConfirmed: true,
+  });
+  const assignment = f.store.get("villageAdmins", "થોરાળા");
+  assert.equal(assignment.memberId, next.id);
+  await f.admin("admin/village-admins/" + encodeURIComponent("થોરાળા") + "/password", {
+    pass: "Reset@2026!",
+    identityConfirmed: true,
+  });
+  const fresh = f.client();
+  await fresh("village/login", { phone: next.phone, pass: "Reset@2026!" });
+});
+
+test("the all-admins directory lists contactable administrators for everyone", async (t) => {
+  const f = await fixture(t);
+  await f.ensureAdmin("Thorala");
+  await f.admin("admin/main-admin-contact", {
+    name: "Main Administrator",
+    phone: "9000000000",
+  });
+  const guest = f.client();
+  const directory = (await guest("state")).adminDirectory;
+  assert.equal(directory.main.name, "Main Administrator");
+  assert.equal(directory.main.phone, "9000000000");
+  const thorala = directory.villages.find((v) => v.village === "થોરાળા");
+  assert.match(thorala.admin.name, /^Administrator/);
+  assert.equal(thorala.admin.phone, "7991000000");
+  const sathra = directory.villages.find((v) => v.village === "સથરા");
+  assert.equal(sathra.admin, null);
+});

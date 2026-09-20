@@ -94,7 +94,7 @@ try {
         );
         await scan(`${theme}-${mode}-${percent}-settings`);
       }
-      await page.getByRole("button", { name: /Close/ }).click();
+      await page.getByRole("button", { name: /Close|બંધ કરો/ }).click();
       await scan(`${theme}-${mode}-165-form`);
       await page.evaluate(() => {
         CSS.supports = window.__supportsOriginal;
@@ -124,26 +124,26 @@ try {
   assert.equal(await unavailable.locator(".busy-state").count(), 0);
   assert.match(
     await unavailable.locator(".connection-banner").innerText(),
-    /server is unavailable/,
+    /server is unavailable|સર્વર સાથે જોડાઈ શકાયું નથી/,
   );
   await unavailable.unroute("**/api/**");
   await unavailable.locator(".connection-banner").click();
-  await unavailable.getByRole("button", { name: /Send request/ }).waitFor();
+  await unavailable.getByRole("button", { name: /Send request|રિક્વેસ્ટ મોકલો/ }).waitFor();
   assert.equal(await unavailable.locator(".connection-banner").count(), 0);
   // Test stale/offline copy by interrupting a loaded state refresh (poll interval 15s).
   await unavailable.route("**/api/state", (r) => r.abort());
   await unavailable.locator(".connection-banner").waitFor({ timeout: 20000 });
   assert.match(
     await unavailable.locator(".connection-banner").innerText(),
-    /out of date/,
+    /out of date|માહિતી જૂની હોઈ શકે છે/,
   );
   assert.match(
     await unavailable.locator(".last-confirmed").innerText(),
-    /Last connected/,
+    /Last connected|છેલ્લે જોડાણ થયું/,
   );
   await context.setOffline(true);
   await unavailable.locator(".connection-banner").click();
-  await unavailable.getByText(/You’re offline/).waitFor();
+  await unavailable.getByText(/You’re offline|ઇન્ટરનેટ નથી/).waitFor();
   await context.setOffline(false);
   await unavailable.unroute("**/api/state");
   await unavailable.locator(".connection-banner").click();

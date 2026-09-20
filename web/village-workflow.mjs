@@ -64,6 +64,95 @@ export function LocationField({ value, onChange, lang }) {
     ),
   );
 }
+// Public "All admins" page: the administrator hierarchy with direct contact
+// actions, open to everyone including applicants who are still registering.
+export function AllAdminDirectory({ data, lang, onClose }) {
+  const h = React.createElement,
+    B = (gu, en) => bilingual(gu, en, lang);
+  const directory = data.adminDirectory || { main: null, villages: [] };
+  const contact = (phone, key) =>
+    h(
+      "div",
+      { className: "workflow-actions" },
+      h(
+        "a",
+        {
+          className: "contact-action contact-call",
+          href: "tel:+91" + phone,
+          target: "_blank",
+          rel: "noopener noreferrer",
+          "data-testid": "Admin call " + key,
+        },
+        B("ફોન કરો", "Call"),
+      ),
+      h(
+        "a",
+        {
+          className: "contact-action contact-whatsapp",
+          href: "https://wa.me/91" + phone,
+          target: "_blank",
+          rel: "noopener noreferrer",
+          "data-testid": "Admin whatsapp " + key,
+        },
+        B("વોટ્સએપ", "WhatsApp"),
+      ),
+    );
+  return h(
+    "div",
+    { className: "preferences-scrim" },
+    h(
+      "section",
+      {
+        className: "preferences-panel workflow-panel",
+        role: "dialog",
+        "aria-modal": true,
+        "aria-label": B("બધા એડમિન", "All admins"),
+        tabIndex: -1,
+      },
+      h(
+        "header",
+        { className: "workflow-heading" },
+        h("h2", null, B("બધા એડમિન", "All admins")),
+        h("button", { type: "button", onClick: onClose }, B("પાછા જાઓ", "Back")),
+      ),
+      h(
+        "p",
+        null,
+        B(
+          "કોઈપણ પ્રશ્ન કે જોડાવાની મુશ્કેલી હોય તો સીધા તમારા ગામના એડમિનનો સંપર્ક કરો.",
+          "Contact your village administrator directly for any question or trouble joining.",
+        ),
+      ),
+      directory.main &&
+        h(
+          "article",
+          { className: "workflow-card admin-card main-admin" },
+          h("h3", null, B("મુખ્ય એડમિન", "Main administrator")),
+          h("p", { className: "admin-name" }, directory.main.name),
+          h("p", null, directory.main.phone),
+          contact(directory.main.phone, "main"),
+        ),
+      directory.villages.map((v) =>
+        h(
+          "article",
+          { className: "workflow-card admin-card", key: v.village },
+          h("h3", null, lang === "gu" ? v.village + " · " + v.villageEn : v.villageEn + " · " + v.village),
+          v.admin
+            ? h(
+                "div",
+                null,
+                h("p", { className: "admin-name" }, v.admin.name),
+                h("p", null, v.admin.phone),
+                v.admin.location && h("p", null, "હાલ : ", v.admin.location),
+                contact(v.admin.phone, v.village),
+              )
+            : h("p", null, B("એડમિન નિયુક્ત નથી", "No administrator yet")),
+        ),
+      ),
+    ),
+  );
+}
+
 // Separate, visible sign-in for village administrators. The hidden sun-tap
 // gate and the main-administrator password are never part of this flow.
 export function VillageAdminLogin({ lang, onAction, onClose }) {
@@ -390,7 +479,17 @@ function WorkflowDecision({ request: r, data, lang, act, busy }) {
   const main = data.role === "admin";
   const [reason, setReason] = React.useState(""),
     [confirmed, setConfirmed] = React.useState(false),
-    [category, setCategory] = React.useState("insufficient");
+    [category, setCategory] = React.useState("insufficient"),
+    [correcting, setCorrecting] = React.useState(false),
+    [form, setForm] = React.useState({
+      firstName: r.payload.firstName || "",
+      middleName: r.payload.middleName || "",
+      surname: r.payload.surname || "",
+      phone: r.payload.phone,
+      phone2: r.payload.phone2 || "",
+      currentLocation: r.payload.currentLocation || "",
+      village: r.payload.village,
+    });
   const ready = r.stage === "main";
   const body = {
     reason,
@@ -479,6 +578,106 @@ function WorkflowDecision({ request: r, data, lang, act, busy }) {
         B(
           "આર્કાઇવમાં મેળ છે. વ્યક્તિની ઓળખ ખાતરી કરો; નવો ડુપ્લિકેટ સભ્ય બનશે નહીં.",
           "Archive match: confirm the same person before rejoining; do not create a duplicate identity.",
+        ),
+      ),
+    r.corrections?.length > 0 &&
+      h(
+        "p",
+        { className: "workflow-status" },
+        B(
+          "વિગત સુધારાઈ છે (" + r.corrections.length + " વખત)",
+          "Details corrected (" + r.corrections.length + "×)",
+        ),
+      ),
+    !correcting &&
+      button(B("વિગત સુધારો", "Correct details"), () => setCorrecting(true)),
+    correcting &&
+      h(
+        "div",
+        { className: "workflow-correction" },
+        h(
+          "p",
+          null,
+          B(
+            "જોડાનારની જોડણી કે માહિતી ખોટી હોય તો અહીં સુધારો; કારણ નોંધાય છે.",
+            "Fix spelling or details here before deciding; the correction is recorded.",
+          ),
+        ),
+        h(
+          "div",
+          null,
+          field(B("પ્રથમ નામ", "First name"), {
+            value: form.firstName,
+            maxLength: 60,
+            onChange: (e) => setForm({ ...form, firstName: e.target.value }),
+          }),
+          field(B("મધ્ય નામ / પિતાનું નામ", "Middle name / father's name"), {
+            value: form.middleName,
+            maxLength: 60,
+            onChange: (e) => setForm({ ...form, middleName: e.target.value }),
+          }),
+          field(B("અટક", "Surname"), {
+            value: form.surname,
+            maxLength: 60,
+            onChange: (e) => setForm({ ...form, surname: e.target.value }),
+          }),
+          field(B("ફોન નંબર", "Phone number"), {
+            value: form.phone,
+            inputMode: "numeric",
+            maxLength: 13,
+            onChange: (e) => setForm({ ...form, phone: e.target.value }),
+          }),
+          field(B("બીજો નંબર", "Second number"), {
+            value: form.phone2,
+            inputMode: "numeric",
+            maxLength: 13,
+            onChange: (e) => setForm({ ...form, phone2: e.target.value }),
+          }),
+          h(
+            "label",
+            { className: "workflow-field" },
+            B("હાલ : સ્થળ", "Current location"),
+            h("input", {
+              value: form.currentLocation,
+              maxLength: 240,
+              "data-testid": "Corrected location",
+              onChange: (e) =>
+                setForm({ ...form, currentLocation: e.target.value }),
+            }),
+          ),
+          main &&
+            h(
+              "label",
+              { className: "workflow-field" },
+              B("ગામ (બદલાય તો નવા ગામની ચકાસણી ફરી થશે)", "Village (changing it restarts village verification)"),
+              h(
+                "select",
+                {
+                  value: form.village,
+                  onChange: (e) => setForm({ ...form, village: e.target.value }),
+                },
+                ...data.villages.map((v) =>
+                  h("option", { key: v.gu, value: v.gu }, v.gu + " · " + v.en),
+                ),
+              ),
+            ),
+        ),
+        h(
+          "div",
+          { className: "workflow-actions" },
+          button(
+            B("સુધારો સાચવો", "Save correction"),
+            () =>
+              act(
+                (main ? "admin" : "village") +
+                  "/requests/" +
+                  r.id +
+                  "/correct",
+                form,
+              ),
+            { disabled: busy },
+          ),
+          button(B("રદ કરો", "Cancel"), () => setCorrecting(false)),
         ),
       ),
     field(B("ચકાસણી / નિર્ણયનું કારણ", "Verification / decision reason"), {
@@ -597,6 +796,9 @@ function WorkflowMemberCard({ member: m, data, lang, act, busy, pending }) {
   const [mode, setMode] = React.useState(null),
     [reason, setReason] = React.useState(""),
     [form, setForm] = React.useState({
+      firstName: m.firstName || "",
+      middleName: m.middleName || "",
+      surname: m.surname || "",
       name: m.name,
       nameGu: m.nameGu,
       phone: m.phone,
@@ -635,11 +837,20 @@ function WorkflowMemberCard({ member: m, data, lang, act, busy, pending }) {
       h(
         "div",
         null,
-        field(B("નવું નામ", "New name"), {
-          value: form.name,
-          maxLength: 120,
-          onChange: (e) =>
-            setForm({ ...form, name: e.target.value, nameGu: e.target.value }),
+        field(B("નવું પ્રથમ નામ", "New first name"), {
+          value: form.firstName,
+          maxLength: 60,
+          onChange: (e) => setForm({ ...form, firstName: e.target.value }),
+        }),
+        field(B("નવું મધ્ય નામ / પિતાનું નામ", "New middle name / father's name"), {
+          value: form.middleName,
+          maxLength: 60,
+          onChange: (e) => setForm({ ...form, middleName: e.target.value }),
+        }),
+        field(B("નવી અટક", "New surname"), {
+          value: form.surname,
+          maxLength: 60,
+          onChange: (e) => setForm({ ...form, surname: e.target.value }),
         }),
         field(B("નવો ફોન નંબર", "New phone number"), {
           value: form.phone,
@@ -819,12 +1030,14 @@ function WorkflowAssignment({ village: v, data, lang, act, busy }) {
   const members = data.members.filter((m) => m.village === v.gu);
   const [selection, setSelection] = React.useState(""),
     [pass, setPass] = React.useState(""),
-    [reason, setReason] = React.useState(""),
     [confirmed, setConfirmed] = React.useState(false),
-    [name, setName] = React.useState(""),
+    [firstName, setFirstName] = React.useState(""),
+    [middleName, setMiddleName] = React.useState(""),
+    [surname, setSurname] = React.useState(""),
     [phone, setPhone] = React.useState(""),
     [location, setLocation] = React.useState(""),
     [resetPass, setResetPass] = React.useState("");
+  const name = [firstName, middleName, surname].filter(Boolean).join(" ");
   return h(
     "article",
     { className: "workflow-card" },
@@ -848,7 +1061,6 @@ function WorkflowAssignment({ village: v, data, lang, act, busy }) {
               phone,
               currentLocation: location,
               pass,
-              reason,
               identityConfirmed: confirmed,
             });
           },
@@ -861,11 +1073,22 @@ function WorkflowAssignment({ village: v, data, lang, act, busy }) {
             "Enroll this village's first administrator (verify the person in person):",
           ),
         ),
-        field(B("નામ", "Name"), {
-          value: name,
+        field(B("પ્રથમ નામ", "First name"), {
+          value: firstName,
           required: true,
-          maxLength: 120,
-          onChange: (e) => setName(e.target.value),
+          maxLength: 60,
+          onChange: (e) => setFirstName(e.target.value),
+        }),
+        field(B("મધ્ય નામ / પિતાનું નામ", "Middle name / father's name"), {
+          value: middleName,
+          maxLength: 60,
+          onChange: (e) => setMiddleName(e.target.value),
+        }),
+        field(B("અટક", "Surname"), {
+          value: surname,
+          required: true,
+          maxLength: 60,
+          onChange: (e) => setSurname(e.target.value),
         }),
         field(B("ફોન નંબર (સાઇન ઇન માટે)", "Phone number (used to sign in)"), {
           value: phone,
@@ -892,11 +1115,6 @@ function WorkflowAssignment({ village: v, data, lang, act, busy }) {
             onChange: (e) => setPass(e.target.value),
           },
         ),
-        field(B("નિયુક્તિનું કારણ", "Enrollment reason"), {
-          value: reason,
-          maxLength: 500,
-          onChange: (e) => setReason(e.target.value),
-        }),
         h(
           "label",
           { className: "workflow-check" },
@@ -913,7 +1131,7 @@ function WorkflowAssignment({ village: v, data, lang, act, busy }) {
         h(
           "button",
           {
-            disabled: busy || !confirmed || reason.trim().length < 5,
+            disabled: busy || !confirmed,
             type: "submit",
           },
           B("ગામ એડમિન નોંધાવો", "Enroll administrator"),
@@ -957,11 +1175,6 @@ function WorkflowAssignment({ village: v, data, lang, act, busy }) {
             autoComplete: "off",
             onChange: (e) => setPass(e.target.value),
           }),
-        field(B("બદલાવનું કારણ", "Change reason"), {
-          value: reason,
-          maxLength: 500,
-          onChange: (e) => setReason(e.target.value),
-        }),
         h(
           "label",
           { className: "workflow-check" },
@@ -982,7 +1195,6 @@ function WorkflowAssignment({ village: v, data, lang, act, busy }) {
             B("નિયુક્તિ સાચવો", "Save assignment"),
             () =>
               act("admin/village-admins/" + encodeURIComponent(v.id), {
-                reason,
                 identityConfirmed: confirmed,
                 ...(selection === "remove"
                   ? { memberId: null }
@@ -992,11 +1204,7 @@ function WorkflowAssignment({ village: v, data, lang, act, busy }) {
               }),
             {
               disabled:
-                busy ||
-                !selection ||
-                !confirmed ||
-                reason.trim().length < 5 ||
-                (selection !== "remove" && !pass),
+                busy || !selection || !confirmed || (selection !== "remove" && !pass),
             },
           ),
         ),
@@ -1019,13 +1227,11 @@ function WorkflowAssignment({ village: v, data, lang, act, busy }) {
                   "/password",
                 {
                   pass: resetPass,
-                  reason,
                   identityConfirmed: confirmed,
                 },
               ),
             {
-              disabled:
-                busy || !resetPass || !confirmed || reason.trim().length < 5,
+              disabled: busy || !resetPass || !confirmed,
             },
           ),
         ),

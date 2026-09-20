@@ -30,18 +30,23 @@ async function newPage(width = 360) {
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto(url);
   await page.getByTestId("Language").waitFor();
+  // The suite drives English UI; single-language display is covered by the
+  // language suite, so panel labels are asserted in English only.
+  await chooseLanguage(page, "en");
   return page;
 }
 async function register(page, name, phone, location = "", village = "થોરાળા") {
-  await page.locator("input").nth(0).fill(name);
-  await page.locator("input").nth(1).fill(phone);
+  const [first, ...rest] = name.split(" ");
+  await page.getByPlaceholder(/અશોકભાઈ|Ashokbhai/).fill(first);
+  await page.getByPlaceholder(/ચૌધરી|Chaudhary/).fill(rest.pop() || first);
+  await page.locator('input[inputmode="numeric"]').first().fill(phone);
   if (location) await page.getByTestId("Current location").fill(location);
   await page
     .getByRole("combobox", { name: /Village|ગામ/ })
     .selectOption(village);
-  await page.getByRole("button", { name: /Send request/ }).click();
-  await page.getByRole("button", { name: /Submit request/ }).click();
-  await page.getByRole("button", { name: /Withdraw/ }).waitFor();
+  await page.getByRole("button", { name: /Send request|રિક્વેસ્ટ મોકલો/ }).click();
+  await page.getByRole("button", { name: /Submit request|વિનંતી મોકલો/ }).click();
+  await page.getByRole("button", { name: /Withdraw|કેન્સલ કરો/ }).waitFor();
 }
 async function optionState(page, value) {
   await page.waitForFunction(
@@ -99,13 +104,13 @@ async function scan(page, name) {
 }
 async function loginAsAdmin(page) {
   for (let i = 0; i < 5; i++)
-    await page.getByTitle("MVPMl", { exact: true }).click();
-  await page.getByText("Enter access code", { exact: true }).waitFor();
+    await page.getByTestId("Brand logo").click();
+  await page.getByRole("button", { name: "5", exact: true }).first().waitFor();
   for (const n of ["5", "8", "3", "1"])
     await page.getByRole("button", { name: n, exact: true }).click();
   await page.locator("input").nth(0).fill("admin");
   await page.locator("input").nth(1).fill("WorkflowTest@2026!");
-  await page.getByRole("button", { name: /Sign in/ }).click();
+  await page.getByRole("button", { name: /^Sign in$|^લોગિન કરો$/ }).click();
   await page.getByTestId("Village management").waitFor();
 }
 async function loginAsVillageAdmin(page, phone, pass) {
@@ -116,7 +121,7 @@ async function loginAsVillageAdmin(page, phone, pass) {
     .locator('input[inputmode="numeric"]')
     .fill(phone);
   await page.getByRole("dialog").locator('input[type="password"]').fill(pass);
-  await page.getByRole("button", { name: /Sign in/ }).click();
+  await page.getByRole("dialog").getByRole("button", { name: /^Sign in$|^સાઇન ઇન$/ }).click();
   await page.getByTestId("Village management").waitFor();
 }
 
@@ -144,14 +149,12 @@ try {
   await admin.getByRole("button", { name: /Villages & admins/ }).click();
   const card = admin
     .locator(".workflow-card")
-    .filter({ has: admin.getByRole("heading", { name: /થોરાળા/ }) });
-  await card.getByLabel(/Name/).fill("Thorala Village Administrator");
+    .filter({ has: admin.getByRole("heading", { name: /થોરાળા|Thorala/ }) });
+  await card.getByLabel(/First name/).fill("Thorala");
+  await card.getByLabel(/Surname/).fill("Administrator");
   await card.getByLabel(/Phone number \(used to sign in\)/).fill("7990000010");
   await card.getByLabel(/Current location/).fill("Mahuva main road");
   await card.getByLabel(/Initial password/).fill("Village@2026!");
-  await card
-    .getByLabel(/Enrollment reason/)
-    .fill("Identity confirmed in person");
   await card.getByRole("checkbox").check();
   await scan(admin, "enroll-first-admin");
   await card.getByRole("button", { name: /Enroll administrator/ }).click();
@@ -187,18 +190,18 @@ try {
     .getByRole("dialog")
     .locator('input[type="password"]')
     .fill("Wrong@2026");
-  await va.getByRole("button", { name: /Sign in/ }).click();
+  await va.getByRole("dialog").getByRole("button", { name: /^Sign in$|^સાઇન ઇન$/ }).click();
   await va.getByRole("alert").waitFor();
   await va
     .getByRole("dialog")
     .locator('input[type="password"]')
     .fill("Village@2026!");
-  await va.getByRole("button", { name: /Sign in/ }).click();
+  await va.getByRole("dialog").getByRole("button", { name: /^Sign in$|^સાઇન ઇન$/ }).click();
   await va.getByTestId("Village management").waitFor();
 
   // The hidden sun-tap gate stays sealed for village administrators.
   for (let i = 0; i < 5; i++)
-    await va.getByTitle("MVPMl", { exact: true }).click();
+    await va.getByTestId("Brand logo").click();
   assert.equal(
     await va.getByRole("button", { name: "5", exact: true }).count(),
     0,
@@ -222,7 +225,7 @@ try {
     .click();
 
   await applicant.reload();
-  await applicant.getByRole("button", { name: /Withdraw/ }).waitFor();
+  await applicant.getByRole("button", { name: /Withdraw|કેન્સલ કરો/ }).waitFor();
   assert.match(await applicant.locator("body").innerText(), /Village verified/);
   await scan(applicant, "pending-main-stage");
 
@@ -244,7 +247,7 @@ try {
 
   await applicant.reload();
   await applicant.getByTestId("My profile").waitFor();
-  await applicant.getByRole("button", { name: /All Members/ }).click();
+  await applicant.getByRole("button", { name: /All Members|બધા સભ્યો/ }).click();
   await applicant.getByText("હાલ : Adajan, Surat").waitFor();
   await scan(applicant, "approved-location");
 
@@ -270,7 +273,7 @@ try {
   await admin.reload();
   await admin.getByTestId("Village management").waitFor();
   await admin.getByText("Update requests", { exact: true }).click();
-  await admin.getByRole("button", { name: /Authorize/ }).click();
+  await admin.getByRole("button", { name: /Authorize|મંજૂર/ }).click();
   await admin.getByText("Update requests", { exact: true }).waitFor();
   await applicant.reload();
   await applicant.getByTestId("My profile").click();
@@ -291,7 +294,7 @@ try {
   await rejectCard
     .getByLabel(/Rejection category/)
     .selectOption("not-community");
-  await rejectCard.getByRole("button", { name: /Reject/ }).click();
+  await rejectCard.getByRole("button", { name: /Reject|નામંજૂર/ }).click();
   await rejectCard.waitFor({ state: "detached" });
   await rejected.reload();
   await rejected.getByText("Not recognised after identity review").waitFor();
@@ -333,7 +336,7 @@ try {
   await admin.getByRole("button", { name: /Remove from directory/ }).click();
   await admin.getByText("Delete requests", { exact: true }).waitFor();
   await applicant.reload();
-  await applicant.getByRole("button", { name: /Send request/ }).waitFor();
+  await applicant.getByRole("button", { name: /Send request|રિક્વેસ્ટ મોકલો/ }).waitFor();
 
   // 9. New villages appear immediately but stay closed until an administrator
   //    is enrolled.
@@ -376,13 +379,13 @@ try {
     .getByRole("dialog")
     .locator('input[type="password"]')
     .fill("Village@2026!");
-  await va.getByRole("button", { name: /Sign in/ }).click();
+  await va.getByRole("dialog").getByRole("button", { name: /^Sign in$|^સાઇન ઇન$/ }).click();
   await va.getByRole("alert").waitFor();
   await va
     .getByRole("dialog")
     .locator('input[type="password"]')
     .fill("Newer@2026!");
-  await va.getByRole("button", { name: /Sign in/ }).click();
+  await va.getByRole("dialog").getByRole("button", { name: /^Sign in$|^સાઇન ઇન$/ }).click();
   await va.getByTestId("Village management").waitFor();
 
   // 11. Large-text English dark management view remains usable.
@@ -391,7 +394,7 @@ try {
     .click();
   await admin.getByTestId("Reading settings").click();
   await setTextSize(admin, 165);
-  await admin.getByRole("button", { name: /Close/ }).click();
+  await admin.getByRole("button", { name: /Close|બંધ કરો/ }).click();
   await chooseLanguage(admin, "en");
   await chooseTheme(admin, "dark");
   await admin.getByTestId("Village management").click();

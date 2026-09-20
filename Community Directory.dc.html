@@ -163,11 +163,24 @@
 
                 <div style="background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--gbd);border-radius:26px;padding:18px 16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:15px">
 
-                  <label style="display:flex;flex-direction:column;gap:7px">
-                    <div class="bi" style="font-size:var(--f-sm);font-weight:700;color:var(--ink2)"><span class="gu">પૂરું નામ</span><span class="en">Full name</span></div>
-                    <input value="{{ form.name }}" onInput="{{ setName }}" placeholder="{{ ph.name }}" style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid {{ bd.name }};background:var(--field);color:var(--ink);padding:0 15px;font:inherit;font-size:var(--f-md)" style-focus="border-color:var(--ind);box-shadow:0 0 0 4px rgba(178,64,44,.14)">
+                  <div style="display:flex;flex-direction:column;gap:7px">
+                    <div class="bi" style="font-size:var(--f-sm);font-weight:700;color:var(--ink2)"><span class="gu">નામ (ત્રણ ભાગમાં)</span><span class="en">Name (three parts)</span></div>
+                    <div style="display:flex;gap:8px">
+                      <label style="flex:1.2;display:flex;flex-direction:column;gap:7px;min-width:0">
+                        <div class="bi" style="font-size:var(--f-xs);font-weight:600;color:var(--ink2)"><span class="gu">પ્રથમ નામ</span><span class="en">First name</span></div>
+                        <input value="{{ form.firstName }}" onInput="{{ setFirstName }}" placeholder="{{ ph.firstName }}" style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid {{ bd.name }};background:var(--field);color:var(--ink);padding:0 15px;font:inherit;font-size:var(--f-md)" style-focus="border-color:var(--ind);box-shadow:0 0 0 4px rgba(178,64,44,.14)">
+                      </label>
+                      <label style="flex:1;display:flex;flex-direction:column;gap:7px;min-width:0">
+                        <div class="bi" style="font-size:var(--f-xs);font-weight:600;color:var(--ink2)"><span class="gu">અટક</span><span class="en">Surname</span></div>
+                        <input value="{{ form.surname }}" onInput="{{ setSurname }}" placeholder="{{ ph.surname }}" style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid {{ bd.name }};background:var(--field);color:var(--ink);padding:0 15px;font:inherit;font-size:var(--f-md)" style-focus="border-color:var(--ind);box-shadow:0 0 0 4px rgba(178,64,44,.14)">
+                      </label>
+                    </div>
+                    <label style="display:flex;flex-direction:column;gap:7px">
+                      <div class="bi" style="font-size:var(--f-xs);font-weight:600;color:var(--ink2)"><span class="gu">મધ્ય નામ / પિતાનું નામ (વૈકલ્પિક)</span><span class="en">Middle name / father’s name (optional)</span></div>
+                      <input value="{{ form.middleName }}" onInput="{{ setMiddleName }}" placeholder="{{ ph.middleName }}" style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid {{ bd.middleName }};background:var(--field);color:var(--ink);padding:0 15px;font:inherit;font-size:var(--f-md)" style-focus="border-color:var(--ind);box-shadow:0 0 0 4px rgba(178,64,44,.14)">
+                    </label>
                     <sc-if value="{{ err.name }}"><div style="font-size:var(--f-xs);color:var(--dan);display:flex;gap:6px;align-items:center"><i class="ph-duotone ph-warning-circle" style="font-size:14px"></i>{{ err.name }}</div></sc-if>
-                  </label>
+                  </div>
 
                   <label style="display:flex;flex-direction:column;gap:7px">
                     <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">
@@ -537,10 +550,23 @@
                   <div class="bi" style="font-size:var(--f-sm)"><span class="gu">એડમિન મંજૂરી આપશે પછી જ ફેરફાર યાદીમાં દેખાશે.</span><span class="en">Changes show in the directory only after the admin approves.</span></div>
                 </div>
                 <div style="background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--gbd);border-radius:26px;padding:18px 16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:15px">
-                  <label style="display:flex;flex-direction:column;gap:7px">
-                    <div class="bi" style="font-size:var(--f-sm);font-weight:700;color:var(--ink2)"><span class="gu">પૂરું નામ</span><span class="en">Full name</span></div>
-                    <input value="{{ edit.name }}" onInput="{{ setEditName }}" style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid var(--fieldBd);background:var(--field);color:var(--ink);padding:0 15px;font:inherit;font-size:var(--f-md)" style-focus="border-color:var(--ind);box-shadow:0 0 0 4px rgba(178,64,44,.14)">
-                  </label>
+                  <div style="display:flex;flex-direction:column;gap:7px">
+                    <div class="bi" style="font-size:var(--f-sm);font-weight:700;color:var(--ink2)"><span class="gu">નામ (ત્રણ ભાગમાં)</span><span class="en">Name (three parts)</span></div>
+                    <div style="display:flex;gap:8px">
+                      <label style="flex:1.2;display:flex;flex-direction:column;gap:7px;min-width:0">
+                        <div class="bi" style="font-size:var(--f-xs);font-weight:600;color:var(--ink2)"><span class="gu">પ્રથમ નામ</span><span class="en">First name</span></div>
+                        <input value="{{ edit.firstName }}" onInput="{{ setEditFirstName }}" placeholder="{{ ph.firstName }}" style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid var(--fieldBd);background:var(--field);color:var(--ink);padding:0 15px;font:inherit;font-size:var(--f-md)" style-focus="border-color:var(--ind);box-shadow:0 0 0 4px rgba(178,64,44,.14)">
+                      </label>
+                      <label style="flex:1;display:flex;flex-direction:column;gap:7px;min-width:0">
+                        <div class="bi" style="font-size:var(--f-xs);font-weight:600;color:var(--ink2)"><span class="gu">અટક</span><span class="en">Surname</span></div>
+                        <input value="{{ edit.surname }}" onInput="{{ setEditSurname }}" placeholder="{{ ph.surname }}" style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid var(--fieldBd);background:var(--field);color:var(--ink);padding:0 15px;font:inherit;font-size:var(--f-md)" style-focus="border-color:var(--ind);box-shadow:0 0 0 4px rgba(178,64,44,.14)">
+                      </label>
+                    </div>
+                    <label style="display:flex;flex-direction:column;gap:7px">
+                      <div class="bi" style="font-size:var(--f-xs);font-weight:600;color:var(--ink2)"><span class="gu">મધ્ય નામ / પિતાનું નામ (વૈકલ્પિક)</span><span class="en">Middle name / father’s name (optional)</span></div>
+                      <input value="{{ edit.middleName }}" onInput="{{ setEditMiddleName }}" placeholder="{{ ph.middleName }}" style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid var(--fieldBd);background:var(--field);color:var(--ink);padding:0 15px;font:inherit;font-size:var(--f-md)" style-focus="border-color:var(--ind);box-shadow:0 0 0 4px rgba(178,64,44,.14)">
+                    </label>
+                  </div>
                   <label style="display:flex;flex-direction:column;gap:7px">
                     <div class="bi" style="font-size:var(--f-sm);font-weight:700;color:var(--ink2)"><span class="gu">પોતાનો ફોન નંબર</span><span class="en">Personal number</span></div>
                     <input value="{{ edit.phone }}" onInput="{{ setEditPhone }}" inputmode="numeric" style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid {{ bd.editPhone }};background:var(--field);color:var(--ink);padding:0 15px;font:inherit;font-size:var(--f-md);letter-spacing:.05em" style-focus="border-color:var(--ind);box-shadow:0 0 0 4px rgba(178,64,44,.14)">
@@ -1072,7 +1098,7 @@ class Component extends DCLogic {
     query: '', fVillage: '', fTehsil: '', fDistrict: '', dirMode: 'tiles', tileOrder: null, dragFrom: null,
     picker: null, confirm: null, dial: null, toast: null,
     editingRequest: false, showPhone2: false,
-    form: { name: '', phone: '', phone2: '', label2: 'work', village: '', tehsil: TEHSIL_GU, district: DISTRICT_GU },
+    form: { firstName: '', middleName: '', surname: '', name: '', phone: '', phone2: '', label2: 'work', village: '', tehsil: TEHSIL_GU, district: DISTRICT_GU },
     submitted: false, myRequest: null, meId: 1, edit: null,
     login: { user: '', pass: '' }, showPass: false, loginError: false,
     tapCount: 0, gateInput: '', gateError: false,
@@ -1099,6 +1125,8 @@ class Component extends DCLogic {
 
   set(k, v) { this.setState({ [k]: v }); }
   setForm(k) { return (e) => this.setState((s) => ({ form: { ...s.form, [k]: e.target.value } })); }
+  setNamePart(k) { return (e) => this.setState((s) => { const form = { ...s.form, [k]: e.target.value }; form.name = [form.firstName, form.middleName, form.surname].filter(Boolean).join(' '); return { form }; }); }
+  setEditNamePart(k) { return (e) => this.setState((s) => { const edit = { ...s.edit, [k]: e.target.value }; edit.name = [edit.firstName, edit.middleName, edit.surname].filter(Boolean).join(' '); return { edit }; }); }
   setPhoneField(k) { return (e) => this.setState((s) => ({ form: { ...s.form, [k]: dg(e.target.value).slice(0, 10) } })); }
   setEdit(k) { return (e) => this.setState((s) => ({ edit: { ...s.edit, [k]: e.target.value } })); }
 
@@ -1113,7 +1141,12 @@ class Component extends DCLogic {
 
   errorsFor(f) {
     const e = {};
-    if (!String(f.name || '').trim()) e.name = this.L('નામ લખવું જરૂરી છે', 'Name is required');
+    const parts = [f.firstName, f.middleName, f.surname].filter((x) => x !== undefined);
+    if (parts.length) {
+      if (!String(f.firstName || '').trim()) e.name = this.L('પ્રથમ નામ લખો', 'Enter the first name');
+      else if (!String(f.surname || '').trim()) e.name = this.L('અટક લખો', 'Enter the surname');
+      else if (String(f.firstName).trim().length < 2 || String(f.surname).trim().length < 2) e.name = this.L('નામ પૂરો લખો', 'Enter the complete name');
+    } else if (!String(f.name || '').trim()) e.name = this.L('નામ લખવું જરૂરી છે', 'Name is required');
     else if (String(f.name).trim().length < 3) e.name = this.L('પૂરું નામ લખો', 'Enter the full name');
     const p = dg(f.phone);
     if (!p) e.phone = this.L('ફોન નંબર જરૂરી છે', 'Phone number is required');
@@ -1284,6 +1317,9 @@ class Component extends DCLogic {
       aesAttr: this.props.aesthetic !== false ? 'on' : 'off',
       ph: {
         name: this.P('અશોકભાઈ ચૌધરી', 'Ashokbhai Chaudhary'),
+        firstName: this.P('અશોકભાઈ', 'Ashokbhai'),
+        middleName: this.P('પિતાનું નામ', 'Father’s name'),
+        surname: this.P('ચૌધરી', 'Chaudhary'),
         village: this.P('થોરાળા', 'Thorala'),
         tehsil: TEHSIL_GU, district: DISTRICT_GU,
         search: this.P('નામ કે નંબર શોધો', 'Search name or number')
@@ -1307,6 +1343,7 @@ class Component extends DCLogic {
       pendingPhones: [this.fmt(s.form.phone), dg(s.form.phone2) ? this.fmt(s.form.phone2) + ' (' + this.P('ધંધો', 'work') + ')' : ''].filter(Boolean).join('  ·  '),
       phoneCount: dg(s.form.phone).length, phoneOk: dg(s.form.phone).length === 10,
       setName: this.setForm('name'), setVillage: this.setForm('village'), setTehsil: this.setForm('tehsil'),
+      setFirstName: this.setNamePart('firstName'), setMiddleName: this.setNamePart('middleName'), setSurname: this.setNamePart('surname'),
       setDistrict: this.setForm('district'), setPhone: this.setPhoneField('phone'), setPhone2: this.setPhoneField('phone2'),
       err: { ...err, ...editErr },
       bd: { name: bdOf('name', err), phone: bdOf('phone', err), phone2: bdOf('phone2', err), village: bdOf('village', err), tehsil: bdOf('tehsil', err), district: bdOf('district', err), editPhone: bdOf('editPhone', editErr), editPhone2: bdOf('editPhone2', editErr) },
@@ -1423,9 +1460,10 @@ class Component extends DCLogic {
       myDeletePending: s.deleteRequests.some((d) => d.memberId === s.meId),
       goMyProfile: () => this.set('screen', 'profile'),
       goDirectory: () => this.set('screen', 'directory'),
-      goEditProfile: () => this.setState({ screen: 'editprofile', edit: { name: s.lang === 'en' ? me.name : me.nameGu, phone: this.fmt(me.phone), phone2: this.fmt(me.phone2), village: this.V(me.village), tehsil: this.T(me.tehsil), district: this.D(me.district) } }),
+      goEditProfile: () => this.setState({ screen: 'editprofile', edit: { firstName: me.firstName || '', middleName: me.middleName || '', surname: me.surname || '', name: s.lang === 'en' ? me.name : me.nameGu, nameGu: me.nameGu, phone: this.fmt(me.phone), phone2: this.fmt(me.phone2), village: this.V(me.village), tehsil: this.T(me.tehsil), district: this.D(me.district) } }),
       edit: s.edit || { name: s.lang === 'en' ? me.name : me.nameGu, phone: this.fmt(me.phone), phone2: this.fmt(me.phone2), village: this.V(me.village), tehsil: this.T(me.tehsil), district: this.D(me.district) },
       setEditName: this.setEdit('name'), setEditVillage: this.setEdit('village'), setEditTehsil: this.setEdit('tehsil'),
+      setEditFirstName: this.setEditNamePart('firstName'), setEditMiddleName: this.setEditNamePart('middleName'), setEditSurname: this.setEditNamePart('surname'),
       setEditDistrict: this.setEdit('district'),
       setEditPhone: (e) => this.setState((st) => ({ edit: { ...st.edit, phone: dg(e.target.value).slice(0, 10) } })),
       setEditPhone2: (e) => this.setState((st) => ({ edit: { ...st.edit, phone2: dg(e.target.value).slice(0, 10) } })),
@@ -1669,7 +1707,7 @@ class Component extends DCLogic {
         fg: s.screen === id ? '#FFF3E6' : '#D9C6BB'
       })),
       stateLine: s.members.length + ' members · ' + pendingTotal + ' admin items · ' + s.alerts.length + ' security alerts · text ' + s.fsPct + '%',
-      resetAll: () => this.setState({ ...clone(SEED), screen: 'signup', tab: 'home', query: '', fVillage: '', fTehsil: '', fDistrict: '', dirMode: 'tiles', tileOrder: null, dragFrom: null, myRequest: null, meId: 1, edit: null, submitted: false, showPhone2: false, form: { name: '', phone: '', phone2: '', label2: 'work', village: '', tehsil: TEHSIL_GU, district: DISTRICT_GU }, login: { user: '', pass: '' }, loginError: false, dial: null, toast: null, confirm: null, picker: null, fsPct: 100, lang: 'gu', theme: 'light' })
+      resetAll: () => this.setState({ ...clone(SEED), screen: 'signup', tab: 'home', query: '', fVillage: '', fTehsil: '', fDistrict: '', dirMode: 'tiles', tileOrder: null, dragFrom: null, myRequest: null, meId: 1, edit: null, submitted: false, showPhone2: false, form: { firstName: '', middleName: '', surname: '', name: '', phone: '', phone2: '', label2: 'work', village: '', tehsil: TEHSIL_GU, district: DISTRICT_GU }, login: { user: '', pass: '' }, loginError: false, dial: null, toast: null, confirm: null, picker: null, fsPct: 100, lang: 'gu', theme: 'light' })
     };
   }
 }

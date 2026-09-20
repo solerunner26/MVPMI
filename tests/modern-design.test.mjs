@@ -22,15 +22,12 @@ test("modern adapter fails closed when a structural contract is missing", () => 
     /Modern design contract missing/,
   );
 });
-test("modern profile preserves paired stored names and does not repeat identical names", () => {
+test("modern profile shows the stored name in the selected language only", () => {
   const base = view();
-  let rendered = bilingualView(base, base, "gu");
-  assert.match(
-    renderToStaticMarkup(rendered.profileName),
-    /નમૂના સભ્ય.*Sample member/,
-  );
-  base.me.nameGu = base.me.name;
+  assert.equal(bilingualView(base, base, "gu").profileName, "નમૂના સભ્ય");
   assert.equal(bilingualView(base, base, "en").profileName, "Sample member");
+  base.me.nameGu = base.me.name;
+  assert.equal(bilingualView(base, base, "gu").profileName, "Sample member");
 });
 test("contact copy keeps both real explanations and link metadata without HTML injection", () => {
   const base = view();
@@ -42,9 +39,12 @@ test("contact copy keeps both real explanations and link metadata without HTML i
     name: "Sample member",
   };
   const rendered = bilingualView(base, base, "en");
-  assert.match(
-    renderToStaticMarkup(rendered.contactCopy),
-    /Open your phone app &lt;script&gt;.*ફોન એપ ખોલો/,
+  assert.equal(rendered.contactCopy, "Open your phone app <script>");
+  assert.equal(
+    renderToStaticMarkup(
+      React.createElement("span", null, rendered.contactCopy),
+    ),
+    "<span>Open your phone app &lt;script&gt;</span>",
   );
   assert.equal(rendered.dial.href, base.dial.href);
   assert.equal(rendered.dial.target, "_self");

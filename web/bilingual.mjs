@@ -1,19 +1,10 @@
 // Presentation only: never translate stored names, input values, identifiers,
 // sort keys or event handlers. The alternate view is read-only and discarded.
+// One language at a time: the header language control decides which script is
+// shown; nothing is displayed bilingually. Gujarati is the default.
 export function bilingual(gu, en, lang = "gu") {
   if (gu === en || !gu || !en) return gu || en || "";
-  const parts = { gu: String(gu), en: String(en) };
-  return React.createElement(
-    "span",
-    { className: "bi generated" },
-    ...[lang, lang === "gu" ? "en" : "gu"].map((code) =>
-      React.createElement(
-        "span",
-        { className: code, lang: code, key: code },
-        parts[code],
-      ),
-    ),
-  );
+  return String(lang === "en" ? en : gu);
 }
 const labels = new Set([
   "adminTitle",

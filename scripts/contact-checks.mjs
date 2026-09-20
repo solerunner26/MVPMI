@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 
 // Intercept external navigation: never place a call or contact a synthetic number.
 async function checkSurface(surface, target, mode) {
-  await surface.getByRole("button", { name: /All Members/ }).click();
+  await surface.getByRole("button", { name: /All Members|બધા સભ્યો/ }).click();
   await surface.getByTestId("Call").first().waitFor();
   await surface.evaluate((mode) => {
     window.contactAttempts = [];
@@ -85,7 +85,7 @@ export async function checkContactActions(browser, context, url) {
     `<iframe title="Restricted preview" sandbox="allow-scripts allow-same-origin" src="${url}" style="width:450px;height:920px"></iframe>`,
   );
   const frame = embedded.frameLocator("iframe");
-  await frame.getByRole("button", { name: /All Members/ }).waitFor();
+  await frame.getByRole("button", { name: /All Members|બધા સભ્યો/ }).waitFor();
   // FrameLocator lacks evaluate: obtain the actual same-origin frame for injection.
   await checkSurface(embedded.frames()[1], "_blank", "throws");
   await embedded.close();
@@ -107,7 +107,7 @@ export async function checkContactActions(browser, context, url) {
       `<iframe sandbox="allow-scripts allow-same-origin ${allowPopups ? "allow-popups" : ""}" src="${url}" style="width:450px;height:920px"></iframe>`,
     );
     const framed = host.frameLocator("iframe");
-    await framed.getByRole("button", { name: /All Members/ }).click();
+    await framed.getByRole("button", { name: /All Members|બધા સભ્યો/ }).click();
     if (allowPopups) {
       const opened = context.waitForEvent("page");
       await framed

@@ -3,6 +3,7 @@ import {
   fail,
   publicProfile,
   profile,
+  nameParts,
   passwordHash,
   passwordMatches,
   strong,
@@ -91,6 +92,23 @@ export function villageState(store, req) {
     villageAdmin: !!vaMember,
     villageAdminName: vaMember ? vaMember.nameGu || vaMember.name : null,
     villageAdminVillage: vaMember ? vaMember.village : null,
+    adminDirectory: {
+      main: store.get("config", "main-admin-contact") || null,
+      villages: store
+        .all("villages")
+        .sort((a, b) => a.order - b.order)
+        .map((v) => {
+          const a = store.get("villageAdmins", v.gu);
+          const m = a && store.get("members", a.memberId);
+          return {
+            village: v.gu,
+            villageEn: v.en,
+            admin: m
+              ? { name: m.name, phone: m.phone, location: m.currentLocation || "" }
+              : null,
+          };
+        }),
+    },
     villageAdminEligible:
       !req.isAdmin &&
       !vaMember &&
@@ -186,6 +204,7 @@ export function enrollAdministrator(
     typeof village === "string" ? store.get("villages", village) : village;
   if (!v) fail("Village not found", 404);
   const fullName = cleanText(name, 3, 120, "name");
+  const parts = nameParts(fullName);
   const digits = String(phone || "").replace(/\D/g, "");
   if (!/^[6-9]\d{9}$/.test(digits))
     fail("નંબર બરાબર લખો · Enter a valid 10-digit mobile number");
@@ -204,6 +223,9 @@ export function enrollAdministrator(
       ? ""
       : cleanText(currentLocation, 0, 240, "current location");
   const p = {
+    firstName: parts.firstName,
+    middleName: parts.middleName,
+    surname: parts.surname,
     name: fullName,
     nameGu: fullName,
     phone: digits,
@@ -296,7 +318,8 @@ export function installVillageApproval(app, store, { admin, state, rate }) {
   app.post("/api/admin/village-admins/:village", admin, (req, res) => {
     const village = store.get("villages", req.params.village);
     if (!village) fail("Village not found", 404);
-    const reason = decisionReason(req.body.reason);
+    const reason = req.body.reason?.trim() || "Administrator change";
+    if (req.body.reason?.trim()) decisionReason(req.body.reason);
     if (req.body.identityConfirmed !== true)
       fail("Confirm identity in person before appointment");
     store.tx(() => {
@@ -352,7 +375,8 @@ export function installVillageApproval(app, store, { admin, state, rate }) {
     if (!village) fail("Village not found", 404);
     const a = store.get("villageAdmins", village.gu);
     if (!a) fail("This village has no administrator", 409);
-    const reason = decisionReason(req.body.reason);
+    const reason = req.body.reason?.trim() || "Password reset";
+    if (req.body.reason?.trim()) decisionReason(req.body.reason);
     if (req.body.identityConfirmed !== true)
       fail("Confirm identity in person before resetting the password");
     store.tx(() => {
@@ -425,6 +449,36 @@ export function installVillageApproval(app, store, { admin, state, rate }) {
       a.passChangedAt = Date.now();
       store.put("villageAdmins", a);
       store.audit(me.id, "village.password", a.id);
+    });
+    res.json(state(req));
+  });
+
+  // A village administrator may correct applicant details (spelling, numbers)
+  // before forwarding; the correction is audited and never changes ownership.
+  app.post("/api/village/requests/:id/correct", (req, res) => {
+    const me = activeAdminMember(store, req);
+    if (!me) fail("Village administrator sign-in required", 403);
+    const r = store.get("requests", req.params.id);
+    if (!r) fail("Request already processed", 409);
+    if (r.kind !== "new" || r.verification)
+      fail("Only unverified joining requests can be corrected here", 409);
+    if (r.payload.village !== me.village)
+      fail("This request belongs to another village", 403);
+    if (r.owner === me.owner || r.payload.phone === me.phone)
+      fail("You cannot correct your own request", 403);
+    const p = profile(
+      { ...req.body, village: r.payload.village },
+      store.all("villages"),
+    );
+    store.unique(p, r.owner, undefined, true);
+    store.tx(() => {
+      r.corrections = [
+        ...(r.corrections || []),
+        { by: me.id, at: Date.now(), before: publicProfile(r.payload) },
+      ];
+      r.payload = p;
+      store.put("requests", r);
+      store.audit(me.id, "village.request.correct", r.id);
     });
     res.json(state(req));
   });

@@ -65,23 +65,24 @@ try {
     if (m.type() === "error") errors.push(m.text());
   });
   await page.goto(url);
-  await page.getByRole("button", { name: /Send request/ }).waitFor();
+  await page.getByRole("button", { name: /Send request|રિક્વેસ્ટ મોકલો/ }).waitFor();
   await checkModernPreferences(page);
-  await page.locator("input").nth(0).fill("Test Community Member");
-  await page.locator("input").nth(1).fill("9000000001");
+  await page.getByPlaceholder(/અશોકભાઈ|Ashokbhai/).fill("Test");
+  await page.getByPlaceholder(/ચૌધરી|Chaudhary/).fill("Community Member");
+  await page.locator('input[inputmode="numeric"]').first().fill("9000000001");
   await page
     .getByRole("combobox", { name: /Village|ગામ/ })
     .selectOption("થોરાળા");
-  await page.getByRole("button", { name: /Send request/ }).click();
-  await page.getByRole("button", { name: /Submit request/ }).click();
-  await page.getByRole("button", { name: /Withdraw/ }).waitFor();
+  await page.getByRole("button", { name: /Send request|રિક્વેસ્ટ મોકલો/ }).click();
+  await page.getByRole("button", { name: /Submit request|વિનંતી મોકલો/ }).click();
+  await page.getByRole("button", { name: /Withdraw|કેન્સલ કરો/ }).waitFor();
   forwardRequest(
     store,
     store.all("requests").find((r) => r.kind === "new").id,
     "Verified community member",
   );
   await page.reload();
-  await page.getByRole("button", { name: /Withdraw/ }).waitFor();
+  await page.getByRole("button", { name: /Withdraw|કેન્સલ કરો/ }).waitFor();
   assert(
     (await page.locator("body").innerText()).includes("Test Community Member"),
   );
@@ -93,24 +94,24 @@ try {
     panel = await admin.newPage();
   panel.on("pageerror", (e) => errors.push(e.message));
   await panel.goto(url);
-  await panel.getByRole("button", { name: /Send request/ }).waitFor();
+  await panel.getByRole("button", { name: /Send request|રિક્વેસ્ટ મોકલો/ }).waitFor();
   // Enter through the real hidden logo gesture, not a prototype screen shortcut.
   for (let i = 0; i < 5; i++)
-    await panel.getByTitle("MVPMl", { exact: true }).click({ force: true });
-  await panel.getByText("Enter access code", { exact: true }).waitFor();
+    await panel.getByTestId("Brand logo").click({ force: true });
+  await panel.getByRole("button", { name: "5", exact: true }).first().waitFor();
   for (const digit of "5831")
     await panel.getByRole("button", { name: digit, exact: true }).click();
   await panel.getByPlaceholder("admin", { exact: true }).fill("admin");
   await panel.locator("input[type=password]").fill("TestPreview@2026");
-  await panel.getByRole("button", { name: /Sign in/ }).click();
+  await panel.getByRole("button", { name: /^Sign in$|^લોગિન કરો$/ }).click();
   await panel.getByText("New requests", { exact: true }).click();
-  await panel.getByRole("button", { name: /Approve/ }).click();
+  await panel.getByRole("button", { name: /Approve|મંજૂર/ }).click();
   await panel
     .getByRole("button", { name: /Back to dashboard|ડેશબોર્ડ પર પાછા/ })
     .click();
   await page.reload();
-  await page.getByRole("button", { name: /All Members/ }).waitFor();
-  await page.getByRole("button", { name: /All Members/ }).click();
+  await page.getByRole("button", { name: /All Members|બધા સભ્યો/ }).waitFor();
+  await page.getByRole("button", { name: /All Members|બધા સભ્યો/ }).click();
   await page.getByTestId("Call").first().waitFor();
   await page.screenshot({ path: "test-results/directory.png" });
   await checkModernDirectory(page);
@@ -119,11 +120,11 @@ try {
   await page.getByPlaceholder("Search name or number").fill("Test Community");
   assert.equal(await page.getByTestId("Call").count(), 1);
   await page.reload();
-  await page.getByRole("button", { name: /All Members/ }).waitFor();
+  await page.getByRole("button", { name: /All Members|બધા સભ્યો/ }).waitFor();
   await page.getByTestId("My profile").click();
-  await page.getByRole("button", { name: /Edit my details/ }).click();
+  await page.getByRole("button", { name: /Edit my details|મારી વિગત બદલો/ }).click();
   await page.getByRole("button", { name: /Send for approval/ }).waitFor();
-  await page.locator("input").nth(0).fill("Updated Test Member");
+  await page.getByPlaceholder(/અશોકભાઈ|Ashokbhai/).first().fill("Updated");
   await page.getByRole("button", { name: /Send for approval/ }).click();
   await page.getByText("My profile", { exact: true }).waitFor();
   const stateBefore = await page.evaluate(() =>
@@ -136,11 +137,11 @@ try {
   assert.equal(stateBefore.updateRequests.length, 1);
   await panel.reload();
   await panel.getByText("Update requests", { exact: true }).click();
-  await panel.getByRole("button", { name: /Authorize/ }).click();
+  await panel.getByRole("button", { name: /Authorize|મંજૂર/ }).click();
   await page.reload();
   await page.getByTestId("My profile").click();
   assert(
-    (await page.locator("body").innerText()).includes("Updated Test Member"),
+    (await page.locator("body").innerText()).includes("Updated Community Member"),
   );
   if ((await page.locator(".app").getAttribute("data-lang")) !== "en")
     await page.getByTestId("Language").click();
@@ -148,7 +149,7 @@ try {
     await toggleTheme(page);
   await setTextSize(page, 140);
   await page.reload();
-  await page.getByRole("button", { name: /All Members/ }).waitFor();
+  await page.getByRole("button", { name: /All Members|બધા સભ્યો/ }).waitFor();
   assert.equal(await page.locator(".app").getAttribute("data-lang"), "en");
   assert.equal(await page.locator(".app").getAttribute("data-theme"), "dark");
   assert.equal(
@@ -161,18 +162,18 @@ try {
   await panel.getByText("Members", { exact: true }).click();
   // Several members exist; edit the enrolled test member specifically.
   await panel
-    .locator("div", { hasText: "Updated Test Member" })
+    .locator("div", { hasText: "Updated Community Member" })
     .filter({ has: panel.getByTestId("Edit") })
     .getByTestId("Edit")
     .first()
     .click();
   await panel.getByRole("button", { name: /Save changes/ }).waitFor();
   const hostileName = '<img src=x onerror="window.__attack=1">';
-  await panel.locator("input").nth(0).fill(hostileName);
+  await panel.getByPlaceholder(/અશોકભાઈ|Ashokbhai/).first().fill(hostileName);
   await panel.getByRole("button", { name: /Save changes/ }).click();
   await panel.getByTestId("Edit").first().waitFor();
   await page.reload();
-  await page.getByRole("button", { name: /All Members/ }).click();
+  await page.getByRole("button", { name: /All Members|બધા સભ્યો/ }).click();
   await page.getByTestId("Call").first().waitFor();
   assert((await page.locator("body").innerText()).includes(hostileName));
   assert.equal(await page.evaluate(() => window.__attack), undefined);

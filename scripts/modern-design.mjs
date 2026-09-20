@@ -1,3 +1,15 @@
+import { existsSync, readFileSync } from "node:fs";
+
+// The community logo (goddess image) is embedded as a data URI at build time;
+// until the artwork is supplied the sixteen-ray Sun mark remains in place.
+const logoAsset = "web/assets/community-logo.png";
+let brandLogo =
+  '<dc-import name="SunMark" hint-size="36px,36px" style="width:36px;height:36px"></dc-import>';
+if (existsSync(logoAsset))
+  brandLogo =
+    '<img class="brand-logo" alt="" src="data:image/png;base64,' +
+    readFileSync(logoAsset).toString("base64") +
+    '">';
 // Structural redesign layered over the functional renderer, not a new app.
 function find(html, needle, from = 0) {
   const index = html.indexOf(needle, from);
@@ -167,7 +179,7 @@ export function modernDesign(html) {
   let content = html.slice(panel, panelEnd);
   content = content.replace(
     "<h2>{{ copy.preferences }}</h2>",
-    '<header class="sheet-heading"><div><p class="eyebrow">MVPMl</p><h2>{{ copy.preferences }}</h2></div><button class="sheet-close" aria-label="{{ ui.dismissSettings }}" onClick="{{ closePreferences }}"><i aria-hidden="true" class="ph-duotone ph-x"></i></button></header><h3 class="settings-label">{{ copy.language }}</h3>',
+    '<header class="sheet-heading"><div><p class="eyebrow">{{ copy.communityName }}</p><h2>{{ copy.preferences }}</h2></div><button class="sheet-close" aria-label="{{ ui.dismissSettings }}" onClick="{{ closePreferences }}"><i aria-hidden="true" class="ph-duotone ph-x"></i></button></header><h3 class="settings-label">{{ copy.language }}</h3>',
   );
   content = content
     .replace(
@@ -201,7 +213,7 @@ export function modernDesign(html) {
   const frameStart = find(html, ">", frame) + 1;
   html =
     html.slice(0, frameStart) +
-    `<header class="main-header"><div class="brand-lockup"><button class="brand-sun" title="MVPMl" onClick="{{ secretTap }}"><dc-import name="SunMark" hint-size="36px,36px" style="width:36px;height:36px"></dc-import></button><span class="wordmark">MVPMl<span class="brand-caption">{{ copy.connected }}</span></span></div><div class="header-actions"><button class="language-trigger" onClick="{{ toggleLang }}" data-testid="Language" aria-label="{{ ui.language }}" title="{{ ui.language }}"><i aria-hidden="true" class="ph-duotone ph-translate"></i></button><button class="preferences-trigger" onClick="{{ openPreferences }}" data-testid="Reading settings" title="{{ ui.preferences }}" aria-label="{{ ui.preferences }}"><i aria-hidden="true" class="ph-duotone ph-sliders-horizontal"></i></button></div></header>` +
+    `<header class="main-header"><div class="brand-lockup"><button class="brand-sun" title="{{ communityName }}" data-testid="Brand logo" onClick="{{ secretTap }}">${brandLogo}</button><span class="wordmark">{{ copy.communityName }}<span class="brand-caption">{{ copy.connected }}</span></span></div><div class="header-actions"><sc-if value="{{ showAllAdmins }}"><button class="preferences-trigger" data-testid="All admins" onClick="{{ openAllAdmins }}" title="{{ ui.allAdmins }}" aria-label="{{ ui.allAdmins }}"><i aria-hidden="true" class="ph-duotone ph-users-three"></i></button></sc-if><sc-if value="{{ showVillageAdminButton }}"><button class="preferences-trigger" data-testid="Village admin sign in" onClick="{{ openVillageAdminHeader }}" title="{{ villageAdminButtonLabel }}" aria-label="{{ villageAdminButtonLabel }}"><i aria-hidden="true" class="ph-duotone ph-shield-check"></i></button></sc-if><button class="language-trigger" onClick="{{ toggleLang }}" data-testid="Language" aria-label="{{ ui.language }}" title="{{ ui.language }}"><i aria-hidden="true" class="ph-duotone ph-translate"></i></button><button class="preferences-trigger" onClick="{{ openPreferences }}" data-testid="Reading settings" title="{{ ui.preferences }}" aria-label="{{ ui.preferences }}"><i aria-hidden="true" class="ph-duotone ph-sliders-horizontal"></i></button></div></header>` +
     html.slice(frameStart);
   html = html.replace(
     '<div class="bi" style="font-weight:700;font-size:var(--f-lg)"><span class="gu" lang="gu">{{ me.nameGu }}</span><span class="en" lang="en">{{ me.name }}</span></div>',

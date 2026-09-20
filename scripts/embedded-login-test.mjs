@@ -89,20 +89,20 @@ try {
     await frame.getByTestId("Language").waitFor();
     if ((await frame.locator(".app").getAttribute("data-lang")) === "gu")
       await frame.getByTestId("Language").click();
-    await frame.getByRole("button", { name: /Send request/ }).waitFor();
+    await frame.getByRole("button", { name: /Send request|રિક્વેસ્ટ મોકલો/ }).waitFor();
     for (let i = 0; i < 5; i++)
-      await frame.getByTitle("MVPMl", { exact: true }).click({ force: true });
+      await frame.getByTestId("Brand logo").click({ force: true });
     for (const d of "5831")
       await frame.getByRole("button", { name: d, exact: true }).click();
     await frame.getByPlaceholder("admin", { exact: true }).fill("admin");
     await frame.locator("input[type=password]").fill("WrongPassword");
-    await frame.getByRole("button", { name: /Sign in/ }).click();
+    await frame.getByRole("button", { name: /^Sign in$|^લોગિન કરો$/ }).click();
     await frame
       .getByText("Wrong username or password", { exact: true })
       .first()
       .waitFor();
     await frame.locator("input[type=password]").fill("EmbeddedTest@2026");
-    await frame.getByRole("button", { name: /Sign in/ }).click();
+    await frame.getByRole("button", { name: /^Sign in$|^લોગિન કરો$/ }).click();
     await frame.getByText("New requests", { exact: true }).waitFor();
     if (mode !== "cookies")
       assert.equal(
@@ -120,7 +120,7 @@ try {
       await frame.getByText("New requests", { exact: true }).waitFor();
     }
     await frame.getByTestId("Sign out").click();
-    await frame.getByRole("button", { name: /Send request/ }).waitFor();
+    await frame.getByRole("button", { name: /Send request|રિક્વેસ્ટ મોકલો/ }).waitFor();
     assert.deepEqual(errors, []);
     console.log("PASS embedded authentication, export and logout: " + mode);
     await context.close();

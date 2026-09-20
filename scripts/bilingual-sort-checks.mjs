@@ -6,12 +6,13 @@ export async function checkBilingualSorting(browser, store, url) {
   const page = await context.newPage();
   await page.goto(url);
   await page.getByTestId("Language").waitFor();
-  await page.locator("input").nth(0).fill("Alpha Test");
-  await page.locator("input").nth(1).fill("9000000061");
+  await page.getByPlaceholder(/અશોકભાઈ|Ashokbhai/).fill("Alpha");
+  await page.getByPlaceholder(/ચૌધરી|Chaudhary/).fill("Test");
+  await page.locator('input[inputmode="numeric"]').first().fill("9000000061");
   await page.getByRole("combobox",{name:/Village|ગામ/}).selectOption("થોરાળા");
-  await page.getByRole("button", { name: /Send request/ }).click();
-  await page.getByRole("button", { name: /Submit request/ }).click();
-  await page.getByRole("button", { name: /Withdraw/ }).waitFor();
+  await page.getByRole("button", { name: /Send request|રિક્વેસ્ટ મોકલો/ }).click();
+  await page.getByRole("button", { name: /Submit request|વિનંતી મોકલો/ }).click();
+  await page.getByRole("button", { name: /Withdraw|કેન્સલ કરો/ }).waitFor();
   const request = store
     .all("requests")
     .find((r) => r.payload.phone === "9000000061");
@@ -33,33 +34,56 @@ export async function checkBilingualSorting(browser, store, url) {
   });
   store.del("requests", request.id);
   await page.reload();
-  await page.getByRole("button", { name: /All Members/ }).waitFor();
+  await page.getByRole("button", { name: /All Members|બધા સભ્યો/ }).waitFor();
   await page.locator(".village-tile svg").first().waitFor();
   assert.equal(await page.locator(".village-tile").count(), 7);
   assert.equal(await page.locator(".village-tile svg defs").count(), 7);
   await page.screenshot({
     path: "test-results/liquid-glass/directory-gu-light.png",
   });
-  await page.getByRole("button", { name: /All Members/ }).click();
+  await page.getByRole("button", { name: /All Members|બધા સભ્યો/ }).click();
   for (const lang of ["gu", "en"]) {
     if ((await page.locator(".app").getAttribute("data-lang")) !== lang)
       await page.getByTestId("Language").click();
-    const alpha = await page
-      .getByText("Alpha Test", { exact: true })
+    // One language at a time: only the selected script is rendered, and the
+    // directory order stays stable across languages.
+    const shown =
+      lang === "en"
+        ? [
+            ["Alpha Test", "Zulu Test"],
+            ["કસોટી અ", "અન્ય કસોટી"],
+          ]
+        : [
+            ["કસોટી અ", "અન્ય કસોટી"],
+            ["Alpha Test", "Zulu Test"],
+          ];
+    // The list sorts by the visible script in each language.
+    const ordered =
+      lang === "en"
+        ? ["Alpha Test", "Zulu Test"]
+        : ["અન્ય કસોટી", "કસોટી અ"];
+    const first = await page
+      .getByText(ordered[0], { exact: true })
       .boundingBox();
-    const zulu = await page
-      .getByText("Zulu Test", { exact: true })
+    const second = await page
+      .getByText(ordered[1], { exact: true })
       .boundingBox();
+    assert.ok(first && second, lang + " shows its own script");
     assert.equal(
-      alpha.y < zulu.y,
-      lang === "en",
-      "Sort order follows primacy, not whichever spelling is rendered first",
+      first.y < second.y,
+      true,
+      "Directory sorts by the visible script in " + lang,
     );
-    for (const name of ["Alpha Test", "કસોટી અ", "Zulu Test", "અન્ય કસોટી"])
-      assert.equal(await page.getByText(name, { exact: true }).count(), 1);
+    const hidden = shown[1];
+    for (const name of hidden)
+      assert.equal(
+        await page.getByText(name, { exact: true }).count(),
+        0,
+        lang + " hides the alternate script (" + name + ")",
+      );
   }
   await context.close();
   console.log(
-    "PASS: two-script member names stay visible; Gujarati/English sorting actually reverses the fixture order; seven original Sun-mark village tiles.",
+    "PASS: one language at a time per selection; directory sorting follows the visible script; seven original Sun-mark village tiles.",
   );
 }

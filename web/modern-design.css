@@ -947,3 +947,46 @@ body {
   font-weight: 800;
   line-height: 1.4;
 }
+
+/* One language at a time: the alternate script is hidden, not rendered. */
+.app[data-lang="gu"] .bi > .en,
+.app[data-lang="gu"] .bi.generated > .en,
+.app[data-lang="en"] .bi > .gu,
+.app[data-lang="en"] .bi.generated > .gu {
+  display: none;
+}
+.app[data-lang="gu"] .bi,
+.app[data-lang="en"] .bi {
+  gap: 0;
+}
+.app[data-lang="gu"] .brand-caption .bi,
+.app[data-lang="en"] .brand-caption .bi {
+  display: block;
+}
+
+/* Community identity: the long community name wraps gracefully at any width. */
+.wordmark {
+  font-size: 15px;
+  letter-spacing: -0.2px;
+  line-height: 1.18;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.app[data-reading="large"] .wordmark {
+  font-size: 13px;
+}
+.brand-sun .brand-logo {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  border-radius: 12px;
+  display: block;
+}
+/* All-admins directory cards. */
+.workflow-card.admin-card .admin-name {
+  font-weight: 700;
+  font-size: var(--f-md);
+}
+.workflow-card.admin-card.main-admin {
+  border-left: 4px solid var(--ind);
+}

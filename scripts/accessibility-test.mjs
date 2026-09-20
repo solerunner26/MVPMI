@@ -92,12 +92,13 @@ try {
   await scan("signup-en-dark");
   await toggleTheme(page);
   await scan("signup-en-light");
-  await page.locator("input").nth(0).fill("Synthetic Member");
-  await page.locator("input").nth(1).fill("9000000001");
+  await page.getByPlaceholder(/અશોકભાઈ|Ashokbhai/).fill("Synthetic");
+  await page.getByPlaceholder(/ચૌધરી|Chaudhary/).fill("Member");
+  await page.locator('input[inputmode="numeric"]').first().fill("9000000001");
   await page
     .getByRole("combobox", { name: /Village|ગામ/ })
     .selectOption("થોરાળા");
-  await page.getByRole("button", { name: /Send request/ }).click();
+  await page.getByRole("button", { name: /Send request|રિક્વેસ્ટ મોકલો/ }).click();
   await page.getByRole("dialog").waitFor();
   await scan("consent-dialog");
   await page.keyboard.press("Shift+Tab");
@@ -116,9 +117,9 @@ try {
   );
   await page.keyboard.press("Escape");
   await page.getByRole("dialog").waitFor({ state: "detached" });
-  await page.getByRole("button", { name: /Send request/ }).click();
-  await page.getByRole("button", { name: /Submit request/ }).click();
-  await page.getByRole("button", { name: /Withdraw/ }).waitFor();
+  await page.getByRole("button", { name: /Send request|રિક્વેસ્ટ મોકલો/ }).click();
+  await page.getByRole("button", { name: /Submit request|વિનંતી મોકલો/ }).click();
+  await page.getByRole("button", { name: /Withdraw|કેન્સલ કરો/ }).waitFor();
   await scan("pending");
   // Synthetic fixture approval for scanning; authentication is tested separately.
   const r = store.all("requests")[0];
@@ -130,12 +131,12 @@ try {
   });
   store.del("requests", r.id);
   await page.reload();
-  await page.getByRole("button", { name: /All Members/ }).waitFor();
+  await page.getByRole("button", { name: /All Members|બધા સભ્યો/ }).waitFor();
   await scan("directory-tiles");
-  await page.getByRole("button", { name: /Reorder villages/ }).click();
+  await page.getByRole("button", { name: /Reorder villages|ગામનો ક્રમ બદલો/ }).click();
   await scan("village-reordering");
-  await page.getByRole("button", { name: /Done/ }).click();
-  await page.getByRole("button", { name: /All Members/ }).click();
+  await page.getByRole("button", { name: /Done|પૂર્ણ/ }).click();
+  await page.getByRole("button", { name: /All Members|બધા સભ્યો/ }).click();
   await page.getByTestId("Call").first().waitFor();
   await scan("directory-list");
   // Do not launch external apps while scanning the original contact sheets.
@@ -156,21 +157,21 @@ try {
     await page.getByRole("button", { name: /OK/ }).click();
   }
   await page.getByTestId("My profile").click();
-  await page.getByRole("button", { name: /Edit my details/ }).waitFor();
+  await page.getByRole("button", { name: /Edit my details|મારી વિગત બદલો/ }).waitFor();
   await scan("profile");
   await setTextSize(page, 165);
   await scan("profile-large-font");
   // Keep Biggest enabled for edit, reset, and all admin screen checks.
-  await page.getByRole("button", { name: /Edit my details/ }).click();
+  await page.getByRole("button", { name: /Edit my details|મારી વિગત બદલો/ }).click();
   await page.getByRole("button", { name: /Send for approval/ }).waitFor();
   await scan("edit-profile");
   assert.equal(await page.evaluate(() => window.mvpmiBack()), true);
-  await page.getByRole("button", { name: /Edit my details/ }).waitFor();
+  await page.getByRole("button", { name: /Edit my details|મારી વિગત બદલો/ }).waitFor();
   assert.equal(await page.evaluate(() => window.mvpmiBack()), true);
-  await page.getByTitle("MVPMl", { exact: true }).waitFor();
+  await page.getByTestId("Brand logo").waitFor();
   for (let i = 0; i < 5; i++)
-    await page.getByTitle("MVPMl", { exact: true }).click({ force: true });
-  await page.getByText("Enter access code", { exact: true }).waitFor();
+    await page.getByTestId("Brand logo").click({ force: true });
+  await page.getByRole("button", { name: "5", exact: true }).first().waitFor();
   await scan("gate");
   for (const digit of "5831")
     await page.getByRole("button", { name: digit, exact: true }).click();
@@ -182,7 +183,7 @@ try {
   await page.getByRole("button", { name: /Back to login/ }).click();
   await page.getByPlaceholder("admin", { exact: true }).fill("admin");
   await page.locator("input[type=password]").fill("Accessible@2026");
-  await page.getByRole("button", { name: /Sign in/ }).click();
+  await page.getByRole("button", { name: /^Sign in$|^લોગિન કરો$/ }).click();
   await page.getByText("New requests", { exact: true }).waitFor();
   await scan("admin-home");
   for (const section of [
@@ -198,9 +199,9 @@ try {
     const item = page.getByText(section, { exact: true });
     if ((await item.count()) === 0) continue;
     await item.click();
-    await page.getByRole("button", { name: /Back to dashboard/ }).waitFor();
+    await page.getByRole("button", { name: /Back to dashboard|ડેશબોર્ડ પર પાછા/ }).waitFor();
     await scan("admin-" + section);
-    await page.getByRole("button", { name: /Back to dashboard/ }).click();
+    await page.getByRole("button", { name: /Back to dashboard|ડેશબોર્ડ પર પાછા/ }).click();
   }
   mkdirSync("test-results", { recursive: true });
   writeFileSync(

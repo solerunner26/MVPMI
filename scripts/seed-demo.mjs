@@ -168,6 +168,13 @@ store.tx(() => {
   store.put("members", removed);
   store.remove(removed, "ડેમો · Demo seed: member left the community");
 
+  // Contactable main-administrator identity for the public "All admins" page.
+  store.put("config", {
+    id: "main-admin-contact",
+    name: "મહુવા ક્ષત્રિય રાજપૂત સમાજ · મુખ્ય એડમિન",
+    phone: "9000000000",
+  });
+
   store.put("config", { id: "demo-seeded-v1", at: now });
   store.audit("demo-seed", "demo.seed", dbPath);
 });

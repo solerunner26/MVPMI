@@ -43,5 +43,5 @@ export async function enrollVillageAdministrator(
   await card.getByRole("checkbox").check();
   await card.getByRole("button", { name: /Enroll administrator/ }).click();
   await card.getByText(/Current administrator:/).waitFor();
-  await page.getByRole("button", { name: /Back to dashboard/ }).click();
+  await page.getByRole("button", { name: /Back to dashboard|ડેશબોર્ડ પર પાછા/ }).click();
 }

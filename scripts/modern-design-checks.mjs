@@ -24,7 +24,7 @@ export async function checkModernPreferences(page) {
     await setTextSize(page, size);
     await assertFits(page, "Modern preferences " + size);
   }
-  await page.getByRole("button", { name: /Close/ }).click();
+  await page.getByRole("button", { name: /Close|બંધ કરો/ }).click();
   assert.equal(
     await page
       .getByTestId("Reading settings")
@@ -74,10 +74,10 @@ export async function checkModernDirectory(page) {
       .getAttribute("aria-pressed"),
     "true",
   );
-  await modes.getByRole("button", { name: /All Members/ }).click();
+  await modes.getByRole("button", { name: /All Members|બધા સભ્યો/ }).click();
   assert.equal(
     await modes
-      .getByRole("button", { name: /All Members/ })
+      .getByRole("button", { name: /All Members|બધા સભ્યો/ })
       .getAttribute("aria-pressed"),
     "true",
   );

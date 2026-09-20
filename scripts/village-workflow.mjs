@@ -20,14 +20,14 @@ export function villageWorkflow(html) {
     html = html.slice(0, heading) + html.slice(end(html, at));
   }
   html = html.replace(
-    '<button class="preferences-trigger"',
-    '<button class="theme-trigger" data-testid="Theme" onClick="{{ toggleTheme }}" title="{{ ui.theme }}" aria-label="{{ ui.theme }}"><i aria-hidden="true" class="{{ themeIcon }}"></i></button><button class="preferences-trigger"',
+    '<button class="preferences-trigger" onClick="{{ openPreferences }}"',
+    '<button class="theme-trigger" data-testid="Theme" onClick="{{ toggleTheme }}" title="{{ ui.theme }}" aria-label="{{ ui.theme }}"><i aria-hidden="true" class="{{ themeIcon }}"></i></button><button class="preferences-trigger" onClick="{{ openPreferences }}"',
   );
   const headerEnd =
     html.indexOf("</header>", html.indexOf('<header class="main-header"')) + 9;
   html =
     html.slice(0, headerEnd) +
-    '<sc-if value="{{ canReview }}"><button class="workflow-launch" data-testid="Village management" onClick="{{ openWorkflow }}">{{ workflowLabel }}</button></sc-if>{{ villageAdminEntry }}{{ villageLoginPanel }}{{ workflowPanel }}' +
+    '<sc-if value="{{ isAdminUser }}"><button class="workflow-launch" data-testid="Village management" onClick="{{ openWorkflow }}">{{ workflowLabel }}</button></sc-if>{{ villageLoginPanel }}{{ allAdminsPanel }}{{ workflowPanel }}' +
     html.slice(headerEnd);
   for (const [handler, value] of [
     ["setVillage", "signupVillage"],

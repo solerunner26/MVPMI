@@ -49,7 +49,7 @@ export function fail(message, status = 400) {
 }
 export const isRecord = (p) =>
   p !== null && typeof p === "object" && !Array.isArray(p);
-const text = (v, min, max, label) => {
+export const text = (v, min, max, label) => {
   if (
     typeof v !== "string" ||
     v.trim().length < min ||
@@ -59,15 +59,42 @@ const text = (v, min, max, label) => {
     fail("Invalid " + label);
   return v.trim();
 };
+// Full names are entered and stored in three parts; the composed full name
+// keeps search, sorting, export and display working unchanged.
+export const nameParts = (name) => {
+  const tokens = String(name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  return {
+    firstName: tokens[0] || "",
+    middleName: tokens.slice(1, -1).join(" "),
+    surname: tokens.length > 1 ? tokens[tokens.length - 1] : "",
+  };
+};
 export function profile(p, registry = villages) {
   if (!isRecord(p)) fail("Invalid profile");
-  const name = text(p.name, 3, 120, "name"),
-    nameGu = text(
-      p.nameGu === undefined ? name : p.nameGu,
-      3,
-      120,
-      "Gujarati name",
-    );
+  let firstName, middleName, surname;
+  if (p.firstName === undefined && p.middleName === undefined && p.surname === undefined) {
+    // Legacy callers still send a single full name; split it once.
+    text(p.name, 3, 120, "name");
+    ({ firstName, middleName, surname } = nameParts(p.name));
+  } else {
+    firstName = text(p.firstName, 2, 60, "first name");
+    middleName =
+      p.middleName === undefined || p.middleName === ""
+        ? ""
+        : text(p.middleName, 2, 60, "middle name");
+    surname = text(p.surname, 2, 60, "surname");
+  }
+  const name = [firstName, middleName, surname].filter(Boolean).join(" ");
+  text(name, 3, 120, "name");
+  const nameGu = text(
+    p.nameGu === undefined ? name : p.nameGu,
+    3,
+    120,
+    "Gujarati name",
+  );
   const number = (value, optional) => {
     if (optional && (value === undefined || value === "")) return "";
     if (
@@ -99,6 +126,9 @@ export function profile(p, registry = villages) {
     ...(p.currentLocation !== undefined
       ? { currentLocation: text(p.currentLocation, 0, 240, "current location") }
       : {}),
+    firstName,
+    middleName,
+    surname,
     name,
     nameGu,
     phone,
@@ -111,6 +141,9 @@ export function profile(p, registry = villages) {
 }
 export const profileKeys = [
   "currentLocation",
+  "firstName",
+  "middleName",
+  "surname",
   "name",
   "nameGu",
   "phone",
@@ -166,6 +199,30 @@ export class Store {
         `CREATE TABLE IF NOT EXISTS ${t} (id TEXT PRIMARY KEY, data TEXT NOT NULL)`,
       );
     this.initializeVillages();
+    this.initializeNameParts();
+  }
+  // Fill three-part names for records created before the split (idempotent).
+  initializeNameParts() {
+    if (this.get("config", "name-parts-v1")) return;
+    const split = (record) => {
+      if (record && !record.firstName && record.name) {
+        const parts = nameParts(record.name);
+        record.firstName = parts.firstName;
+        record.middleName = parts.middleName;
+        record.surname = parts.surname;
+      }
+      return record;
+    };
+    this.tx(() => {
+      for (const m of this.all("members")) this.put("members", split(m));
+      for (const r of this.all("requests")) {
+        if (r.payload) split(r.payload);
+        if (r.old) split(r.old);
+        this.put("requests", r);
+      }
+      for (const a of this.all("archive")) this.put("archive", split(a));
+      this.put("config", { id: "name-parts-v1", at: Date.now() });
+    });
   }
   initializeVillages() {
     if (this.get("config", "village-workflow-v1")) return;
@@ -380,6 +437,33 @@ export class Store {
     };
   }
   validateBackup(b) {
+    // Older backups predate the three-part names; derive the parts on import.
+    const withNameParts = (record) => {
+      if (record && isRecord(record) && !record.firstName && record.name) {
+        const parts = nameParts(record.name);
+        return {
+          ...record,
+          firstName: parts.firstName,
+          middleName: parts.middleName,
+          surname: parts.surname,
+        };
+      }
+      return record;
+    };
+    b = {
+      ...b,
+      members: b.members?.map(withNameParts),
+      archive: b.archive?.map(withNameParts),
+      requests: b.requests?.map((r) =>
+        r && isRecord(r)
+          ? {
+              ...r,
+              ...(r.payload ? { payload: withNameParts(r.payload) } : {}),
+              ...(r.old ? { old: withNameParts(r.old) } : {}),
+            }
+          : r,
+      ),
+    };
     const keys = (p, allowed) => {
       if (!isRecord(p) || Object.keys(p).some((k) => !allowed.includes(k)))
         fail("Unknown or invalid backup fields");

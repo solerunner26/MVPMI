@@ -92,7 +92,7 @@ export async function checkTextSizes(context, url) {
           .getByRole("button", { name: /Back to directory|યાદીમાં પાછા જાઓ/ })
           .click();
         await assertFits(page, `tiles ${width} ${lang} ${percent}`);
-        await page.getByRole("button", { name: /All Members/ }).click();
+        await page.getByRole("button", { name: /All Members|બધા સભ્યો/ }).click();
         await page.getByTestId("Call").first().waitFor();
         await assertFits(page, `members ${width} ${lang} ${percent}`);
         await page.getByTestId("My profile").click();

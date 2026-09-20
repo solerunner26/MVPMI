@@ -203,8 +203,8 @@ class Component extends DesignComponent {
   componentDidUpdate() {
     document.documentElement.lang = this.state.lang;
     document.title = this.P(
-      "MVPMl · સમાજ સંપર્ક યાદી",
-      "MVPMl · Community Directory",
+      "મહુવા ક્ષત્રિય રાજપૂત સમાજ · સમાજ સંપર્ક યાદી",
+      "મહુવા ક્ષત્રિય રાજપૂત સમાજ · Community Directory",
     );
     const dialog = document.querySelector('.app [role="dialog"]');
     // Restore background semantics before applying the current modal boundary.
@@ -423,6 +423,7 @@ class Component extends DesignComponent {
       myRequest: null,
       role: "guest",
       villageAdmin: false,
+      allAdminsOpen: false,
       villageLoginOpen: false,
       reviewQueue: [],
       villageAssignments: [],
@@ -559,22 +560,34 @@ class Component extends DesignComponent {
     v.themeIcon =
       s.theme === "dark" ? "ph-duotone ph-sun" : "ph-duotone ph-moon";
     v.canReview = s.role === "admin" || !!s.villageAdmin;
-    // The sign-in entry stays available to every session that is not already
-    // an administrator (main or village), so a member promoted to village
-    // administrator can reach it on their own device. The sheet itself
-    // rejects anyone without valid credentials.
-    v.showVillageAdminEntry = !v.canReview;
-    v.villageAdminEntry = v.showVillageAdminEntry
-      ? React.createElement(
-          "button",
-          {
-            className: "workflow-launch secondary",
-            "data-testid": "Village admin sign in",
-            onClick: () => this.setState({ villageLoginOpen: true }),
-          },
-          bilingual("ગામ એડમિન સાઇન ઇન", "Village admin sign in", s.lang),
-        )
+    // Header buttons: "All admins" is visible to everyone; the shield opens
+    // the village-admin sign-in (or the review panel once signed in) for every
+    // session that is not the main administrator.
+    v.communityName = bilingual(
+      "મહુવા ક્ષત્રિય રાજપૂત સમાજ",
+      "Mahuva Kshatriya Rajput Samaj",
+      s.lang,
+    );
+    v.showAllAdmins = true;
+    v.openAllAdmins = () => this.setState({ allAdminsOpen: true });
+    v.allAdminsPanel = s.allAdminsOpen
+      ? React.createElement(AllAdminDirectory, {
+          data: s,
+          lang: s.lang,
+          onClose: () => this.set("allAdminsOpen", false),
+        })
       : null;
+    v.isAdminUser = s.role === "admin" || !!s.villageAdmin;
+    v.showVillageAdminButton = s.role !== "admin";
+    v.villageAdminButtonLabel = s.villageAdmin
+      ? bilingual("ગામની વિનંતીઓ તપાસો", "Review village requests", s.lang)
+      : bilingual("ગામ એડમિન સાઇન ઇન", "Village admin sign in", s.lang);
+    v.openVillageAdminHeader = () =>
+      this.setState(
+        s.villageAdmin
+          ? { workflowOpen: true, workflowTab: "requests" }
+          : { villageLoginOpen: true },
+      );
     v.openVillageLogin = () => this.setState({ villageLoginOpen: true });
     v.closeVillageLogin = () => this.setState({ villageLoginOpen: false });
     v.villageLoginPanel = s.villageLoginOpen

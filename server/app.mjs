@@ -19,6 +19,7 @@ import {
   passwordMatches,
   strong,
   profile,
+  text,
   fail,
   publicProfile,
   isRecord,
@@ -357,6 +358,48 @@ export function createApp({
     }
     res.json({ ok: true });
   });
+  // The main administrator may correct typos in a joining request before the
+  // final approval; moving it to another village restarts that village's
+  // verification so no application skips local review.
+  app.post("/api/admin/requests/:id/correct", admin, (req, res) => {
+    const r = store.get("requests", req.params.id);
+    if (!r) fail("Request already processed", 409);
+    if (r.kind !== "new") fail("Only joining requests can be corrected here", 409);
+    const p = profile(
+      { ...req.body, village: req.body.village || r.payload.village },
+      store.all("villages"),
+    );
+    store.unique(p, r.owner, undefined, true);
+    store.tx(() => {
+      if (r.verification && p.village !== r.payload.village) {
+        r.reviewHistory = [...(r.reviewHistory || []), r.verification];
+        delete r.verification;
+      }
+      r.corrections = [
+        ...(r.corrections || []),
+        { by: req.session.owner, at: Date.now(), before: publicProfile(r.payload) },
+      ];
+      r.payload = p;
+      store.put("requests", r);
+      store.audit(req.session.owner, "admin.request.correct", r.id);
+    });
+    res.json(state(req));
+  });
+
+  // Contactable identity for the "All admins" page (name + phone shown to
+  // everyone, including applicants who want to talk before applying).
+  app.post("/api/admin/main-admin-contact", admin, (req, res) => {
+    const name = text(req.body.name, 3, 120, "name");
+    const phone = String(req.body.phone || "").replace(/\D/g, "");
+    if (!/^[6-9]\d{9}$/.test(phone))
+      fail("નંબર બરાબર લખો · Enter a valid 10-digit mobile number");
+    store.tx(() => {
+      store.put("config", { id: "main-admin-contact", name, phone });
+      store.audit(req.session.owner, "main-admin-contact.set", phone);
+    });
+    res.json(state(req));
+  });
+
   app.post("/api/admin/requests/:id/:action", admin, (req, res) => {
     const r = store.get("requests", req.params.id);
     if (!r) fail("Request already processed. Refresh and try again", 409);
