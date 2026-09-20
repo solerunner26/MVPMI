@@ -52,6 +52,15 @@ async function switchTo(page, lang) {
   if ((await page.locator(".app").getAttribute("data-lang")) !== lang)
     await page.getByTestId("Language").click();
 }
+
+// The directory opens on the all-members list; switch to village tiles.
+async function showVillageTiles(page) {
+  await page
+    .getByRole("button", { name: /^Villages$|^ગામો$/ })
+    .click();
+  await page.locator(".village-tile").first().waitFor();
+}
+
 try {
   const member = await browser.newContext({
     viewport: { width: 360, height: 800 },
@@ -168,6 +177,7 @@ try {
   await page.reload();
   await page.getByTestId("My profile").waitFor();
   await selectedLanguage(page, "en", "directory English");
+  await showVillageTiles(page);
   const before = await page.locator(".village-tile").allTextContents();
   await page.getByRole("button", { name: /Reorder villages|ગામનો ક્રમ બદલો/ }).click();
   await page
@@ -179,6 +189,7 @@ try {
   await page.getByRole("button", { name: /Done|પૂર્ણ/ }).click();
   await page.reload();
   await page.getByTestId("My profile").waitFor();
+  await showVillageTiles(page);
   assert.equal(
     (await page.locator(".village-tile").allTextContents())[1],
     before[0],

@@ -236,21 +236,13 @@
 
                   <label style="display:flex;flex-direction:column;gap:7px">
                     <div class="bi" style="font-size:var(--f-sm);font-weight:700;color:var(--ink2)"><span class="gu">તાલુકો</span><span class="en">Tehsil</span></div>
-                    <input value="{{ form.tehsil }}" onInput="{{ setTehsil }}" placeholder="{{ ph.tehsil }}" style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid {{ bd.tehsil }};background:var(--field);color:var(--ink);padding:0 15px;font:inherit;font-size:var(--f-md)" style-focus="border-color:var(--ind);box-shadow:0 0 0 4px rgba(178,64,44,.14)">
-                    <sc-if value="{{ err.tehsil }}"><div style="font-size:var(--f-xs);color:var(--dan);display:flex;gap:6px;align-items:center"><i class="ph-duotone ph-warning-circle" style="font-size:14px"></i>{{ err.tehsil }}</div></sc-if>
-                    <sc-if value="{{ tSuggest }}">
-                      <button onClick="{{ applyTehsil }}" style="align-self:flex-start;border:1px solid var(--gbd);background:var(--chip);border-radius:14px;padding:9px 13px;font:inherit;font-size:var(--f-sm);color:var(--ink);cursor:pointer;display:flex;align-items:center;gap:8px;text-align:left" style-hover="border-color:var(--ind)">
-                        <i class="ph-duotone ph-magic-wand" style="font-size:17px;color:var(--aqua)"></i>
-                        <span>{{ tSuggest.msg }}</span>
-                      </button>
-                    </sc-if>
-                  </label>
+                    <input value="{{ form.tehsil }}" readonly aria-readonly="true" style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid var(--gbd);background:var(--g2);color:var(--ink2);padding:0 15px;font:inherit;font-size:var(--f-md);cursor:not-allowed">
+                                                          </label>
 
                   <label style="display:flex;flex-direction:column;gap:7px">
                     <div class="bi" style="font-size:var(--f-sm);font-weight:700;color:var(--ink2)"><span class="gu">જિલ્લો</span><span class="en">District</span></div>
-                    <input value="{{ form.district }}" onInput="{{ setDistrict }}" placeholder="{{ ph.district }}" style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid {{ bd.district }};background:var(--field);color:var(--ink);padding:0 15px;font:inherit;font-size:var(--f-md)" style-focus="border-color:var(--ind);box-shadow:0 0 0 4px rgba(178,64,44,.14)">
-                    <sc-if value="{{ err.district }}"><div style="font-size:var(--f-xs);color:var(--dan);display:flex;gap:6px;align-items:center"><i class="ph-duotone ph-warning-circle" style="font-size:14px"></i>{{ err.district }}</div></sc-if>
-                  </label>
+                    <input value="{{ form.district }}" readonly aria-readonly="true" style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid var(--gbd);background:var(--g2);color:var(--ink2);padding:0 15px;font:inherit;font-size:var(--f-md);cursor:not-allowed">
+                                      </label>
                 </div>
 
                 <button onClick="{{ sendRequest }}" style="position:relative;overflow:hidden;height:var(--tap);min-height:52px;width:100%;border:0;border-radius:20px;background:var(--grad);color:#fff;font:inherit;font-weight:700;font-size:var(--f-md);display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;box-shadow:0 10px 26px rgba(178,64,44,.36)" style-active="transform:translateY(1px)">
@@ -584,11 +576,11 @@
                   <div style="display:flex;gap:12px">
                     <label style="flex:1;min-width:0;display:flex;flex-direction:column;gap:7px">
                       <div class="bi" style="font-size:var(--f-sm);font-weight:700;color:var(--ink2)"><span class="gu">તાલુકો</span><span class="en">Tehsil</span></div>
-                      <input value="{{ edit.tehsil }}" onInput="{{ setEditTehsil }}" style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid var(--fieldBd);background:var(--field);color:var(--ink);padding:0 12px;font:inherit;font-size:var(--f-md)" style-focus="border-color:var(--ind)">
+                      <input value="{{ edit.tehsil }}" readonly aria-readonly="true" style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid var(--gbd);background:var(--g2);color:var(--ink2);padding:0 12px;font:inherit;font-size:var(--f-md);cursor:not-allowed">
                     </label>
                     <label style="flex:1;min-width:0;display:flex;flex-direction:column;gap:7px">
                       <div class="bi" style="font-size:var(--f-sm);font-weight:700;color:var(--ink2)"><span class="gu">જિલ્લો</span><span class="en">District</span></div>
-                      <input value="{{ edit.district }}" onInput="{{ setEditDistrict }}" style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid var(--fieldBd);background:var(--field);color:var(--ink);padding:0 12px;font:inherit;font-size:var(--f-md)" style-focus="border-color:var(--ind)">
+                      <input value="{{ edit.district }}" readonly aria-readonly="true" style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid var(--gbd);background:var(--g2);color:var(--ink2);padding:0 12px;font:inherit;font-size:var(--f-md);cursor:not-allowed">
                     </label>
                   </div>
                 </div>
@@ -1095,7 +1087,7 @@ function bestMatch(input, pairs) {
 class Component extends DCLogic {
   state = {
     screen: 'signup', tab: 'home', lang: 'gu', theme: 'light', fsPct: 100,
-    query: '', fVillage: '', fTehsil: '', fDistrict: '', dirMode: 'tiles', tileOrder: null, dragFrom: null,
+    query: '', fVillage: '', fTehsil: '', fDistrict: '', dirMode: 'all', tileOrder: null, dragFrom: null,
     picker: null, confirm: null, dial: null, toast: null,
     editingRequest: false, showPhone2: false,
     form: { firstName: '', middleName: '', surname: '', name: '', phone: '', phone2: '', label2: 'work', village: '', tehsil: TEHSIL_GU, district: DISTRICT_GU },
@@ -1709,7 +1701,7 @@ class Component extends DCLogic {
         fg: s.screen === id ? '#FFF3E6' : '#D9C6BB'
       })),
       stateLine: s.members.length + ' members · ' + pendingTotal + ' admin items · ' + s.alerts.length + ' security alerts · text ' + s.fsPct + '%',
-      resetAll: () => this.setState({ ...clone(SEED), screen: 'signup', tab: 'home', query: '', fVillage: '', fTehsil: '', fDistrict: '', dirMode: 'tiles', tileOrder: null, dragFrom: null, myRequest: null, meId: 1, edit: null, submitted: false, showPhone2: false, form: { firstName: '', middleName: '', surname: '', name: '', phone: '', phone2: '', label2: 'work', village: '', tehsil: TEHSIL_GU, district: DISTRICT_GU }, login: { user: '', pass: '' }, loginError: false, dial: null, toast: null, confirm: null, picker: null, fsPct: 100, lang: 'gu', theme: 'light' })
+      resetAll: () => this.setState({ ...clone(SEED), screen: 'signup', tab: 'home', query: '', fVillage: '', fTehsil: '', fDistrict: '', dirMode: 'all', tileOrder: null, dragFrom: null, myRequest: null, meId: 1, edit: null, submitted: false, showPhone2: false, form: { firstName: '', middleName: '', surname: '', name: '', phone: '', phone2: '', label2: 'work', village: '', tehsil: TEHSIL_GU, district: DISTRICT_GU }, login: { user: '', pass: '' }, loginError: false, dial: null, toast: null, confirm: null, picker: null, fsPct: 100, lang: 'gu', theme: 'light' })
     };
   }
 }

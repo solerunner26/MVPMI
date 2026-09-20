@@ -12,13 +12,7 @@ export function VillageField({ villages, value, onChange, lang }) {
         value: value || "",
         onChange: (e) => onChange(e.target.value),
       },
-      h(
-        "option",
-        { value: "" },
-        lang === "gu"
-          ? "ગામ પસંદ કરો · Select village"
-          : "Select village · ગામ પસંદ કરો",
-      ),
+      h("option", { value: "" }, lang === "gu" ? "ગામ પસંદ કરો" : "Select village"),
       ...villages.map((v) =>
         h(
           "option",
@@ -27,7 +21,7 @@ export function VillageField({ villages, value, onChange, lang }) {
             value: v.gu,
             disabled: v.hasAdmin === false,
           },
-          (lang === "gu" ? v.gu + " · " + v.en : v.en + " · " + v.gu) +
+          (lang === "gu" ? v.gu : v.en) +
             (v.hasAdmin === false
               ? lang === "gu"
                 ? " · એડમિન નિયુક્ત નથી"
@@ -74,7 +68,7 @@ export function AllAdminDirectory({ data, lang, onClose }) {
   const row = ({ key, name, role, phone, hint }) =>
     h(
       "article",
-      { className: "admin-row", key },
+      { className: "admin-row" + (key === "main" ? " main-admin" : ""), key },
       h(
         "span",
         { className: "admin-avatar", "aria-hidden": true },
@@ -154,17 +148,24 @@ export function AllAdminDirectory({ data, lang, onClose }) {
         { className: "admin-list" },
         directory.main &&
           row({
+            // Item 2: the main administrator is visually distinct.
             key: "main",
-            name: directory.main.name,
+            name:
+              lang === "en" && directory.main.nameEn
+                ? directory.main.nameEn
+                : directory.main.name,
             role: B("મુખ્ય એડમિન · સમગ્ર સમાજ", "Main administrator · whole community"),
             phone: directory.main.phone,
           }),
-        ...directory.villages.map((v) =>
-          v.admin
+        ...directory.villages.map((v) => {
+          // One language at a time: village names follow the selection.
+          const villageName = lang === "gu" ? v.village : v.villageEn || v.village;
+          return v.admin
             ? row({
                 key: v.village,
                 name: v.admin.name,
-                role: B("ગામ એડમિન · ", "Village administrator · ") + v.village,
+                role:
+                  B("ગામ એડમિન · ", "Village administrator · ") + villageName,
                 phone: v.admin.phone,
                 hint:
                   v.admin.location &&
@@ -173,6 +174,7 @@ export function AllAdminDirectory({ data, lang, onClose }) {
                     { className: "admin-hint" },
                     h("i", { className: "ph-duotone ph-map-pin", "aria-hidden": true }),
                     " ",
+                    B("હાલ : ", "Location: "),
                     v.admin.location,
                   ),
               })
@@ -182,20 +184,20 @@ export function AllAdminDirectory({ data, lang, onClose }) {
                 h(
                   "span",
                   { className: "admin-avatar", "aria-hidden": true },
-                  v.village.charAt(0),
+                  villageName.charAt(0),
                 ),
                 h(
                   "div",
                   { className: "admin-detail" },
-                  h("p", { className: "admin-name" }, v.village),
+                  h("p", { className: "admin-name" }, villageName),
                   h(
                     "p",
                     { className: "admin-role" },
                     B("એડમિન નિયુક્ત નથી", "No administrator yet"),
                   ),
                 ),
-              ),
-        ),
+              );
+        }),
       ),
     ),
   );
@@ -592,7 +594,7 @@ function WorkflowDecision({ request: r, data, lang, act, busy }) {
         "p",
         null,
         B("ચકાસનાર: ", "Verified by: "),
-        r.verification.name,
+        (lang === "en" && r.verification.nameEn) || r.verification.name,
         ...(r.verification.reason ? [" · ", r.verification.reason] : []),
       ),
     r.reviewHistory?.length > 0 &&
@@ -699,7 +701,11 @@ function WorkflowDecision({ request: r, data, lang, act, busy }) {
                   onChange: (e) => setForm({ ...form, village: e.target.value }),
                 },
                 ...data.villages.map((v) =>
-                  h("option", { key: v.gu, value: v.gu }, v.gu + " · " + v.en),
+                  h(
+                    "option",
+                    { key: v.gu, value: v.gu },
+                    lang === "gu" ? v.gu : v.en || v.gu,
+                  ),
                 ),
               ),
             ),
@@ -1177,7 +1183,7 @@ function WorkflowAssignment({ village: v, data, lang, act, busy }) {
                 h(
                   "option",
                   { key: m.id, value: m.id },
-                  m.nameGu + " · " + m.name + " · " + m.phone,
+                  (lang === "gu" ? m.nameGu : m.name) + " · " + m.phone,
                 ),
               ),
           ),

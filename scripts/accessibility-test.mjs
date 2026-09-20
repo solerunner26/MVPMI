@@ -133,6 +133,10 @@ try {
   await page.reload();
   await page.getByRole("button", { name: /All Members|બધા સભ્યો/ }).waitFor();
   await scan("directory-tiles");
+  await page
+    .getByRole("button", { name: /^Villages$|^ગામો$/ })
+    .click();
+  await page.locator(".village-tile").first().waitFor();
   await page.getByRole("button", { name: /Reorder villages|ગામનો ક્રમ બદલો/ }).click();
   await scan("village-reordering");
   await page.getByRole("button", { name: /Done|પૂર્ણ/ }).click();

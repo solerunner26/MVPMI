@@ -272,9 +272,13 @@ export function forwardRequest(
   if (!r) fail("Request already processed", 409);
   const a = store.get("villageAdmins", r.payload.village);
   if (!a) fail("Village has no administrator", 409);
+  const verifier = store.get("members", a.memberId);
   r.verification = {
     memberId: a.memberId,
-    name: store.get("members", a.memberId)?.nameGu || "Administrator",
+    name: verifier?.nameGu || "Administrator",
+    ...(verifier?.name && verifier.name !== verifier.nameGu
+      ? { nameEn: verifier.name }
+      : {}),
     assignmentVersion: a.version,
     at: Date.now(),
     ...(reason ? { reason } : {}),
@@ -512,6 +516,7 @@ export function installVillageApproval(app, store, { admin, state, rate }) {
         r.verification = {
           memberId: me.id,
           name: me.nameGu || me.name,
+          ...(me.name && me.name !== me.nameGu ? { nameEn: me.name } : {}),
           assignmentVersion: assignment.version,
           at: Date.now(),
           ...(reason ? { reason } : {}),

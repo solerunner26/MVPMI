@@ -13,6 +13,10 @@ any screen, then:
 The sun-tap entrance is sealed while a village-administrator session is signed
 in, and village administrators never receive the gate code or main password.
 
+**Testing both roles on one device:** sign in as a village administrator, open
+**Dashboard → Account → "Sign out village administrator"**, and the hidden
+sun-tap entrance works again immediately for the main administrator.
+
 ## Village administrators (separate sign-in)
 
 Use the header **shield button ("ગામ એડમિન સાઇન ઇન / Village admin sign in"**,

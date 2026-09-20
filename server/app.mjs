@@ -389,11 +389,23 @@ export function createApp({
   // everyone, including applicants who want to talk before applying).
   app.post("/api/admin/main-admin-contact", admin, (req, res) => {
     const name = text(req.body.name, 3, 120, "name");
+    // Optional English spelling so the public page honours the language
+    // selection; falls back to the stored name.
+    const nameEnRaw = req.body.nameEn;
+    const nameEn =
+      typeof nameEnRaw === "string" && nameEnRaw.trim()
+        ? text(nameEnRaw, 3, 120, "English name")
+        : "";
     const phone = String(req.body.phone || "").replace(/\D/g, "");
     if (!/^[6-9]\d{9}$/.test(phone))
       fail("નંબર બરાબર લખો · Enter a valid 10-digit mobile number");
     store.tx(() => {
-      store.put("config", { id: "main-admin-contact", name, phone });
+      store.put("config", {
+        id: "main-admin-contact",
+        name,
+        ...(nameEn ? { nameEn } : {}),
+        phone,
+      });
       store.audit(req.session.owner, "main-admin-contact.set", phone);
     });
     res.json(state(req));

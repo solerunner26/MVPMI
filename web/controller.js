@@ -195,8 +195,8 @@ class Component extends DesignComponent {
       this.setState({ screen: "pending", editingRequest: false });
       return true;
     }
-    if (s.screen === "directory" && (s.query || s.dirMode !== "tiles")) {
-      this.setState({ query: "", dirMode: "tiles" });
+    if (s.screen === "directory" && (s.query || s.dirMode !== "all")) {
+      this.setState({ query: "", dirMode: "all" });
       return true;
     }
     return false;
@@ -1141,6 +1141,8 @@ class Component extends DesignComponent {
     v.aes = false;
     v.aesAttr = "off";
     v.languageSwitch = this.P("English", "ગુજરાતી");
+    // The header button shows the language it will switch TO.
+    v.languageSwitchShort = this.P("En", "ગુ");
     v.themeLabel = this.P(
       s.theme === "dark" ? "આછો દેખાવ" : "ઘેરો દેખાવ",
       s.theme === "dark" ? "Light" : "Dark",

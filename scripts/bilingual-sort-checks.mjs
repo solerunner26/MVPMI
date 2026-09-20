@@ -35,6 +35,9 @@ export async function checkBilingualSorting(browser, store, url) {
   store.del("requests", request.id);
   await page.reload();
   await page.getByRole("button", { name: /All Members|બધા સભ્યો/ }).waitFor();
+  await page
+    .getByRole("button", { name: /^Villages$|^ગામો$/ })
+    .click();
   await page.locator(".village-tile svg").first().waitFor();
   assert.equal(await page.locator(".village-tile").count(), 7);
   assert.equal(await page.locator(".village-tile svg defs").count(), 7);

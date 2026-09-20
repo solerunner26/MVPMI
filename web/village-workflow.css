@@ -90,6 +90,33 @@
   gap: 12px;
   margin-bottom: 20px;
 }
+/* Sheet "Back" controls are real buttons, never camouflage: glass chip with
+   a border, tint, shadow and a leading arrow. */
+.workflow-heading > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 18px;
+  border: 1px solid var(--glass-border);
+  border-radius: 15px;
+  background: var(--glass-tint);
+  box-shadow:
+    var(--raised-shadow),
+    inset 0 1px 0 var(--rim);
+  color: var(--ind);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.workflow-heading > button::before {
+  content: "\2190";
+  font-size: 18px;
+  line-height: 1;
+}
+.workflow-heading > button:hover {
+  border-color: var(--ind);
+}
 .workflow-tabs,
 .workflow-actions {
   display: flex;

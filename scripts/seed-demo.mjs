@@ -172,6 +172,7 @@ store.tx(() => {
   store.put("config", {
     id: "main-admin-contact",
     name: "મુખ્ય એડમિન",
+    nameEn: "Main administrator",
     phone: "9000000000",
   });
 
