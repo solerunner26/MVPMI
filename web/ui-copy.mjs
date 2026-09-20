@@ -2,12 +2,8 @@
 export const UI_COPY = {
   exploreVillages: ["ગામ પસંદ કરો", "Explore villages"],
   dismissSettings: ["પાછા જાઓ", "Dismiss settings"],
-  connected: ["આપણો સમાજ", "Our community"],
   communityName: ["મહુવા ક્ષત્રિય રાજપૂત સમાજ", "Mahuva Kshatriya Rajput Samaj"],
   welcome: ["સમાજમાં તમારું સ્વાગત છે", "A place for our people"],
-  joinTitle: ["જોડાઈએ, આપણા લોકો સાથે.", "Your people. A little closer."],
-  directoryTitle: ["આપણા લોકો", "Your community"],
-  communityPlace: ["મહુવા · ભાવનગર", "Mahuva · Bhavnagar"],
   directoryView: ["યાદીનો દેખાવ", "Directory view"],
   villages: ["ગામો", "Villages"],
   allMembers: ["બધા સભ્યો", "All Members"],

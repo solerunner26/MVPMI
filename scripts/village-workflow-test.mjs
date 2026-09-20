@@ -263,6 +263,13 @@ try {
   await va
     .getByRole("button", { name: /Back to dashboard|ડેશબોર્ડ પર પાછા/ })
     .click();
+  // The dashboard badge counts the proposal now waiting with the main
+  // administrator even though the village administrator cannot act on it.
+  assert.equal(
+    await va.locator(".dash-badge").innerText(),
+    "1",
+    "Badge counts forwarded proposals",
+  );
 
   await admin.reload();
   await admin.getByTestId("Village management").waitFor();

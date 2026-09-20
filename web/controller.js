@@ -584,7 +584,14 @@ class Component extends DesignComponent {
     // Dashboard button next to "My profile", not through the header shield.
     v.showVillageAdminButton = s.role !== "admin" && !s.villageAdmin;
     v.showDashboard = !!s.villageAdmin;
-    v.pendingCount = Math.min(99, (s.reviewQueue || []).length);
+    // The village-administrator badge counts everything awaiting attention
+    // in their village: new applications to verify and forward, plus the
+    // change/removal proposals already waiting with the main administrator
+    // (the same items the Members tab marks as pending).
+    v.pendingCount = Math.min(
+      99,
+      (s.reviewQueue || []).length + (s.villageProposals || []).length,
+    );
     v.dashboardLabel = bilingual("ડેશબોર્ડ", "Dashboard", s.lang);
     v.heroVillage = s.villageAdmin
       ? this.V(s.villageAdminVillage) +

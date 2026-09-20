@@ -1,9 +1,24 @@
-# Beta test checklist — Liquid Glass refinement (v0.2.0)
+# Beta test checklist — Liquid Glass refinement (v0.2.0) + app icon (v0.2.1)
 
 Checkpoint before these changes: git tag `Pre-LiquidGlass-Refinement`
-(UNDO restores it). Package `org.mvpmi.directory`, versionCode 2,
-versionName 0.2.0-dev. Existing data, sign-ins, villages and the approval
+(UNDO restores it). Package `org.mvpmi.directory`, versionCode 3,
+versionName 0.2.1-dev. Existing data, sign-ins, villages and the approval
 workflow are unchanged.
+
+## What changed in v0.2.1
+
+- App icon everywhere: web favicon + apple-touch icon (browser tab, home
+  screen), Android launcher icons (legacy + adaptive for API 26+) and the
+  512 px Play listing icon — generated from the owner's devotional image,
+  nothing cropped, on the app's terracotta brand gradient. See
+  `docs/APP_ICON.md` for the two source options and how to switch.
+- The village-administrator Dashboard badge now also counts the change and
+  removal proposals from their village that are waiting with the main
+  administrator (previously it counted only new applications to verify).
+- Removed four unused interface-copy entries; no visible text changed.
+- All automated suites re-run green (Node 99, UI 5, language 2,
+  accessibility 29 screens/0 violations, embedded 3, village 1 — including a
+  new badge regression check, materials 20).
 
 ## What changed (visual only)
 
@@ -59,12 +74,18 @@ version, and confirm existing sign-ins survive.
 6. Long names/numbers wrap without overflow at 320 px-width devices.
 7. Keyboard opens on signup: the Send button stays reachable.
 8. Village admin: Dashboard badge counts pending; correct-then-forward works
-   in one pass; reject is a single confirmed action.
+   in one pass; reject is a single confirmed action. The badge also includes
+   member change/removal proposals from the village that are waiting with
+   the main administrator (they appear as pending in the Members tab).
 9. Main admin: workflow bar, corrections before final approval, ledger.
 10. Settings → effects switch off: surfaces become fully opaque and stay
     readable (accessibility fallback).
 11. Slow/low-end device (if available): scrolling stays smooth — glass never
     blurs list content.
+12. Launcher icon: the devotional artwork is fully visible (nothing
+    cropped) on the home screen, in recents and in the app drawer, on both
+    circular and squircle launcher masks. If the wrong source image was
+    used, regenerate with the other option (see `docs/APP_ICON.md`).
 
 ## APK build (blocked in this workspace — manual)
 
