@@ -87,24 +87,18 @@ test("village administrators sign in separately and member sessions hold no admi
   await f.admin(`admin/requests/${laterRequest.id}/approve`, {});
 });
 
-test("local rejection requires reason, retains phone and decision, never enters removed-members archive", async (t) => {
+test("local rejection works without a reason, retains phone and decision, never enters removed-members archive", async (t) => {
   const f = await fixture(t),
     guest = f.client();
   await f.ensureAdmin("Thorala");
   await guest("enrollment", example);
   let r = f.store.all("requests")[0];
-  await f.va("થોરાળા")(`village/requests/${r.id}/reject`, { reason: "" }, 400);
-  await f.va("થોરાળા")(`village/requests/${r.id}/reject`, {
-    reason: "Cannot recognise this applicant",
-    category: "not-community",
-  });
+  // Reasons and categories are no longer collected from administrators.
+  await f.va("થોરાળા")(`village/requests/${r.id}/reject`, {});
   const main = await f.admin("state");
   assert.equal(main.rejectedApplications[0].phone, example.phone);
   assert.equal(main.archive.length, 0);
-  assert.equal(
-    (await guest("state")).lastDecision.reason,
-    "Cannot recognise this applicant",
-  );
+  assert.equal((await guest("state")).lastDecision.action, "reject");
   assert.deepEqual((await f.va("થોરાળા")("state")).rejectedApplications, []);
   await guest("enrollment", example);
   r = f.store.all("requests")[0];
@@ -615,4 +609,33 @@ test("the ઝીંજકા → જીંજકા rename migrates existing dat
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("village administrators forward a corrected request without any reason", async (t) => {
+  const f = await fixture(t),
+    guest = f.client();
+  await f.ensureAdmin("Thorala");
+  await guest("enrollment", example);
+  const r = f.store.all("requests")[0];
+  // Correction first, then a plain forward — no reason field exists anymore.
+  await f.va("થોરાળા")(`village/requests/${r.id}/correct`, {
+    firstName: "Corrected",
+    surname: "Applicant",
+    phone: example.phone,
+  });
+  await f.va("થોરાળા")(`village/requests/${r.id}/forward`, {
+    identityConfirmed: true,
+  });
+  const forwarded = f.store.get("requests", r.id);
+  assert.equal(forwarded.verification.memberId !== undefined, true);
+  assert.equal(forwarded.verification.reason, undefined);
+  assert.equal(forwarded.payload.name, "Corrected Applicant");
+  // The main administrator approves without a reason too.
+  await f.admin(`admin/requests/${r.id}/approve`, {
+    identityConfirmed: true,
+  });
+  assert.equal(
+    f.store.all("members").some((m) => m.name === "Corrected Applicant"),
+    true,
+  );
 });

@@ -748,6 +748,8 @@ export class Store {
         ]);
         id(r.id);
         text(r.name, 1, 120, "name");
+        if (r.reason !== undefined && typeof r.reason !== "string")
+          fail("Invalid rejection reason");
         if (
           !/^[6-9]\d{9}$/.test(r.phone) ||
           rejectedPhones.has(r.phone) ||
@@ -770,7 +772,8 @@ export class Store {
             "snapshot",
           ]);
           id(e.requestId);
-          text(e.reason, 1, 512, "reason");
+          if (e.reason !== undefined && typeof e.reason !== "string")
+            fail("Invalid rejection reason");
           id(e.actor);
           id(e.level);
           id(e.action);

@@ -213,9 +213,6 @@ try {
   let request = va
     .locator(".workflow-card")
     .filter({ hasText: "Directory Applicant" });
-  await request
-    .getByLabel(/Verification \/ decision reason/)
-    .fill("Known personally; verified in person");
   await request.getByRole("checkbox").check();
   await scan(va, "village-verification");
   await request.getByRole("button", { name: /Verify & forward/ }).click();
@@ -234,9 +231,6 @@ try {
   request = admin
     .locator(".workflow-card")
     .filter({ hasText: "Directory Applicant" });
-  await request
-    .getByLabel(/Verification \/ decision reason/)
-    .fill("Village verification reviewed");
   await request.getByRole("checkbox").check();
   await scan(admin, "main-final-review");
   await request.getByRole("button", { name: /Final approval/ }).click();
@@ -288,16 +282,12 @@ try {
   let rejectCard = va
     .locator(".workflow-card")
     .filter({ hasText: "Unknown Applicant" });
-  await rejectCard
-    .getByLabel(/Verification \/ decision reason/)
-    .fill("Not recognised after identity review");
-  await rejectCard
-    .getByLabel(/Rejection category/)
-    .selectOption("not-community");
   await rejectCard.getByRole("button", { name: /Reject|નામંજૂર/ }).click();
   await rejectCard.waitFor({ state: "detached" });
   await rejected.reload();
-  await rejected.getByText("Not recognised after identity review").waitFor();
+  await rejected
+    .getByText(/Previous application was closed|પાછલી વિનંતી બંધ/)
+    .waitFor();
   await scan(rejected, "rejected-feedback");
   await admin
     .getByRole("button", { name: /Back to dashboard|ડેશબોર્ડ પર પાછા/ })

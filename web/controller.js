@@ -686,11 +686,13 @@ class Component extends DesignComponent {
                   React.Fragment,
                   null,
                   bilingual(
-                    "પાછલી વિનંતી બંધ / નામંજૂર થઈ: ",
-                    "Previous application closed / rejected: ",
+                    "પાછલી વિનંતી બંધ / નામંજૂર થઈ.",
+                    "Previous application was closed / rejected.",
                     s.lang,
                   ),
-                  s.lastDecision.reason,
+                  s.lastDecision.reason
+                    ? " " + s.lastDecision.reason
+                    : "",
                 ),
           )
         : null;
@@ -939,11 +941,6 @@ class Component extends DesignComponent {
           else approveRequest();
         },
         onReject: () => {
-          // New-application rejections always need a reason and category.
-          if (key === "newRequests") {
-            v.openWorkflow();
-            return;
-          }
           this.confirmAction(
             "વિનંતી નામંજૂર કરવી છે?",
             "Reject this request?",

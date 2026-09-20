@@ -277,7 +277,7 @@ export function forwardRequest(
     name: store.get("members", a.memberId)?.nameGu || "Administrator",
     assignmentVersion: a.version,
     at: Date.now(),
-    reason,
+    ...(reason ? { reason } : {}),
   };
   store.put("requests", r);
   return r;
@@ -504,7 +504,7 @@ export function installVillageApproval(app, store, { admin, state, rate }) {
     const action = req.params.action;
     if (!["forward", "reject", "close"].includes(action))
       fail("Invalid decision");
-    const reason = decisionReason(req.body.reason);
+    const reason = req.body.reason?.trim().slice(0, 500) || "";
     if (action === "forward" && req.body.identityConfirmed !== true)
       fail("Confirm independent identity verification");
     store.tx(() => {
@@ -514,7 +514,7 @@ export function installVillageApproval(app, store, { admin, state, rate }) {
           name: me.nameGu || me.name,
           assignmentVersion: assignment.version,
           at: Date.now(),
-          reason,
+          ...(reason ? { reason } : {}),
         };
         store.put("requests", r);
       } else {
@@ -528,7 +528,11 @@ export function installVillageApproval(app, store, { admin, state, rate }) {
         );
         store.del("requests", r.id);
       }
-      store.audit(me.id, "village.request." + action + ":" + reason, r.id);
+      store.audit(
+        me.id,
+        "village.request." + action + (reason ? ":" + reason : ""),
+        r.id,
+      );
     });
     res.json(state(req));
   });

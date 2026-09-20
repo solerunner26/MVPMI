@@ -207,34 +207,27 @@ body {
 .hero-village {
   display: flex;
   align-items: center;
-  gap: 7px;
-  margin-top: 7px;
-  font-size: var(--f-sm);
-  font-weight: 700;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: var(--f-md);
+  font-weight: 800;
   color: var(--ind);
 }
 .hero-village i {
-  font-size: 17px;
+  font-size: 19px;
 }
 .app .dashboard-trigger {
-  flex: 0 0 auto;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
   margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 48px;
-  padding: 0 14px;
+  padding: 0;
   border: 0;
-  border-radius: 24px;
+  border-radius: 50%;
   background: var(--g2);
   color: var(--ind);
-  font: inherit;
-  font-weight: 700;
-  font-size: var(--f-sm);
+  font-size: 26px;
   position: relative;
-}
-.app .dashboard-trigger i {
-  font-size: 22px;
 }
 .dash-badge {
   position: absolute;
@@ -972,12 +965,21 @@ body {
   line-height: 1.4;
 }
 
-/* One language at a time: the alternate script is hidden, not rendered. */
+/* One language at a time: the alternate script is never rendered. This
+   invariant outranks every layout rule, including dialog text-wrap helpers. */
 .app[data-lang="gu"] .bi > .en,
 .app[data-lang="gu"] .bi.generated > .en,
 .app[data-lang="en"] .bi > .gu,
 .app[data-lang="en"] .bi.generated > .gu {
-  display: none;
+  display: none !important;
+}
+/* Professional button labels: centred text on every action button. Content
+   tiles (collection tiles, admin cards) keep their intentional left layout. */
+.app button:not(.collection-tile):not(.hovlift) {
+  text-align: center;
+}
+.app button:not(.collection-tile):not(.hovlift) .bi {
+  justify-content: center;
 }
 .app[data-lang="gu"] .bi,
 .app[data-lang="en"] .bi {

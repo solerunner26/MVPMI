@@ -55,9 +55,9 @@ redesign remain unchanged.
    full name; numbers, optional **હાલ :** current location and the village
    complete the application.
 2. The village administrator of that village verifies the person and
-   **forwards** with a mandatory reason (5–500 characters) and an explicit
-   identity attestation. Self-verification (own session or own phone number)
-   is refused. Typos spotted along the way can be **corrected before
+   **forwards** with an explicit identity attestation — no reason text is
+   collected anywhere in the flow. Self-verification (own session or own
+   phone number) is refused. Typos spotted along the way can be **corrected before
    forwarding** — the correction updates the request, is appended to its
    `corrections[]` history and shows a badge in the queue.
 3. The main administrator gives **final approval**; the server re-checks the
@@ -69,11 +69,12 @@ redesign remain unchanged.
   requests in their own village and only before forwarding (409 after); the
   main administrator's correct endpoint is the only one allowed afterwards.
   Every correction is audited (`village.request.correct`).
-4. Rejection/closing (by either administrator) requires a reason and category,
-   and records the decision in a separate **rejection ledger** (table
-   `rejections`), never in the removed-member archive. The applicant sees the
-   reason; only the main administrator sees the ledger (one row per phone
-   number with the full decision history).
+4. Rejection/closing (by either administrator) is a single confirmed action —
+   no reason or category is requested — and records the decision in a separate
+   **rejection ledger** (table `rejections`), never in the removed-member
+   archive. The applicant sees a clear status line; only the main
+   administrator sees the ledger (one row per phone number with the full
+   decision history).
 
 ## Member changes and removals — both admins, one decision
 
@@ -146,7 +147,7 @@ administrator.
 
 ## Verification
 
-- `npm run check` passes: **97 Node tests** (19 in
+- `npm run check` passes: **99 Node tests** (21 in
   `tests/village-approval.test.mjs`, including three-part names, scoped
   corrections, village moves, reasonless administrator changes and the
   all-admins directory), UI, embedded, 29-state accessibility, language, the

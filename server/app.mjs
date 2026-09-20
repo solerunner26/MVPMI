@@ -2,7 +2,6 @@ import {
   installVillageApproval,
   villageState,
   assertVerified,
-  decisionReason,
   needsVerification,
   activeAdminMember,
 } from "./village-approval.mjs";
@@ -421,7 +420,6 @@ export function createApp({
                 "Confirm the existing member before replacing device access",
                 409,
               );
-            decisionReason(req.body.reason);
             store.del("members", existing.id);
             store.audit(
               req.session.owner,
@@ -476,7 +474,7 @@ export function createApp({
         store.rejectRequest(
           r,
           "reject",
-          decisionReason(req.body.reason),
+          req.body.reason?.trim().slice(0, 500) || "",
           req.session.owner,
           "main",
           req.body.category,

@@ -150,6 +150,14 @@
   background: var(--g2);
   font-size: var(--f-sm);
 }
+/* Applicant status: centred, tinted and emphasised like a system notice. */
+.app .application-feedback {
+  text-align: center;
+  color: var(--ind);
+  font-weight: 700;
+  border-color: rgba(178, 64, 44, 0.25);
+  background: rgba(178, 64, 44, 0.06);
+}
 .current-location {
   font-size: var(--f-sm);
   color: var(--ink2);

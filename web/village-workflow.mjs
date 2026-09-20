@@ -463,7 +463,7 @@ export function VillageWorkflow({
                           " · ",
                           e.action,
                         ),
-                        h("p", null, e.reason),
+                        ...(e.reason ? [h("p", null, e.reason)] : []),
                         h(
                           "small",
                           null,
@@ -497,8 +497,7 @@ export function VillageWorkflow({
                       new Date(e.at).toLocaleDateString(
                         lang === "gu" ? "gu-IN" : "en-IN",
                       ),
-                      " · ",
-                      e.reason,
+                      ...(e.reason ? [" · ", e.reason] : []),
                     ),
                   ),
                 ),
@@ -525,9 +524,7 @@ function workflowTools(lang, busy) {
 function WorkflowDecision({ request: r, data, lang, act, busy }) {
   const { h, B, field, button } = workflowTools(lang, busy);
   const main = data.role === "admin";
-  const [reason, setReason] = React.useState(""),
-    [confirmed, setConfirmed] = React.useState(false),
-    [category, setCategory] = React.useState("insufficient"),
+  const [confirmed, setConfirmed] = React.useState(false),
     [correcting, setCorrecting] = React.useState(false),
     [form, setForm] = React.useState({
       firstName: r.payload.firstName || "",
@@ -540,9 +537,7 @@ function WorkflowDecision({ request: r, data, lang, act, busy }) {
     });
   const ready = r.stage === "main";
   const body = {
-    reason,
     identityConfirmed: confirmed,
-    category,
     replaceExistingMemberId: r.existingMember,
     archiveId: r.archiveMatches?.[0]?.id,
   };
@@ -598,8 +593,7 @@ function WorkflowDecision({ request: r, data, lang, act, busy }) {
         null,
         B("ચકાસનાર: ", "Verified by: "),
         r.verification.name,
-        " · ",
-        r.verification.reason,
+        ...(r.verification.reason ? [" · ", r.verification.reason] : []),
       ),
     r.reviewHistory?.length > 0 &&
       h(
@@ -728,11 +722,6 @@ function WorkflowDecision({ request: r, data, lang, act, busy }) {
           button(B("રદ કરો", "Cancel"), () => setCorrecting(false)),
         ),
       ),
-    field(B("ચકાસણી / નિર્ણયનું કારણ", "Verification / decision reason"), {
-      value: reason,
-      maxLength: 500,
-      onChange: (e) => setReason(e.target.value),
-    }),
     h(
       "label",
       { className: "workflow-check" },
@@ -747,31 +736,6 @@ function WorkflowDecision({ request: r, data, lang, act, busy }) {
       ),
     ),
     h(
-      "label",
-      { className: "workflow-field" },
-      B("નામંજૂરીનું વર્ગીકરણ", "Rejection category"),
-      h(
-        "select",
-        { value: category, onChange: (e) => setCategory(e.target.value) },
-        ...[
-          [
-            "not-community",
-            "સમાજના સભ્ય તરીકે ઓળખ નથી",
-            "Not recognised as a community member",
-          ],
-          ["duplicate", "ડુપ્લિકેટ વિનંતી", "Duplicate request"],
-          ["insufficient", "અપૂરતી માહિતી", "Insufficient information"],
-          ["other", "અન્ય", "Other"],
-        ].map(([v, gu, en]) =>
-          h(
-            "option",
-            { key: v, value: v },
-            lang === "gu" ? gu + " · " + en : en + " · " + gu,
-          ),
-        ),
-      ),
-    ),
-    h(
       "div",
       { className: "workflow-actions" },
       main
@@ -779,14 +743,13 @@ function WorkflowDecision({ request: r, data, lang, act, busy }) {
             B("અંતિમ મંજૂરી", "Final approval"),
             () => act("admin/requests/" + r.id + "/approve", body),
             {
-              disabled:
-                busy || !ready || !confirmed || reason.trim().length < 5,
+              disabled: busy || !ready || !confirmed,
             },
           )
         : button(
             B("ચકાસીને આગળ મોકલો", "Verify & forward"),
             () => act("village/requests/" + r.id + "/forward", body),
-            { disabled: busy || !confirmed || reason.trim().length < 5 },
+            { disabled: busy || !confirmed },
           ),
       button(
         B("નામંજૂર કરો", "Reject"),
@@ -795,13 +758,13 @@ function WorkflowDecision({ request: r, data, lang, act, busy }) {
             (main ? "admin" : "village") + "/requests/" + r.id + "/reject",
             body,
           ),
-        { disabled: busy || reason.trim().length < 5 },
+        { disabled: busy },
       ),
       !main &&
         button(
           B("વિનંતી બંધ કરો", "Close request"),
           () => act("village/requests/" + r.id + "/close", body),
-          { disabled: busy || reason.trim().length < 5 },
+          { disabled: busy },
         ),
     ),
   );
@@ -943,7 +906,7 @@ function WorkflowMemberCard({ member: m, data, lang, act, busy, pending }) {
                 reason,
                 identityConfirmed: true,
               }),
-            { disabled: busy || reason.trim().length < 5 },
+            { disabled: busy },
           ),
           button(B("રદ કરો", "Cancel"), () => setMode(null)),
         ),
@@ -967,7 +930,7 @@ function WorkflowMemberCard({ member: m, data, lang, act, busy, pending }) {
                 reason,
                 identityConfirmed: true,
               }),
-            { disabled: busy || reason.trim().length < 5 },
+            { disabled: busy },
           ),
           button(B("રદ કરો", "Cancel"), () => setMode(null)),
         ),
