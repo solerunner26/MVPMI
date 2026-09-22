@@ -32,6 +32,10 @@ async function selectedLanguage(page, lang, name) {
   assert.equal(await page.locator(".app").getAttribute("data-lang"), lang);
   assert.equal(await page.locator("html").getAttribute("lang"), lang);
   // One language at a time: the selected script is visible, the alternate is not.
+  // A bare :visible count() does not retry and can race the first layout
+  // after mount (seen as a transient CI failure), so wait for the first
+  // visible span before counting.
+  await page.locator(`.bi > .${lang}:visible`).first().waitFor();
   assert(
     (await page.locator(`.bi > .${lang}:visible`).count()) > 0,
     name + " visible " + lang,
@@ -150,7 +154,12 @@ try {
   await panel.locator("input[type=password]").fill("LanguageTest@2026");
   await panel.getByRole("button", { name: /^Sign in$|^લોગિન કરો$/ }).click();
   await panel.getByText("Requests", { exact: true }).first().waitFor();
-  // First sign-in shows the one-time recovery-code notice; dismiss it.
+  // First sign-in shows the one-time recovery-code notice; wait for the
+  // dialog itself before dismissing, so a slow render cannot race the
+  // click (a CI run showed a transient failure around this step).
+  await panel
+    .getByRole("dialog", { name: /Recovery code|રિકવરી કોડ/ })
+    .waitFor();
   await panel
     .getByRole("button", { name: /^Saved it$|^સાચવી લીધો$/ })
     .click();

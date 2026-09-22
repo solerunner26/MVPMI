@@ -79,6 +79,16 @@ embedded-login-test (×3 modes), village-workflow-test, material-test
 
 ## 4. Not verified (honest limits)
 
+- **CI flake, root-caused and fixed:** the `main`-branch CI run for this
+  commit failed once in `npm run test:language` ("fresh signup visible
+  gu"). Reproduced locally ~3/40 fresh page loads: the test's bare
+  `:visible`-`count()` does not retry and ran between the header mounting
+  and the first layout of the page content, counting zero visible
+  Gujarati spans even though the app was correctly in Gujarati (elements
+  laid out milliseconds later). This is a test race, not an app bug. Fix:
+  wait for the first visible span before counting
+  (`scripts/language-test.mjs`, `selectedLanguage`). After the fix: 0/40
+  reproductions; the same assertion in repeated full runs passes.
 - The emblem's artistic quality is a visual judgement — pixel/palette
   checks (dark-brown background matching the card, gold sun, 4-way radial
   symmetry) were automated, but the owner should eyeball it on a phone.
