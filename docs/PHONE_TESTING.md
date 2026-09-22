@@ -4,10 +4,10 @@ This guide is for the **MVPMl Test debug APK**, not a Play Store release. Use ma
 
 ## Downloads
 
-- **[Download APK ZIP](https://github.com/solerunner26/MVPMI/actions/runs/35010521845/artifacts/10413323453)** — sign into GitHub if prompted, extract `app-debug.apk`. The ZIP also includes its checksum and source-build information. GitHub keeps this artifact for 14 days.
-- Use the supplied **MVPMl-test-server.zip**, or [download the tested source ZIP](https://github.com/solerunner26/MVPMI/archive/076ed80.zip). Extract it completely before starting the server.
+- **[Download the APK from the Releases page](https://github.com/solerunner26/MVPMI/releases)** — no GitHub sign-in needed, the link never expires. Open the newest release and download `app-debug.apk` directly (no unzip). The same page lists the checksum (`SHA256SUMS.txt`), the exact source commit (`BUILD-INFO.txt`) and the full **Source code (zip)** for the test server.
+- Alternative: each green "Quality checks" run on the [Actions page](https://github.com/solerunner26/MVPMI/actions) keeps a `mvpmi-debug-apk` artifact for 14 days (repo-owner sign-in required).
 
-Build/source `076ed80`: compilation, lint, Kotlin unit tests, assembly and debug signature verification passed. Installation on your phone/emulator is the next test, not something already verified.
+Extract any source ZIP completely before starting the server. CI has verified compilation, lint, Kotlin unit tests, assembly and the debug signature for every published build; installing on your phone/emulator is the next test, not something already verified.
 
 ## What you need
 

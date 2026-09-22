@@ -175,20 +175,24 @@ v0.3.0 manual checks:
 
 ## APK build
 
-Easiest — download the CI-built APK (no Android Studio needed):
+Easiest — the Releases page (one click, no sign-in, never expires):
 
-1. Open https://github.com/solerunner26/MVPMI/actions
-2. Click the latest green "Quality checks" run (top of the list, commit
-   "Admin redesign v0.3.0…").
-3. Scroll to the **Artifacts** section at the bottom of the run page and
-   download **mvpmi-debug-apk** (a zip containing `app-debug.apk` +
-   `SHA256SUMS.txt` + `BUILD-INFO.txt`).
-4. Unzip and copy `app-debug.apk` to the phone → install over the previous
-   version (same applicationId + signing identity; allow "unknown sources"
-   if asked).
+1. Open https://github.com/solerunner26/MVPMI/releases
+2. Open the newest release and download **app-debug.apk** directly —
+   no unzip, no GitHub account needed.
+3. Copy it to the phone → install over the previous version (same
+   applicationId + signing identity; allow "unknown sources" if asked).
+   The same page has `SHA256SUMS.txt` (checksum), `BUILD-INFO.txt`
+   (source commit) and **Source code (zip)** — use that ZIP if you need
+   to run the computer test server (see docs/PHONE_TESTING.md).
 
-You must be signed in to GitHub as the repo owner to download artifacts.
-Every successful run of the "Quality checks" workflow produces a fresh APK.
+Every `v*` git tag automatically builds and publishes a fresh release
+through the "Quality checks" workflow.
+
+Alternative — a specific CI build: open
+https://github.com/solerunner26/MVPMI/actions, click a green "Quality
+checks" run, scroll to **Artifacts**, download **mvpmi-debug-apk**
+(requires repo-owner sign-in; kept 14 days).
 
 Alternative — build locally on a machine with Android Studio (AGP compatible
 with compileSdk 36):
