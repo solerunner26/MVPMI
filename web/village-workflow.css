@@ -84,48 +84,76 @@
 }
 .workflow-heading {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: 10px;
+  margin-bottom: 8px;
 }
-/* Sheet "Back" controls are real buttons, never camouflage: glass chip with
-   a border, tint, shadow and a leading arrow. */
-.workflow-heading > button {
-  display: inline-flex;
+/* The sheet title always stays on one line: it gets the full panel width
+   and a size that adapts to the phone width (covers the longest realistic
+   names in either script). Only an extreme name on a very small phone
+   fades out with an ellipsis — never a second line. */
+.workflow-heading h2 {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: calc(clamp(13px, 3.7vw, 19px) * var(--fs));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Toolbar row: Swiggy-style section tabs with Back / Sign out pinned to
+   the right end, present on every section. */
+.workflow-toolbar {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  margin: 0 0 16px;
+}
+.workflow-controls {
+  display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 48px;
-  padding: 0 18px;
+  flex: 0 0 auto;
+  padding-left: 10px;
+  border-left: 1px solid var(--gbd);
+}
+/* "Back" and "Sign out" are compact 48 dp icon chips: glass border, tint
+   and shadow, matching the control family. */
+.app .workflow-panel .workflow-chip {
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   border: 1px solid var(--glass-border);
-  border-radius: 15px;
+  border-radius: 16px;
   background: var(--glass-tint);
   box-shadow:
     var(--raised-shadow),
     inset 0 1px 0 var(--rim);
   color: var(--ind);
-  font: inherit;
-  font-weight: 700;
+  font-size: 22px;
   cursor: pointer;
 }
-.workflow-heading > button::before {
-  content: "\2190";
-  font-size: 18px;
+.app .workflow-panel .workflow-chip i {
   line-height: 1;
 }
-.workflow-heading > button:hover {
+.app .workflow-panel .workflow-chip:hover {
   border-color: var(--ind);
 }
-.workflow-tabs,
+.app .workflow-panel .workflow-chip.workflow-signout {
+  color: var(--dan);
+}
+.app .workflow-panel .workflow-chip.workflow-signout:hover {
+  border-color: var(--dan);
+}
 .workflow-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin: 16px 0;
-}
-.workflow-tabs button {
-  flex: 1;
 }
 .workflow-card {
   padding: 20px;
@@ -148,7 +176,52 @@
   font: inherit;
   font-size: var(--f-sm);
 }
-.app .workflow-tabs button[aria-pressed="true"],
+/* Swiggy-style section bar: one row that scrolls sideways when narrow; the
+   active section is marked by a thick brand underline, not a filled pill. */
+.workflow-tabs {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 4px;
+  border-bottom: 1px solid var(--gbd);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.workflow-tabs::-webkit-scrollbar {
+  display: none;
+}
+.app .workflow-tabs button {
+  flex: 1 0 auto;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  background: none;
+  color: var(--ink2);
+  font: inherit;
+  font-size: var(--f-sm);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.app .workflow-tabs button[aria-pressed="true"] {
+  color: var(--ind);
+  border-bottom-color: var(--brand);
+  background: none;
+  font-weight: 800;
+}
+/* At large reading sizes a single scrolling row would cut sections off at
+   the screen edge; wrap into full rows instead so every section stays
+   visible and nothing is clipped. */
+.app[data-reading="large"] .workflow-tabs {
+  flex-wrap: wrap;
+  overflow-x: visible;
+}
+.app[data-reading="large"] .workflow-tabs button {
+  flex: 1 1 100%;
+}
 .app .workflow-actions button:first-child {
   background: var(--brand);
   color: white;
@@ -204,9 +277,6 @@
   }
   .workflow-card {
     padding: 14px;
-  }
-  .workflow-tabs button {
-    flex-basis: 45%;
   }
   .workflow-actions button {
     flex: 1 1 100%;

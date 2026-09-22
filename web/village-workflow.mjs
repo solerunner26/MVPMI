@@ -228,11 +228,24 @@ export function VillageAdminLogin({ lang, onAction, onClose }) {
       h(
         "header",
         { className: "workflow-heading" },
-        h("h2", null, B("ગામ એડમિન સાઇન ઇન", "Village administrator sign in")),
+        h(
+          "h2",
+          { className: "workflow-title" },
+          B("ગામ એડમિન સાઇન ઇન", "Village administrator sign in"),
+        ),
         h(
           "button",
-          { type: "button", onClick: onClose },
-          B("પાછા જાઓ", "Back"),
+          {
+            type: "button",
+            className: "workflow-chip workflow-back",
+            title: B("પાછા જાઓ", "Back"),
+            "aria-label": B("પાછા જાઓ", "Back"),
+            onClick: onClose,
+          },
+          h("i", {
+            className: "ph-duotone ph-arrow-left",
+            "aria-hidden": true,
+          }),
         ),
       ),
       h(
@@ -352,7 +365,7 @@ export function VillageWorkflow({
         { className: "workflow-heading" },
         h(
           "h2",
-          null,
+          { className: "workflow-title" },
           main
             ? B("સમાજ વ્યવસ્થાપન", "Community management")
             : [
@@ -360,30 +373,65 @@ export function VillageWorkflow({
                 data.villageAdminName || "",
               ],
         ),
-        h(
-          "button",
-          { type: "button", onClick: onClose },
-          B("પાછા જાઓ", "Back to dashboard"),
-        ),
       ),
       h(
-        "nav",
-        {
-          "aria-label": lang === "gu" ? "વિભાગ" : "Sections",
-          className: "workflow-tabs",
-        },
-        ...tabs.map(([id, gu, en]) =>
+        "div",
+        { className: "workflow-toolbar" },
+        h(
+          "nav",
+          {
+            "aria-label": lang === "gu" ? "વિભાગ" : "Sections",
+            className: "workflow-tabs",
+          },
+          ...tabs.map(([id, gu, en]) =>
+            h(
+              "button",
+              {
+                key: id,
+                "aria-pressed": tab === id,
+                onClick: () => {
+                  setTab(id);
+                  setError("");
+                },
+              },
+              B(gu, en),
+            ),
+          ),
+        ),
+        // Back and (for village administrators) sign-out stay pinned to the
+        // right end of the toolbar on every section — always one tap away.
+        h(
+          "div",
+          { className: "workflow-controls" },
+          !main &&
+            h(
+              "button",
+              {
+                type: "button",
+                className: "workflow-chip workflow-signout",
+                disabled: busy,
+                title: B("સાઇન આઉટ", "Sign out"),
+                "aria-label": B("સાઇન આઉટ", "Sign out"),
+                onClick: () => act("village/logout", {}),
+              },
+              h("i", {
+                className: "ph-duotone ph-sign-out",
+                "aria-hidden": true,
+              }),
+            ),
           h(
             "button",
             {
-              key: id,
-              "aria-pressed": tab === id,
-              onClick: () => {
-                setTab(id);
-                setError("");
-              },
+              type: "button",
+              className: "workflow-chip workflow-back",
+              title: B("પાછા જાઓ", "Back to dashboard"),
+              "aria-label": B("પાછા જાઓ", "Back to dashboard"),
+              onClick: onClose,
             },
-            B(gu, en),
+            h("i", {
+              className: "ph-duotone ph-arrow-left",
+              "aria-hidden": true,
+            }),
           ),
         ),
       ),

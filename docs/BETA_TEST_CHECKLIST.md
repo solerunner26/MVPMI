@@ -150,6 +150,22 @@ v0.3.0 manual checks:
 16. With a request waiting, keep the app open ~10 minutes → a system
     notification appears (allow notifications when asked the first time).
 
+v0.3.1 manual checks (village-admin screens — see
+`docs/modern-design/v031-va/` for screenshots):
+
+17. Sign in as a village administrator → open the Dashboard: the title
+    "Village verification · <name>" always stays on one line (also in
+    English and at large text size).
+18. The section tabs (Requests / My village members / Notifications /
+    Account) look like Swiggy's tab bar: one row, active section underlined
+    in brand red. The back control is a plain arrow at the top right (no
+    "Back to dashboard" text).
+19. Sign out: the red sign-out arrow sits at the top right of the
+    Dashboard, visible on every section — one tap signs out. (Also still
+    available under Account.) After signing out, the Dashboard and My
+    profile icons sit side by side on one line at the top right of the
+    directory.
+
 1. First launch shows the LIGHT theme even if the device is in dark mode.
 2. Theme button switches instantly; reopen the app after closing it and after
    a device restart — the chosen theme returns; no wrong-theme flash.

@@ -235,11 +235,19 @@ body {
 .hero-village i {
   font-size: 19px;
 }
+/* Dashboard and My-profile icons form one atomic group: they stay side by
+   side on a single line at every width, right-aligned next to the title. */
+.directory-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
 .app .dashboard-trigger {
   flex: 0 0 48px;
   width: 48px;
   height: 48px;
-  margin-left: auto;
   display: flex;
   align-items: center;
   justify-content: center;
