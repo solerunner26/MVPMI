@@ -86,7 +86,7 @@ export function modernDesign(html) {
   html = replaceElement(
     html,
     segmentStart,
-    `<div class="directory-segments" role="group" aria-label="{{ ui.directoryView }}"><button onClick="{{ backToTiles }}" aria-pressed="{{ villagesSelected }}"><i aria-hidden="true" class="ph-duotone ph-house-line"></i>{{ copy.villages }}</button><button onClick="{{ showAllMembers }}" aria-pressed="{{ allMembersSelected }}"><i aria-hidden="true" class="ph-duotone ph-users-three"></i>{{ copy.allMembers }}<span class="segment-count">{{ statTotal }}</span></button></div>`,
+    `<div class="directory-segments" role="group" aria-label="{{ ui.directoryView }}"><button onClick="{{ backToTiles }}" aria-pressed="{{ villagesSelected }}"><span class="segment-sun" aria-hidden="true"><dc-import name="SunMark" hint-size="17px,17px" style="width:17px;height:17px"></dc-import></span>{{ copy.villages }}</button><button onClick="{{ showAllMembers }}" aria-pressed="{{ allMembersSelected }}"><i aria-hidden="true" class="ph-duotone ph-users-three"></i>{{ copy.allMembers }}<span class="segment-count">{{ statTotal }}</span></button></div>`,
   );
   // The summary row has only count and place; the place already leads the page.
   const count = find(html, "{{ countLabel }}", directory);
@@ -110,14 +110,16 @@ export function modernDesign(html) {
     html.slice(0, intro) +
     `<div class="collection-heading"><h2>{{ copy.exploreVillages }}</h2>${toolbar}</div>` +
     html.slice(introEnd);
-  // Replace plain village rectangles with illustrated community collection tiles.
+  // Replace plain village rectangles with the uniform community tile: the
+  // rotating Sun mark, name, member count — same design as every other tile.
   const tile = find(html, '<button class="village-tile"');
   html = replaceElement(
     html,
     tile,
-    `<button class="village-tile collection-tile" onClick="{{ v.onClick }}" disabled="{{ reordering }}"><i class="tile-stripe" aria-hidden="true"></i>
-    <div class="village-art" aria-hidden="true"><dc-import name="SunMark" hint-size="48px,48px" style="width:48px;height:48px"></dc-import><svg viewBox="0 0 180 94" fill="none"><path d="M0 84Q40 60 90 77T180 68V94H0Z" fill="currentColor" opacity=".12"/><path d="M22 45L49 24L76 45V83H22Z" fill="currentColor" opacity=".28"/><path d="M84 34L119 9L154 34V83H84Z" fill="currentColor" opacity=".18"/><path d="M14 47L49 19L84 47M76 36L119 3L162 36" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M39 83V59H59V83M108 83V50H128V83" fill="currentColor" opacity=".6"/><path d="M13 84H168" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></div>
-    <div class="village-info"><div class="village-name">{{ v.primary }}</div><div class="village-meta"><span class="village-count">{{ v.count }} <span class="bi"><span class="gu" lang="gu">સભ્યો</span><span class="en" lang="en">{{ v.unitEn }}</span></span></span><i aria-hidden="true" class="ph-duotone ph-arrow-up-right"></i></div></div>
+    `<button class="village-tile collection-tile mvpmi-tile" onClick="{{ v.onClick }}" disabled="{{ reordering }}"><i class="tile-stripe" aria-hidden="true"></i>
+    <div class="tile-top"><span class="tile-sun" aria-hidden="true"><dc-import name="SunMark" hint-size="30px,30px" style="width:30px;height:30px"></dc-import></span><span class="tile-count">{{ v.count }}</span></div>
+    <div class="bi tile-label">{{ v.primary }}</div>
+    <div class="bi tile-hint"><span class="gu" lang="gu">સભ્યો</span><span class="en" lang="en">{{ v.unitEn }}</span></div>
   </button>`,
     "button",
   );

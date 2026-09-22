@@ -166,6 +166,27 @@ v0.3.1 manual checks (village-admin screens — see
     profile icons sit side by side on one line at the top right of the
     directory.
 
+v0.3.2 manual checks (see `docs/modern-design/v032-tiles/` for
+screenshots and `docs/TEST_REPORT_v032.md` for the full test report):
+
+20. Village administrator → My village members → send "માહિતી બદલવાની
+    સૂચના" or "દૂર કરવાની સૂચના": the form closes and a green
+    "મુખ્ય એડમિનને મોકલી દીધું · Forwarded to the main administrator"
+    notice appears immediately.
+21. Main admin → Total members: the first tile is "કુલ સભ્યો / Total
+    members" — tap it to see every member in one list with edit and
+    delete; the separate Members tile is gone.
+22. Every tile (dashboard, villages, backup options, directory villages)
+    shows the community Sun mark slowly rotating, one compact size, with
+    the red stripe on hover and the pressed effect on touch — in both
+    themes.
+23. Reports: every PDF opens on the community letterhead (Sun symbol,
+    "મહુવા ક્ષત્રિય રાજપૂત સમાજ · Mahuva-Bhavnagar District", date at the
+    right) and every row starts with a serial number (ક્રમ/#); CSV and
+    Excel exports are numbered too.
+24. Icons: check both themes — no yellow/amber or teal icons anywhere;
+    success marks are green, everything else follows the theme colours.
+
 1. First launch shows the LIGHT theme even if the device is in dark mode.
 2. Theme button switches instantly; reopen the app after closing it and after
    a device restart — the chosen theme returns; no wrong-theme flash.

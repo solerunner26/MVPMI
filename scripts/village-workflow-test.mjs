@@ -259,7 +259,15 @@ try {
   await memberCard
     .getByRole("button", { name: /Send to main administrator/ })
     .click();
-  await memberCard.getByText(/Awaiting main-administrator decision/).waitFor();
+  // v0.3.2: a clear confirmation appears and the form closes.
+  await memberCard.getByText(/Forwarded to the main administrator/).waitFor();
+  assert.equal(
+    await memberCard.getByRole("button", {
+      name: /Send to main administrator/,
+    }).count(),
+    0,
+    "Proposal form closes after forwarding",
+  );
   await va
     .getByRole("button", { name: /Back to dashboard|ડેશબોર્ડ પર પાછા/ })
     .click();
@@ -344,7 +352,14 @@ try {
   await removalCard
     .getByRole("button", { name: /Send removal proposal/ })
     .click();
-  await removalCard.getByText(/Awaiting main-administrator decision/).waitFor();
+  await removalCard.getByText(/Forwarded to the main administrator/).waitFor();
+  assert.equal(
+    await removalCard.getByRole("button", {
+      name: /Send removal proposal/,
+    }).count(),
+    0,
+    "Removal form closes after forwarding",
+  );
   await va
     .getByRole("button", { name: /Back to dashboard|ડેશબોર્ડ પર પાછા/ })
     .click();

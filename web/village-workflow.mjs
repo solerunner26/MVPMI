@@ -1006,17 +1006,26 @@ function WorkflowMemberCard({ member: m, data, lang, act, busy, pending }) {
     h("h3", null, bilingual(m.nameGu, m.name, lang)),
     h("p", null, m.phone, m.phone2 ? " · " + m.phone2 : ""),
     m.currentLocation && h("p", null, "હાલ : ", m.currentLocation),
+    // Server-confirmed proposal state: a clear "forwarded" confirmation so
+    // the administrator sees the action was taken and where it is now.
     pending &&
       h(
         "p",
-        { className: "workflow-status" },
+        { className: "workflow-forwarded", role: "status" },
+        h("i", {
+          className: "ph-duotone ph-check-circle",
+          "aria-hidden": true,
+        }),
+        " ",
         B(
-          "મુખ્ય એડમિનની મંજૂરી બાકી (" +
-            (pending.kind === "delete" ? "દૂર કરવાની" : "ફેરફારની") +
-            " સૂચના)",
-          "Awaiting main-administrator decision (" +
+          "મુખ્ય એડમિનને મોકલી દીધું · " +
+            (pending.kind === "delete"
+              ? "દૂર કરવાની"
+              : "માહિતી બદલવાની") +
+            " સૂચના મંજૂરી માટે બાકી છે.",
+          "Forwarded to the main administrator · the " +
             (pending.kind === "delete" ? "removal" : "change") +
-            " proposal)",
+            " proposal is awaiting their decision.",
         ),
       ),
     !pending &&
@@ -1080,13 +1089,17 @@ function WorkflowMemberCard({ member: m, data, lang, act, busy, pending }) {
           { className: "workflow-actions" },
           button(
             B("મુખ્ય એડમિનને મોકલો", "Send to main administrator"),
-            () =>
-              act("village/members/" + m.id + "/update", {
+            async () => {
+              await act("village/members/" + m.id + "/update", {
                 ...form,
                 phone2: form.phone2 || "",
                 reason,
                 identityConfirmed: true,
-              }),
+              });
+              // Close the form so the forwarded confirmation is visible.
+              setMode(null);
+              setReason("");
+            },
             { disabled: busy },
           ),
           button(B("રદ કરો", "Cancel"), () => setMode(null)),
@@ -1106,11 +1119,14 @@ function WorkflowMemberCard({ member: m, data, lang, act, busy, pending }) {
           { className: "workflow-actions" },
           button(
             B("દૂર કરવાની સૂચના મોકલો", "Send removal proposal"),
-            () =>
-              act("village/members/" + m.id + "/delete", {
+            async () => {
+              await act("village/members/" + m.id + "/delete", {
                 reason,
                 identityConfirmed: true,
-              }),
+              });
+              setMode(null);
+              setReason("");
+            },
             { disabled: busy },
           ),
           button(B("રદ કરો", "Cancel"), () => setMode(null)),

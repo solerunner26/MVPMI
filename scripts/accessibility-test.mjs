@@ -204,6 +204,13 @@ try {
     if ((await item.count()) === 0) continue;
     await item.click();
     await page.getByRole("button", { name: /Back to dashboard|ડેશબોર્ડ પર પાછા/ }).waitFor();
+    if (section === "Total members") {
+      // Also scan the all-members list behind the first stats tile.
+      await page.locator(".stats-village-grid .mvpmi-tile").first().click();
+      await page.getByRole("button", { name: /Back to village list|ગામની યાદી પર પાછા/ }).waitFor();
+      await scan("admin-all-members");
+      await page.getByRole("button", { name: /Back to village list|ગામની યાદી પર પાછા/ }).click();
+    }
     await scan("admin-" + section);
     await page.getByRole("button", { name: /Back to dashboard|ડેશબોર્ડ પર પાછા/ }).click();
   }

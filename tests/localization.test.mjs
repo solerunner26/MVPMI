@@ -119,8 +119,8 @@ test("Excel headers follow the requested language and remain admin-only", async 
     200,
   );
   for (const [lang, heading] of [
-    ["en", "Name (Gujarati)\nગુજરાતી નામ"],
-    ["gu", "ગુજરાતી નામ\nName (Gujarati)"],
+    ["en", "#\nક્રમ"],
+    ["gu", "ક્રમ\n#"],
   ]) {
     const response = await request("admin/export.xlsx?lang=" + lang);
     assert.equal(response.status, 200);

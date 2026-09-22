@@ -159,7 +159,10 @@ try {
     false,
   );
   await panel.reload();
-  await panel.getByText("Members", { exact: true }).click();
+  // The Members tile is folded into Total members: dashboard tile opens the
+  // village tiles, whose first tile lists every member with edit/delete.
+  await panel.locator(".admin-dashboard-grid .mvpmi-tile").first().click();
+  await panel.locator(".stats-village-grid .mvpmi-tile").first().click();
   // Several members exist; edit the enrolled test member specifically.
   await panel
     .locator("div", { hasText: "Updated Community Member" })

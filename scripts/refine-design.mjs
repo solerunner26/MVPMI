@@ -160,19 +160,23 @@ export function refineDesign(template) {
     'class="en" style="font-weight:800;opacity:.75">{{ statTotal }}',
     'class="en directory-count" style="font-weight:800;opacity:1">{{ statTotal }}',
   );
+  // The old standalone members tab was folded into the Total members tile;
+  // its row styling hook is only applied when such a list still exists.
   const memberStart = template.indexOf('<sc-for list="{{ members }}"');
-  const memberEnd = template.indexOf("</sc-for>", memberStart);
-  let memberPart = template.slice(memberStart, memberEnd);
-  memberPart = memberPart.replace(
-    "<div style=",
-    '<div class="admin-member-row" style=',
-  );
-  memberPart = memberPart.replace(
-    '<button onClick="{{ m.onAdminEdit }}"',
-    '<button onClick="{{ m.onAdminEdit }}"',
-  );
-  template =
-    template.slice(0, memberStart) + memberPart + template.slice(memberEnd);
+  if (memberStart >= 0) {
+    const memberEnd = template.indexOf("</sc-for>", memberStart);
+    let memberPart = template.slice(memberStart, memberEnd);
+    memberPart = memberPart.replace(
+      "<div style=",
+      '<div class="admin-member-row" style=',
+    );
+    memberPart = memberPart.replace(
+      '<button onClick="{{ m.onAdminEdit }}"',
+      '<button onClick="{{ m.onAdminEdit }}"',
+    );
+    template =
+      template.slice(0, memberStart) + memberPart + template.slice(memberEnd);
+  }
   template = template.replace(
     '<sc-if value="{{ preferencesOpen }}">',
     `

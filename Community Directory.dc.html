@@ -13,7 +13,7 @@
 <link rel="stylesheet" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/duotone/style.css">
 <style>
   body { margin:0; background:#17100E; font-family:'Noto Sans Gujarati',-apple-system,'Manrope',system-ui,sans-serif; color:#241413; }
-  a { color:#B2402C; } a:hover { color:#E9A13B; }
+  a { color:#B2402C; } a:hover { color:#8C2F1C; }
   * { -webkit-tap-highlight-color: transparent; }
   .app {
     --fs:1;
@@ -22,7 +22,7 @@
     --g:rgba(255,255,255,.66); --g2:rgba(255,255,255,.4); --gbd:rgba(255,255,255,.85);
     --sheet:rgba(255,250,244,.92); --field:rgba(255,255,255,.72); --fieldBd:rgba(36,20,19,.1);
     --dan:#9E2B1E; --danBg:rgba(158,43,30,.11); --onTint:#FFFFFF; --badgeInd:#B2402C; --badgeDan:#9E2B1E;
-    --ok:#8A5512; --okBg:rgba(233,161,59,.26);
+    --ok:#2F7A44; --okBg:rgba(47,122,68,.13);
     --chip:rgba(255,255,255,.55);
     --blur:blur(24px) saturate(180%);
     --shadow:0 1px 1px rgba(36,20,19,.04), 0 10px 30px rgba(36,20,19,.10);
@@ -41,7 +41,7 @@
     --g:rgba(255,255,255,.075); --g2:rgba(255,255,255,.05); --gbd:rgba(255,255,255,.14);
     --sheet:rgba(32,20,17,.92); --field:rgba(255,255,255,.06); --fieldBd:rgba(255,255,255,.14);
     --dan:#FF9A86; --danBg:rgba(255,154,134,.14);
-    --ok:#F3BC6A; --okBg:rgba(243,188,106,.2);
+    --ok:#8FD3A0; --okBg:rgba(143,211,160,.16);
     --chip:rgba(255,255,255,.08);
     --shadow:0 1px 1px rgba(0,0,0,.3), 0 14px 34px rgba(0,0,0,.45);
     --scrim:rgba(4,7,18,.6);
@@ -228,7 +228,7 @@
                     <sc-if value="{{ err.village }}"><div style="font-size:var(--f-xs);color:var(--dan);display:flex;gap:6px;align-items:center"><i class="ph-duotone ph-warning-circle" style="font-size:14px"></i>{{ err.village }}</div></sc-if>
                     <sc-if value="{{ vSuggest }}">
                       <button onClick="{{ applyVillage }}" style="align-self:flex-start;border:1px solid var(--gbd);background:var(--chip);border-radius:14px;padding:9px 13px;font:inherit;font-size:var(--f-sm);color:var(--ink);cursor:pointer;display:flex;align-items:center;gap:8px;text-align:left" style-hover="border-color:var(--ind)">
-                        <i class="ph-duotone ph-magic-wand" style="font-size:17px;color:var(--aqua)"></i>
+                        <i class="ph-duotone ph-magic-wand" style="font-size:17px;color:var(--ind)"></i>
                         <span>{{ vSuggest.msg }}</span>
                       </button>
                     </sc-if>
@@ -291,7 +291,7 @@
                   <div style="display:flex;gap:6px;align-items:center">
                     <span style="width:7px;height:7px;border-radius:50%;background:var(--ind);animation:dots 1.4s ease-in-out infinite"></span>
                     <span style="width:7px;height:7px;border-radius:50%;background:var(--ind);animation:dots 1.4s ease-in-out .2s infinite"></span>
-                    <span style="width:7px;height:7px;border-radius:50%;background:var(--aqua);animation:dots 1.4s ease-in-out .4s infinite"></span>
+                    <span style="width:7px;height:7px;border-radius:50%;background:var(--ind);animation:dots 1.4s ease-in-out .4s infinite"></span>
                   </div>
                   <div style="width:100%;display:flex;align-items:flex-start;gap:0;margin-top:2px">
                     <sc-for list="{{ steps }}" as="st" hint-placeholder-count="3">
@@ -368,7 +368,7 @@
               <div class="noscroll" style="flex:1;overflow:auto;padding:6px 14px 130px">
                 <sc-if value="{{ shortQuery }}">
                   <div style="padding:18px 12px;display:flex;gap:10px;align-items:center;color:var(--ink2);font-size:var(--f-sm)">
-                    <i class="ph-duotone ph-keyboard" style="font-size:22px;color:var(--aqua)"></i>
+                    <i class="ph-duotone ph-keyboard" style="font-size:22px;color:var(--ind)"></i>
                     <div class="bi"><span class="gu">શોધવા માટે ૩ અક્ષર લખો…</span><span class="en">Type 3 letters to search…</span></div>
                   </div>
                 </sc-if>
@@ -488,7 +488,7 @@
                   </button>
                   <div style="height:1px;background:var(--fieldBd);margin-left:66px"></div>
                   <button onClick="{{ toggleLang }}" style="width:100%;border:0;background:none;color:var(--ink);font:inherit;padding:15px;display:flex;align-items:center;gap:13px;cursor:pointer;text-align:left" style-hover="background:var(--chip)">
-                    <div style="width:38px;height:38px;border-radius:13px;background:rgba(233,161,59,.16);color:var(--ok);display:flex;align-items:center;justify-content:center;flex:0 0 auto"><i class="ph-duotone ph-translate" style="font-size:20px"></i></div>
+                    <div style="width:38px;height:38px;border-radius:13px;background:rgba(178,64,44,.14);color:var(--ind);display:flex;align-items:center;justify-content:center;flex:0 0 auto"><i class="ph-duotone ph-translate" style="font-size:20px"></i></div>
                     <div class="bi" style="flex:1;font-size:var(--f-md);font-weight:600"><span class="gu">ભાષા</span><span class="en">Language</span></div>
                     <div style="font-size:var(--f-sm);color:var(--ink2);font-weight:700">{{ langNow }}</div>
                     <i class="ph-duotone ph-caret-right" style="font-size:18px;color:var(--ink2)"></i>
@@ -715,14 +715,14 @@
                       </div>
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                      <sc-for list="{{ tiles }}" as="t" hint-placeholder-count="6">
-                        <button onClick="{{ t.onClick }}" class="hovlift" style="background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--gbd);border-radius:24px;padding:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:9px;cursor:pointer;text-align:left;color:var(--ink);font:inherit;min-height:124px" style-hover="border-color:var(--ind);transform:translateY(-2px)" style-active="transform:translateY(0)"><i class="tile-stripe" aria-hidden="true"></i>
-                          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
-                            <div style="width:38px;height:38px;border-radius:13px;background:{{ t.iconBg }};color:{{ t.iconFg }};display:flex;align-items:center;justify-content:center"><i class="{{ t.icon }}" style="font-size:21px"></i></div>
-                            <sc-if value="{{ t.count }}"><span class="en" style="min-width:24px;height:24px;padding:0 7px;box-sizing:border-box;border-radius:12px;background:{{ t.badgeBg }};color:var(--onTint);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center">{{ t.count }}</span></sc-if>
+                      <sc-for list="{{ tiles }}" as="t" hint-placeholder-count="7">
+                        <button onClick="{{ t.onClick }}" class="hovlift mvpmi-tile"><i class="tile-stripe" aria-hidden="true"></i>
+                          <div class="tile-top">
+                            <span class="tile-sun" aria-hidden="true"><dc-import name="SunMark" hint-size="30px,30px" style="width:30px;height:30px"></dc-import></span>
+                            <sc-if value="{{ t.count }}"><span class="tile-count">{{ t.count }}</span></sc-if>
                           </div>
-                          <div class="bi" style="font-size:var(--f-md);font-weight:700;line-height:1.2"><span class="gu">{{ t.gu }}</span><span class="en">{{ t.en }}</span></div>
-                          <div style="font-size:var(--f-xs);color:var(--ink2);margin-top:auto">{{ t.hint }}</div>
+                          <div class="bi tile-label"><span class="gu">{{ t.gu }}</span><span class="en">{{ t.en }}</span></div>
+                          <div class="tile-hint">{{ t.hint }}</div>
                         </button>
                       </sc-for>
                     </div>
@@ -809,20 +809,31 @@
 
                 <sc-if value="{{ tabStats }}">
                   <div style="display:flex;flex-direction:column;gap:13px">
-                    <div class="hovlift" style="background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--gbd);border-radius:26px;padding:18px;box-shadow:var(--shadow);display:flex;align-items:center;gap:15px">
-                      <div style="width:56px;height:56px;flex:0 0 auto;border-radius:19px;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(178,64,44,.32)"><i class="ph-duotone ph-users-three" style="font-size:29px"></i></div>
+                    <div class="hovlift" style="background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--gbd);border-radius:22px;padding:14px;box-shadow:var(--shadow);display:flex;align-items:center;gap:13px">
+                      <div style="width:48px;height:48px;flex:0 0 auto;border-radius:16px;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(178,64,44,.32)"><i class="ph-duotone ph-users-three" style="font-size:25px"></i></div>
                       <div style="flex:1;min-width:0">
-                        <div class="en" style="font-size:var(--f-2xl);font-weight:800;line-height:1;color:var(--ind)">{{ statTotal }}</div>
-                        <div class="bi" style="font-size:var(--f-sm);font-weight:700;color:var(--ink2);margin-top:3px"><span class="gu">કુલ મંજૂર સભ્યો</span><span class="en">Total approved members</span></div>
+                        <div class="en" style="font-size:var(--f-xl);font-weight:800;line-height:1;color:var(--ind)">{{ statTotal }}</div>
+                        <div class="bi" style="font-size:var(--f-xs);font-weight:700;color:var(--ink2);margin-top:3px"><span class="gu">કુલ મંજૂર સભ્યો</span><span class="en">Total approved members</span></div>
                       </div>
                     </div>
                     <sc-if value="{{ !inStatsVillage }}">
                       <div class="stats-village-grid">
+                        <button onClick="{{ openStatsAll }}" class="hovlift mvpmi-tile"><i class="tile-stripe" aria-hidden="true"></i>
+                          <div class="tile-top">
+                            <span class="tile-sun" aria-hidden="true"><dc-import name="SunMark" hint-size="30px,30px" style="width:30px;height:30px"></dc-import></span>
+                            <span class="tile-count">{{ statTotal }}</span>
+                          </div>
+                          <div class="bi tile-label"><span class="gu">કુલ સભ્યો</span><span class="en">Total members</span></div>
+                          <div class="tile-hint">{{ statsAllHint }}</div>
+                        </button>
                         <sc-for list="{{ statVillages }}" as="v" hint-placeholder-count="7">
-                          <button onClick="{{ v.onClick }}" class="hovlift stats-village-tile" style="background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--gbd);border-radius:22px;padding:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:9px;cursor:pointer;text-align:left;color:var(--ink);font:inherit" style-hover="border-color:var(--ind);transform:translateY(-2px)" style-active="transform:translateY(0)"><i class="tile-stripe" aria-hidden="true"></i>
-                            <div style="width:38px;height:38px;border-radius:13px;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center"><i class="ph-duotone ph-house-line" style="font-size:21px"></i></div>
-                            <div class="bi" style="font-size:var(--f-md);font-weight:700;line-height:1.2">{{ v.label }}</div>
-                            <div class="bi" style="font-size:var(--f-xs);color:var(--ink2);margin-top:auto"><span class="gu">{{ v.count }} સભ્યો</span><span class="en">{{ v.count }} {{ v.count === 1 ? 'member' : 'members' }}</span></div>
+                          <button onClick="{{ v.onClick }}" class="hovlift mvpmi-tile"><i class="tile-stripe" aria-hidden="true"></i>
+                            <div class="tile-top">
+                              <span class="tile-sun" aria-hidden="true"><dc-import name="SunMark" hint-size="30px,30px" style="width:30px;height:30px"></dc-import></span>
+                              <span class="tile-count">{{ v.count }}</span>
+                            </div>
+                            <div class="bi tile-label">{{ v.label }}</div>
+                            <div class="tile-hint">{{ v.hint }}</div>
                           </button>
                         </sc-for>
                       </div>
@@ -832,33 +843,18 @@
                       <div class="bi" style="font-size:var(--f-sm);font-weight:800;color:var(--ink2);padding:0 4px"><span class="gu">{{ statsVillageLabel }} · {{ statVillageMembers.length }} સભ્યો</span><span class="en">{{ statsVillageLabel }} · {{ statVillageMembers.length }} {{ statVillageMembers.length === 1 ? 'member' : 'members' }}</span></div>
                       <div style="display:flex;flex-direction:column;gap:11px">
                         <sc-for list="{{ statVillageMembers }}" as="m" hint-placeholder-count="4">
-                          <div style="background:var(--g);border:1px solid var(--gbd);border-radius:20px;padding:12px;display:flex;align-items:center;gap:11px;box-shadow:var(--shadow)">
+                          <div style="background:var(--g);border:1px solid var(--gbd);border-radius:18px;padding:12px;display:flex;align-items:center;gap:11px;box-shadow:var(--shadow)">
                             <div style="flex:1;min-width:0">
                               <div class="bi" style="font-weight:700;font-size:var(--f-md)"><span class="gu">{{ m.nameGu }}</span><span class="en">{{ m.name }}</span></div>
-                              <div class="en" style="font-size:var(--f-xs);color:var(--ink2);letter-spacing:.04em">{{ m.phones }}</div>
+                              <div class="en" style="font-size:var(--f-xs);color:var(--ink2);letter-spacing:.04em">{{ m.phones }} · {{ m.village }}</div>
                             </div>
                             <button onClick="{{ m.onAdminEdit }}" title="Edit" style="width:40px;height:40px;border:1px solid var(--gbd);border-radius:13px;background:var(--g);color:var(--ind);display:flex;align-items:center;justify-content:center;cursor:pointer" style-hover="border-color:var(--ind)"><i class="ph-duotone ph-pencil-simple" style="font-size:18px"></i></button>
+                            <button onClick="{{ m.onAdminDelete }}" title="Delete" style="width:40px;height:40px;border:1px solid var(--gbd);border-radius:13px;background:var(--g);color:var(--dan);display:flex;align-items:center;justify-content:center;cursor:pointer" style-hover="border-color:var(--dan)"><i class="ph-duotone ph-trash" style="font-size:18px"></i></button>
                           </div>
                         </sc-for>
-                        <sc-if value="{{ !statVillageMembers.length }}"><div class="bi" style="padding:34px 10px;align-items:center;color:var(--ink2);font-size:var(--f-sm)"><span class="gu">આ ગામમાં હજુ કોઈ સભ્ય નથી.</span><span class="en">No members in this village yet.</span></div></sc-if>
+                        <sc-if value="{{ !statVillageMembers.length }}"><div class="bi" style="padding:34px 10px;align-items:center;color:var(--ink2);font-size:var(--f-sm)"><span class="gu">આ યાદીમાં હજુ કોઈ સભ્ય નથી.</span><span class="en">No members in this list yet.</span></div></sc-if>
                       </div>
                     </sc-if>
-                  </div>
-                </sc-if>
-
-                <sc-if value="{{ tabMembers }}">
-                  <div style="display:flex;flex-direction:column;gap:11px">
-                    <div style="font-size:var(--f-xs);color:var(--ink2);padding:0 4px">{{ memberCountLabel }}</div>
-                    <sc-for list="{{ members }}" as="m" hint-placeholder-count="5">
-                      <div style="background:var(--g);border:1px solid var(--gbd);border-radius:20px;padding:12px;display:flex;align-items:center;gap:11px;box-shadow:var(--shadow)">
-                        <div style="flex:1;min-width:0">
-                          <div class="bi" style="font-weight:700;font-size:var(--f-md)"><span class="gu">{{ m.nameGu }}</span><span class="en">{{ m.name }}</span></div>
-                          <div class="en" style="font-size:var(--f-xs);color:var(--ink2);letter-spacing:.04em">{{ m.phones }} · {{ m.village }}</div>
-                        </div>
-                        <button onClick="{{ m.onAdminEdit }}" title="Edit" style="width:40px;height:40px;border:1px solid var(--gbd);border-radius:13px;background:var(--g);color:var(--ind);display:flex;align-items:center;justify-content:center;cursor:pointer" style-hover="border-color:var(--ind)"><i class="ph-duotone ph-pencil-simple" style="font-size:18px"></i></button>
-                        <button onClick="{{ m.onAdminDelete }}" title="Delete" style="width:40px;height:40px;border:1px solid var(--gbd);border-radius:13px;background:var(--g);color:var(--dan);display:flex;align-items:center;justify-content:center;cursor:pointer" style-hover="border-color:var(--dan)"><i class="ph-duotone ph-trash" style="font-size:18px"></i></button>
-                      </div>
-                    </sc-for>
                   </div>
                 </sc-if>
 
@@ -954,9 +950,11 @@
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                       <sc-for list="{{ exports }}" as="x" hint-placeholder-count="4">
-                        <button onClick="{{ x.onClick }}" class="hovlift" style="background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--gbd);border-radius:22px;padding:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:8px;cursor:pointer;color:var(--ink);font:inherit;text-align:left;min-height:108px" style-hover="border-color:var(--ind);transform:translateY(-2px)"><i class="tile-stripe" aria-hidden="true"></i>
-                          <div style="width:38px;height:38px;border-radius:13px;background:{{ x.bg }};color:{{ x.fg }};display:flex;align-items:center;justify-content:center"><i class="{{ x.icon }}" style="font-size:21px"></i></div>
-                          <div class="bi" style="font-size:var(--f-sm);font-weight:700;line-height:1.25"><span class="gu">{{ x.gu }}</span><span class="en">{{ x.en }}</span></div>
+                        <button onClick="{{ x.onClick }}" class="hovlift mvpmi-tile"><i class="tile-stripe" aria-hidden="true"></i>
+                          <div class="tile-top">
+                            <span class="tile-sun" aria-hidden="true"><dc-import name="SunMark" hint-size="30px,30px" style="width:30px;height:30px"></dc-import></span>
+                          </div>
+                          <div class="bi tile-label"><span class="gu">{{ x.gu }}</span><span class="en">{{ x.en }}</span></div>
                         </button>
                       </sc-for>
                     </div>
@@ -1155,7 +1153,7 @@ class Component extends DCLogic {
   componentDidMount() { this._clock = setInterval(() => this.forceUpdate(), 1000); }
   componentWillUnmount() { clearInterval(this._clock); clearTimeout(this._t); clearTimeout(this._tap); }
 
-  L(gu, en) { return this.state.lang === 'en' ? en + '  ·  ' + gu : gu + '  ·  ' + en; }
+  L(gu, en) { return this.state.lang === 'en' ? en + ' · ' + gu : gu + ' · ' + en; }
   P(gu, en) { return this.state.lang === 'en' ? en : gu; }
   V(gu) { const v = VILLAGE_LIST.find((x) => x.gu === gu); return v ? this.P(v.gu, v.en) : gu; }
   T(gu) { return gu === TEHSIL_GU ? this.P(TEHSIL_GU, TEHSIL_EN) : gu; }
@@ -1166,7 +1164,7 @@ class Component extends DCLogic {
     const i = s.indexOf(' · ');
     if (i < 0) return s;
     const a = s.slice(0, i), b = s.slice(i + 3);
-    return this.state.lang === 'en' ? b + '  ·  ' + a : a + '  ·  ' + b;
+    return this.state.lang === 'en' ? b + ' · ' + a : a + ' · ' + b;
   }
 
   set(k, v) { this.setState({ [k]: v }); }
@@ -1319,8 +1317,8 @@ class Component extends DCLogic {
     const pwColors = ['var(--fieldBd)', '#9E2B1E', '#B86A1F', '#D39A2B', '#8A5A10', '#8A5A10'];
 
     const pendingTotal = s.newRequests.length + s.updateRequests.length + s.deleteRequests.length;
-    const titles = { home: 'ડેશબોર્ડ', stats: 'કુલ સભ્યો', requests: 'વિનંતીઓ', new: 'નવી રિક્વેસ્ટ', update: 'ફેરફાર રિક્વેસ્ટ', delete: 'ડિલીટ રિક્વેસ્ટ', members: 'બધા સભ્યો', reports: 'રિપોર્ટ', archive: 'આર્કાઇવ', security: 'સુરક્ષા', backup: 'બેકઅપ અને એક્સપોર્ટ', notifications: 'સૂચનાઓ' };
-    const titlesEn = { home: 'Dashboard', stats: 'Total members', requests: 'Requests', new: 'New requests', update: 'Update requests', delete: 'Delete requests', members: 'All members', reports: 'Reports', archive: 'Archive', security: 'Security', backup: 'Backup & export', notifications: 'Notifications' };
+    const titles = { home: 'ડેશબોર્ડ', stats: 'કુલ સભ્યો', requests: 'વિનંતીઓ', new: 'નવી રિક્વેસ્ટ', update: 'ફેરફાર રિક્વેસ્ટ', delete: 'ડિલીટ રિક્વેસ્ટ', reports: 'રિપોર્ટ', archive: 'આર્કાઇવ', security: 'સુરક્ષા', backup: 'બેકઅપ અને એક્સપોર્ટ', notifications: 'સૂચનાઓ' };
+    const titlesEn = { home: 'Dashboard', stats: 'Total members', requests: 'Requests', new: 'New requests', update: 'Update requests', delete: 'Delete requests', reports: 'Reports', archive: 'Archive', security: 'Security', backup: 'Backup & export', notifications: 'Notifications' };
 
     const tally = (key) => {
       const map = {};
@@ -1338,14 +1336,13 @@ class Component extends DCLogic {
     const notifCount = (pendingTotal ? 1 : 0) + (rejectedBeforeCount ? 1 : 0) + (s.alerts.length ? 1 : 0) + (villageWaiting ? 1 : 0);
     const archiveTotal = s.archive.length + (s.rejectedApplications ? s.rejectedApplications.length : 0);
     const tileDefs = [
-      ['stats', 'કુલ સભ્યો', 'Total members', 'ph-duotone ph-chart-donut', 'rgba(178,64,44,.14)', 'var(--ind)', s.members.length, this.P('મંજૂર સભ્યો ગામ પ્રમાણે', 'approved members by village')],
-      ['requests', 'વિનંતીઓ', 'Requests', 'ph-duotone ph-tray', 'rgba(178,64,44,.14)', 'var(--ind)', pendingTotal, this.P('નવી · ફેરફાર · દૂર કરવાની', 'new · changes · removals')],
-      ['members', 'સભ્યો', 'Members', 'ph-duotone ph-users-three', 'rgba(178,64,44,.14)', 'var(--ind)', 0, s.members.length + ' ' + this.P('મંજૂર સભ્યો', s.members.length === 1 ? 'approved member' : 'approved members')],
-      ['reports', 'રિપોર્ટ', 'Reports', 'ph-duotone ph-file-text', 'var(--okBg)', 'var(--ok)', 0, this.P('ડાઉનલોડ કરી શકાય એવા', 'downloadable PDF · CSV')],
-      ['backup', 'બેકઅપ', 'Backup & export', 'ph-duotone ph-cloud-arrow-down', 'var(--okBg)', 'var(--ok)', 0, 'PDF · Excel · CSV · JSON'],
-      ['archive', 'આર્કાઇવ', 'Archive', 'ph-duotone ph-archive', 'rgba(233,161,59,.22)', 'var(--ok)', archiveTotal, this.P('કાઢેલા · નામંજૂર · કેન્સલ', 'removed · rejected · withdrawn')],
-      ['security', 'સુરક્ષા', 'Security alerts', 'ph-duotone ph-shield-warning', 'var(--danBg)', 'var(--dan)', s.alerts.length, this.P('શંકાસ્પદ પ્રયાસ', 'intrusion attempts')],
-      ['notifications', 'સૂચનાઓ', 'Notifications', 'ph-duotone ph-bell-ringing', 'var(--danBg)', 'var(--dan)', notifCount, this.P('બાકી કામ અને એલર્ટ', 'pending work & alerts')]
+      ['stats', 'કુલ સભ્યો', 'Total members', s.members.length, this.P('મંજૂર સભ્યો ગામ પ્રમાણે', 'approved members by village')],
+      ['requests', 'વિનંતીઓ', 'Requests', pendingTotal, this.P('નવી · ફેરફાર · દૂર કરવાની', 'new · changes · removals')],
+      ['reports', 'રિપોર્ટ', 'Reports', 0, this.P('ડાઉનલોડ કરી શકાય એવા', 'downloadable PDF · CSV')],
+      ['backup', 'બેકઅપ', 'Backup & export', 0, 'PDF · Excel · CSV · JSON'],
+      ['archive', 'આર્કાઇવ', 'Archive', archiveTotal, this.P('કાઢેલા · નામંજૂર · કેન્સલ', 'removed · rejected · withdrawn')],
+      ['security', 'સુરક્ષા', 'Security alerts', s.alerts.length, this.P('શંકાસ્પદ પ્રયાસ', 'intrusion attempts')],
+      ['notifications', 'સૂચનાઓ', 'Notifications', notifCount, this.P('બાકી કામ અને એલર્ટ', 'pending work & alerts')]
     ];
 
     const screens = [
@@ -1391,7 +1388,7 @@ class Component extends DCLogic {
         return el < 3600 ? p(Math.floor(el / 60)) + ':' + p(el % 60) : p(Math.floor(el / 3600)) + ':' + p(Math.floor((el % 3600) / 60));
       })(),
       waitUnit: (s.requestAt && Date.now() - s.requestAt >= 3600000) ? this.P('કલાક : મિનિટ', 'hours : minutes') : this.P('મિનિટ : સેકન્ડ', 'minutes : seconds'),
-      pendingPhones: [this.fmt(s.form.phone), dg(s.form.phone2) ? this.fmt(s.form.phone2) + ' (' + this.P('ધંધો', 'work') + ')' : ''].filter(Boolean).join('  ·  '),
+      pendingPhones: [this.fmt(s.form.phone), dg(s.form.phone2) ? this.fmt(s.form.phone2) + ' (' + this.P('ધંધો', 'work') + ')' : ''].filter(Boolean).join(' · '),
       phoneCount: dg(s.form.phone).length, phoneOk: dg(s.form.phone).length === 10,
       setName: this.setForm('name'), setVillage: this.setForm('village'), setTehsil: this.setForm('tehsil'),
       setFirstName: this.setNamePart('firstName'), setMiddleName: this.setNamePart('middleName'), setSurname: this.setNamePart('surname'),
@@ -1454,12 +1451,12 @@ class Component extends DCLogic {
       countLabel: searching
         ? sorted.length + ' / ' + s.members.length + ' ' + this.P('સભ્યો મળ્યા', 'found')
         : (s.dirMode === 'tiles'
-            ? VILLAGE_LIST.length + ' ' + this.P('ગામ', VILLAGE_LIST.length === 1 ? 'village' : 'villages') + '  ·  ' + s.members.length + ' ' + this.P('સભ્યો', s.members.length === 1 ? 'member' : 'members')
+            ? VILLAGE_LIST.length + ' ' + this.P('ગામ', VILLAGE_LIST.length === 1 ? 'village' : 'villages') + ' · ' + s.members.length + ' ' + this.P('સભ્યો', s.members.length === 1 ? 'member' : 'members')
             : sorted.length + ' ' + this.P('સભ્યો', sorted.length === 1 ? 'member' : 'members')),
       placeLabel: (() => {
         const vg = VILLAGE_LIST.find((v) => v.gu === s.dirMode);
-        const head = (!searching && vg) ? this.P(vg.gu, vg.en) + '  ·  ' : '';
-        return head + this.P(TEHSIL_GU, TEHSIL_EN) + '  ·  ' + this.P(DISTRICT_GU, DISTRICT_EN);
+        const head = (!searching && vg) ? this.P(vg.gu, vg.en) + ' · ' : '';
+        return head + this.P(TEHSIL_GU, TEHSIL_EN) + ' · ' + this.P(DISTRICT_GU, DISTRICT_EN);
       })(),
       showTiles: !searching && s.dirMode === 'tiles',
       inVillageView: !searching && s.dirMode !== 'tiles',
@@ -1592,7 +1589,7 @@ class Component extends DCLogic {
       passIcon: s.showPass ? 'ph-duotone ph-eye-slash' : 'ph-duotone ph-eye',
       togglePass: () => this.set('showPass', !s.showPass),
       pwWidth: (pwScore / 5) * 100 + '%', pwColor: pwColors[pwScore],
-      pwLabel: pwLabels[pwScore] + '  ·  ' + (pwScore >= 4 ? this.P('૬૦ દિવસે બદલવાની યાદ અપાશે', 'Change reminder in 60 days') : this.P('૧૦+ અક્ષર, નાના-મોટા, આંકડો, ચિહ્ન', '10+ chars, mixed case, number, symbol')),
+      pwLabel: pwLabels[pwScore] + ' · ' + (pwScore >= 4 ? this.P('૬૦ દિવસે બદલવાની યાદ અપાશે', 'Change reminder in 60 days') : this.P('૧૦+ અક્ષર, નાના-મોટા, આંકડો, ચિહ્ન', '10+ chars, mixed case, number, symbol')),
       loginError: s.loginError,
       doLogin: () => {
         if (s.login.user.trim().toLowerCase() === 'admin' && s.login.pass === 'Samaj@2026') this.setState({ screen: 'admin', tab: 'home', loginError: false });
@@ -1613,16 +1610,16 @@ class Component extends DCLogic {
       statVillages: (s.villages || []).map((v) => ({
         label: this.V(v.gu),
         count: s.members.filter((m) => m.village === v.gu).length,
+        hint: this.L(s.members.filter((m) => m.village === v.gu).length === 1 ? 'સભ્ય' : 'સભ્યો', s.members.filter((m) => m.village === v.gu).length === 1 ? 'member' : 'members'),
         onClick: () => this.setState({ statsVillage: v.gu })
       })),
+      openStatsAll: () => this.setState({ statsVillage: '__ALL__' }),
+      statsAllHint: this.L('બધા ગામના સભ્યો એક યાદીમાં', 'every village in one list'),
       inStatsVillage: !!s.statsVillage,
-      statsVillageLabel: s.statsVillage ? this.V(s.statsVillage) : '',
-      statVillageMembers: s.statsVillage ? s.members.filter((m) => m.village === s.statsVillage).map((m) => ({
-        nameGu: m.nameGu, name: m.name, village: this.V(m.village),
-        phones: [this.fmt(m.phone), dg(m.phone2) ? this.fmt(m.phone2) : ''].filter(Boolean).join(' · '),
-        onAdminEdit: () => {
-          this.setState({ meId: m.id, edit: { name: m.nameGu, phone: this.fmt(m.phone), phone2: this.fmt(m.phone2), village: m.village, tehsil: m.tehsil, district: m.district }, screen: 'editprofile' });
-        }
+      statsVillageLabel: s.statsVillage === '__ALL__' ? this.L('કુલ સભ્યો', 'Total members') : (s.statsVillage ? this.V(s.statsVillage) : ''),
+      statVillageMembers: s.statsVillage ? s.members.filter((m) => s.statsVillage === '__ALL__' || m.village === s.statsVillage).sort(memberNameOrder(s.lang)).map((m) => ({
+        id: m.id, nameGu: m.nameGu, name: m.name, village: this.V(m.village),
+        phones: [this.fmt(m.phone), dg(m.phone2) ? this.fmt(m.phone2) : ''].filter(Boolean).join(' · ')
       })) : [],
       closeStatsVillage: () => this.setState({ statsVillage: null }),
       statHeads: [],
@@ -1633,19 +1630,18 @@ class Component extends DCLogic {
       alertCount: s.alerts.length,
       adminGreetGu: pendingTotal ? pendingTotal + ' કામ બાકી છે' : 'બધું અપ ટુ ડેટ છે',
       adminGreetEn: pendingTotal ? pendingTotal + ' items need action' : 'Everything is up to date',
-      tiles: tileDefs.map(([id, gu, en, icon, iconBg, iconFg, count, hint]) => ({
-        gu, en, icon, iconBg, iconFg, count, hint,
-        badgeBg: id === 'security' || id === 'notifications' ? 'var(--badgeDan)' : 'var(--badgeInd)',
+      tiles: tileDefs.map(([id, gu, en, count, hint]) => ({
+        gu, en, count, hint,
         onClick: () => this.set('tab', id)
       })),
       tabHome: s.tab === 'home', tabRequests: s.tab === 'requests', tabReports: s.tab === 'reports', tabNotifications: s.tab === 'notifications',
       tabNew: s.tab === 'new' || s.tab === 'requests', tabUpdate: s.tab === 'update' || s.tab === 'requests',
-      tabDelete: s.tab === 'delete' || s.tab === 'requests', tabMembers: s.tab === 'members', tabArchive: s.tab === 'archive',
+      tabDelete: s.tab === 'delete' || s.tab === 'requests', tabArchive: s.tab === 'archive',
       tabSecurity: s.tab === 'security', tabBackup: s.tab === 'backup',
 
       newRequests: s.newRequests.map((r) => ({
         ...r, initial: r.nameGu[0], place: this.place(r), when: this.O(r.when),
-        phones: [this.fmt(r.phone), dg(r.phone2) ? this.fmt(r.phone2) + ' (' + this.P('ધંધો', 'work') + ')' : ''].filter(Boolean).join('  ·  '),
+        phones: [this.fmt(r.phone), dg(r.phone2) ? this.fmt(r.phone2) + ' (' + this.P('ધંધો', 'work') + ')' : ''].filter(Boolean).join(' · '),
         onApprove: () => {
           this.setState((st) => ({
             members: [...st.members, { id: r.id, name: r.name, nameGu: r.nameGu, phone: r.phone, phone2: r.phone2 || '', label2: r.label2 || 'work', village: r.village, tehsil: r.tehsil, district: r.district }],
@@ -1706,33 +1702,18 @@ class Component extends DCLogic {
       })),
       noDeletes: s.deleteRequests.length === 0,
 
-      members: [...s.members].sort(memberNameOrder(s.lang)).map((m) => ({
-        ...m, village: this.V(m.village), phones: [this.fmt(m.phone), dg(m.phone2) ? this.fmt(m.phone2) : ''].filter(Boolean).join(' · '),
-        onAdminEdit: () => {
-          this.setState({ meId: m.id, edit: { name: m.nameGu, phone: this.fmt(m.phone), phone2: this.fmt(m.phone2), village: m.village, tehsil: m.tehsil, district: m.district }, screen: 'editprofile' });
-          this.flash('એડમિનનો ફેરફાર સીધો લાગુ થાય છે.', 'Admin edits apply directly.');
-        },
-        onAdminDelete: () => {
-          this.setState((st) => ({
-            members: st.members.filter((x) => x.id !== m.id),
-            archive: [...st.archive, { id: Date.now(), name: m.nameGu, nameLatin: m.name, phone: this.fmt(m.phone), place: this.place(m), status: 'એડમિને કાઢી નાખી · Deleted by admin', when: 'આજે · Today' }]
-          }));
-          this.flash(m.nameGu + ' કાઢી નાખ્યા.', m.name + ' deleted.');
-        }
-      })),
-      memberCountLabel: s.members.length + ' ' + this.L('મંજૂર સભ્યો', s.members.length === 1 ? 'approved member' : 'approved members') + '  ·  ' + this.P('બદલો કે કાઢો', 'edit or delete'),
-
       archive: s.archive.map((a) => ({ ...a, status: this.O(a.status), when: this.O(a.when), nameGu: a.name, name: a.nameLatin && a.nameLatin !== a.name ? a.nameLatin : '' })), noArchive: s.archive.length === 0,
       alerts: s.alerts.map((a) => ({ ...a, title: this.O(a.title), who: this.O(a.who), when: this.O(a.when), onBlock: () => { this.setState((st) => ({ alerts: st.alerts.filter((x) => x.id !== a.id) })); this.flash('ડિવાઇસ બ્લોક કર્યું.', 'Device blocked.'); } })),
       noAlerts: s.alerts.length === 0,
 
-      backupStat: s.members.length + ' ' + this.P('સભ્યો', 'members') + '  ·  ' + pendingTotal + ' ' + this.P('બાકી રિક્વેસ્ટ', 'pending') + '  ·  ' + s.archive.length + ' ' + this.P('આર્કાઇવ', 'archived'),
+
+      backupStat: s.members.length + ' ' + this.P('સભ્યો', 'members') + ' · ' + pendingTotal + ' ' + this.P('બાકી રિક્વેસ્ટ', 'pending') + ' · ' + s.archive.length + ' ' + this.P('આર્કાઇવ', 'archived'),
       lastBackup: s.lastBackup,
       exports: [
-        { gu: 'PDF યાદી બનાવો', en: 'Generate PDF book', icon: 'ph-duotone ph-file-pdf', bg: 'var(--danBg)', fg: 'var(--dan)', onClick: () => {} },
-        { gu: 'એક્સેલ (.xlsx)', en: 'Excel (.xlsx)', icon: 'ph-duotone ph-file-xls', bg: 'var(--okBg)', fg: 'var(--ok)', onClick: () => {} },
-        { gu: 'CSV યાદી', en: 'CSV list', icon: 'ph-duotone ph-file-csv', bg: 'var(--okBg)', fg: 'var(--ok)', onClick: () => {} },
-        { gu: 'JSON બેકઅપ', en: 'Full JSON backup', icon: 'ph-duotone ph-database', bg: 'rgba(178,64,44,.14)', fg: 'var(--ind)', onClick: () => {} }
+        { gu: 'PDF યાદી બનાવો', en: 'Generate PDF book', onClick: () => {} },
+        { gu: 'એક્સેલ (.xlsx)', en: 'Excel (.xlsx)', onClick: () => {} },
+        { gu: 'CSV યાદી', en: 'CSV list', onClick: () => {} },
+        { gu: 'JSON બેકઅપ', en: 'Full JSON backup', onClick: () => {} }
       ],
       restoreData: () => {
         this.setState({ ...clone(SEED), lastBackup: 'restored just now' });

@@ -1035,10 +1035,13 @@ class Component extends DesignComponent {
         ),
       };
     });
-    v.members = v.members.map((row, i) => ({
+    // The all-members list behind the Total members tile carries the
+    // server-backed edit/delete actions (the old Members tile).
+    v.statVillageMembers = (v.statVillageMembers || []).map((row) => ({
       ...row,
       onAdminEdit: () => {
-        const m = s.members[i];
+        const m = s.members.find((x) => x.id === row.id);
+        if (!m) return;
         this.setState({
           adminEditingId: m.id,
           edit: { ...m, name: s.lang === "gu" ? m.nameGu : m.name },
@@ -1181,8 +1184,8 @@ class Component extends DesignComponent {
         gu: "નામંજૂર વિનંતીઓ",
         en: "Rejected applications",
         icon: "ph-duotone ph-x-circle",
-        chipBg: "rgba(233,161,59,.22)",
-        chipFg: "var(--ok)",
+        chipBg: "rgba(178,64,44,.14)",
+        chipFg: "var(--ind)",
       },
       withdrawn: {
         gu: "બંધ / પાછી ખેંચેલી વિનંતીઓ",
@@ -1474,8 +1477,8 @@ class Component extends DesignComponent {
         descGu: "દરેક ગામમાં કેટલા સભ્યો છે.",
         descEn: "How many members each village has.",
         icon: "ph-duotone ph-house-line",
-        bg: "rgba(233,161,59,.22)",
-        fg: "var(--ok)",
+        bg: "rgba(178,64,44,.14)",
+        fg: "var(--ind)",
         onPdf: () =>
           this.printReport(
             "ગામ પ્રમાણે સારાંશ",
@@ -1532,8 +1535,8 @@ class Component extends DesignComponent {
         descGu: "પહેલા નામંજૂર થયેલા નંબરોની નોંધ.",
         descEn: "The ledger of previously rejected numbers.",
         icon: "ph-duotone ph-x-circle",
-        bg: "rgba(233,161,59,.22)",
-        fg: "var(--ok)",
+        bg: "rgba(178,64,44,.14)",
+        fg: "var(--ind)",
         onPdf: () =>
           this.printReport(
             "નામંજૂર / બંધ વિનંતીઓ",
@@ -1561,8 +1564,8 @@ class Component extends DesignComponent {
         descGu: "છેલ્લા ૫૦૦ નિર્ણયો અને ક્રિયાઓ.",
         descEn: "The last 500 decisions and actions.",
         icon: "ph-duotone ph-clock-counter-clockwise",
-        bg: "var(--g2)",
-        fg: "var(--ink2)",
+        bg: "rgba(178,64,44,.14)",
+        fg: "var(--ind)",
         onPdf: () =>
           this.printReport(
             "પ્રવૃત્તિ નોંધ",

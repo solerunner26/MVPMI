@@ -175,6 +175,14 @@ test("CSV reports download with a UTF-8 BOM and admin-only access", async (t) =>
         csv.includes("ક્રિયા"),
       type + " header",
     );
+    assert.ok(csv.includes("\u0a95\u0acd\u0ab0\u0aae,#") || csv.includes("#,\u0a95\u0acd\u0ab0\u0aae") || csv.includes("\u0a95\u0acd\u0ab0\u0aae"), type + " serial column");
+    if (type === "members" || type === "villages") {
+      const firstData = csv
+        .split("\r\n")
+        .find((l) => /^\uFEFF?[0-9]+,/.test(l) || /^[0-9]+,/.test(l));
+      assert.ok(firstData, type + " has serial-numbered rows");
+      assert.match(firstData, /^(\uFEFF)?1,/);
+    }
   }
   await admin("admin/export.csv?type=nonsense", undefined, 400);
 });

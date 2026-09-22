@@ -250,6 +250,23 @@
   font-weight: 700;
   color: var(--ind);
 }
+/* Server-confirmed "forwarded to the main administrator" confirmation. */
+.workflow-forwarded {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--okBg);
+  border-radius: 14px;
+  background: var(--okBg);
+  color: var(--ok);
+  font-size: var(--f-sm);
+  font-weight: 700;
+}
+.workflow-forwarded i {
+  font-size: 19px;
+  flex: 0 0 auto;
+}
 .workflow-warning,
 .application-feedback {
   padding: 16px;

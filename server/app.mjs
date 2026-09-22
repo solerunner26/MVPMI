@@ -607,6 +607,7 @@ export function createApp({
     const book = new ExcelJS.Workbook(),
       sheet = book.addWorksheet(req.query.lang === "en" ? "Community" : "સમાજ");
     const englishHeaders = [
+      "#",
       "Name (Gujarati)",
       "Name",
       "Personal",
@@ -617,6 +618,7 @@ export function createApp({
       "District",
     ];
     const gujaratiHeaders = [
+      "ક્રમ",
       "ગુજરાતી નામ",
       "નામ",
       "પોતાનો નંબર",
@@ -640,8 +642,10 @@ export function createApp({
       const match = villages.find((v) => v.gu === value || v.en === value);
       return match ? pair(match.gu, match.en) : value;
     };
+    let serial = 0;
     for (const m of store.all("members"))
       sheet.addRow([
+        ++serial,
         m.nameGu,
         m.name,
         m.phone,
@@ -681,8 +685,10 @@ export function createApp({
     const type = String(req.query.type || "members");
     const L = (gu, en) => csvLang(req, gu, en);
     const rows = [];
-    const head = (cells) => rows.push(cells);
-    const section = (gu, en) => rows.push([L(gu, en)]);
+    // Header and section rows are marked objects; plain arrays are data
+    // rows that the emitter prefixes with a running serial number.
+    const head = (cells) => rows.push({ h: cells });
+    const section = (gu, en) => rows.push({ s: [L(gu, en)] });
     const members = store.all("members");
     const requests = store.all("requests");
     const archive = store.all("archive");
@@ -869,7 +875,21 @@ export function createApp({
       'attachment; filename="mvpmi-' + type + '.csv"',
     );
     res.type("text/csv; charset=utf-8");
-    res.send("\uFEFF" + rows.map((r) => r.map(csvCell).join(",")).join("\r\n"));
+    let serial = 0;
+    const lines = rows.map((r) => {
+      if (r && r.h) {
+        serial = 0;
+        return [L("\u0a95\u0acd\u0ab0\u0aae", "#"), ...r.h];
+      }
+      if (r && r.s) {
+        serial = 0;
+        return r.s;
+      }
+      if (!Array.isArray(r) || r.length < 2) return r || [];
+      serial += 1;
+      return [serial, ...r];
+    });
+    res.send("\uFEFF" + lines.map((r) => r.map(csvCell).join(",")).join("\r\n"));
   });
   app.use("/api", (req, res) => res.status(404).json({ error: "Not found" }));
   app.use(express.static("dist", { index: "index.html" }));

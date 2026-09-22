@@ -330,6 +330,12 @@ body {
   font-size: var(--f-xs);
   font-weight: 700;
 }
+.app .directory-segments .segment-sun {
+  display: block;
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+}
 .app .directory-segments button[aria-pressed="true"] {
   color: var(--ink);
   background: var(--g);
@@ -370,92 +376,11 @@ body {
   font-size: var(--f-xs);
 }
 .app .village-grid {
-  gap: 14px !important;
+  gap: 12px !important;
 }
+/* Directory village tiles use the same uniform tile as the admin areas. */
 .app .collection-tile {
-  display: flex;
-  flex-direction: column;
-  padding: 0 !important;
-  background: var(--g) !important;
-  border: 0 !important;
-  border-radius: 22px !important;
-  box-shadow: 0 3px 16px #301e1108 !important;
-  overflow: hidden;
-  min-height: 222px !important;
-  text-align: left;
-  height: auto !important;
-}
-.app .collection-tile > .village-art:first-child {
-  display: block !important;
-  position: relative !important;
-  width: 100% !important;
-  height: 104px !important;
-  flex-shrink: 0;
-  opacity: 1 !important;
-  top: auto !important;
-  right: auto !important;
-  border-radius: 0 !important;
-  background: #f4e1ba;
-  color: #98602f;
-  overflow: hidden;
-}
-.app .collection-tile > .village-art:first-child > * {
-  transform: none;
-}
-.village-art > svg {
-  position: absolute;
-  bottom: 0;
-  width: 100%;
-  height: 88px;
-}
-.village-art > dc-import,
-.village-art > .sc-import {
-  position: absolute;
-  right: 10px;
-  top: 10px;
-}
-.app .village-entry:nth-child(3n + 2) .village-art {
-  background: #efd8cf !important;
-  color: #a14a36 !important;
-}
-.app .village-entry:nth-child(3n) .village-art {
-  background: #e8dfce !important;
-  color: #786342 !important;
-}
-.app .village-info {
-  padding: 14px;
-  width: 100%;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
   flex: 1;
-}
-.village-name {
-  font-size: var(--f-md);
-  font-weight: 800;
-  letter-spacing: -0.25px;
-}
-.village-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  margin-top: auto;
-  color: var(--ink2);
-}
-.village-count {
-  display: flex;
-  gap: 5px;
-  align-items: center;
-  flex-wrap: wrap;
-  font-size: var(--f-xs);
-  font-weight: 600;
-}
-.village-meta > i {
-  flex-shrink: 0;
-  color: var(--ind);
-  font-size: 20px;
 }
 .app .member-card {
   padding: 20px !important;
@@ -535,23 +460,83 @@ body {
   overflow: visible !important;
 }
 .app .admin-dashboard-grid {
-  gap: 14px !important;
+  gap: 12px !important;
 }
-.app .admin-dashboard-grid > button {
-  padding: 20px !important;
-  border: 0 !important;
-  border-radius: 22px !important;
-  background: var(--g) !important;
-  min-height: 170px !important;
-  gap: 16px !important;
-  box-shadow: none !important;
-}
-.app .admin-dashboard-grid > button > .bi {
+/* ---- v0.3.2 uniform tile: one compact design everywhere tiles are used.
+   The community's pure Sun mark rotates slowly on every tile; hover shows
+   the brand stripe, press gives the 3D block effect. ---- */
+.app .mvpmi-tile {
+  display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  gap: 6px;
+  min-height: 96px;
+  padding: 12px 13px;
+  border: 1px solid var(--gbd);
+  border-radius: 18px;
+  background: var(--g);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
 }
-.app .admin-dashboard-grid button i {
-  font-size: 24px !important;
+.app[data-material="blur"] .mvpmi-tile {
+  -webkit-backdrop-filter: var(--optical-blur);
+  backdrop-filter: var(--optical-blur);
+}
+.app .mvpmi-tile:hover,
+.app .mvpmi-tile:focus-visible {
+  border-color: var(--ind);
+}
+.app .mvpmi-tile .tile-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 30px;
+}
+.app .mvpmi-tile .tile-sun {
+  display: block;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  animation: tileSunTurn 36s linear infinite;
+}
+.app .mvpmi-tile .tile-count {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 7px;
+  box-sizing: border-box;
+  border-radius: 12px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.app .mvpmi-tile .tile-label {
+  font-size: var(--f-sm);
+  font-weight: 700;
+  line-height: 1.2;
+}
+.app .mvpmi-tile .tile-hint {
+  font-size: var(--f-xs);
+  color: var(--ink2);
+  margin-top: auto;
+}
+@keyframes tileSunTurn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app .mvpmi-tile .tile-sun {
+    animation: none;
+  }
 }
 .app .admin-signin-heading {
   padding: 28px 24px;
@@ -777,9 +762,6 @@ body {
 .app[data-reading="large"] .admin-dashboard-grid {
   grid-template-columns: 1fr !important;
 }
-.app[data-reading="large"] .collection-tile {
-  min-height: 220px !important;
-}
 .app[data-reading="large"] .theme-options {
   flex-wrap: wrap;
 }
@@ -940,12 +922,6 @@ body {
   display: flex;
   flex-direction: column;
   min-width: 0;
-}
-.app .collection-tile {
-  flex: 1;
-}
-.app .village-art {
-  pointer-events: none;
 }
 .app .collection-heading .reorder-trigger {
   display: flex;
@@ -1246,7 +1222,9 @@ body {
   pointer-events: none;
 }
 .app .hovlift:hover .tile-stripe,
-.app .hovlift:focus-visible .tile-stripe {
+.app .hovlift:focus-visible .tile-stripe,
+.app .mvpmi-tile:hover .tile-stripe,
+.app .mvpmi-tile:focus-visible .tile-stripe {
   transform: scaleX(1);
 }
 .app button.hovlift:active,

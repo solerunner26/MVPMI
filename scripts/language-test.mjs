@@ -160,7 +160,6 @@ try {
   for (const section of [
     "Total members",
     "Requests",
-    "Members",
     "Reports",
     "Archive",
     "Security alerts",
@@ -174,6 +173,20 @@ try {
     await switchTo(panel, "en");
     await panel.getByRole("button", { name: /Back to dashboard|ડેશબોર્ડ પર પાછા/ }).click();
   }
+  // The all-members list behind the first Total-members stats tile also
+  // follows one language at a time.
+  await panel.getByText("Total members", { exact: true }).click();
+  await panel.locator(".stats-village-grid .mvpmi-tile").first().click();
+  await selectedLanguage(panel, "en", "all-members list English");
+  await switchTo(panel, "gu");
+  await selectedLanguage(panel, "gu", "all-members list Gujarati");
+  await switchTo(panel, "en");
+  await panel
+    .getByRole("button", { name: /Back to village list|ગામની યાદી પર પાછા/ })
+    .click();
+  await panel
+    .getByRole("button", { name: /Back to dashboard|ડેશબોર્ડ પર પાછા/ })
+    .click();
   await page.reload();
   await page.getByTestId("My profile").waitFor();
   await selectedLanguage(page, "en", "directory English");
