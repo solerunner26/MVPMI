@@ -85,10 +85,33 @@ always-on with a **persistent disk** (the database is a file).
 | Option | Cost | Verdict |
 |---|---|---|
 | **Small VPS** (Hetzner €4 ≈ ₹400/mo, DigitalOcean $6, E2E/Hostinger India similar) | ~₹400–500/mo | **Recommended.** Always on, disk persists, full control |
+| **GoDaddy VPS** | ~₹500–800/mo | Works — same setup as any VPS (§20B) |
+| **GoDaddy shared "Web Hosting" (cPanel)** | already paid | **Maybe** — see the three gates below |
 | Railway / Render with volume | ~$5/mo usage | Fine, slightly less control |
 | Render **free** tier | ₹0 | **Not safe for real data** — sleeps (30–60 s "offline" wake-ups) and free disks are ephemeral |
 | Your own always-on computer + free DuckDNS domain | ₹0 | Works, but power/net outage = the whole community's app is down |
 | Firebase | ₹0 | Only for push notifications, not hosting |
+| GoDaddy Website Builder / "Hosting + Marketing" | — | **No** — serves pages only, cannot run the Node server |
+
+**Using existing GoDaddy shared hosting — the three gates:**
+
+1. cPanel (Linux) must offer **"Setup Node.js App"** (search "Node" in
+   cPanel). Windows/Plesk plans and Website Builder plans cannot run it.
+2. The offered Node version must be **22.13 or newer** — the app's
+   database (`node:sqlite`) is built into Node from that version. Most
+   GoDaddy shared boxes stop at older Node; if so, the app cannot run
+   there at any price.
+3. Accept Passenger-style execution (the plan runs apps through it): the
+   app is adapted with a small startup file, environment variables are
+   set in the cPanel UI, and the SQLite file persists in the home
+   directory. Works, but shared CPU throttling applies.
+
+If the gates pass, deployment is: upload the repo, set
+`ADMIN_PASSWORD`/`ADMIN_GATE_CODE`/`COOKIE_SECURE=true` in the cPanel app
+panel, `npm install --omit=dev`, upload the pre-built `dist/`, start.
+If they don't, keep GoDaddy for the **domain** (and a public website) and
+host the app on a ~₹400/mo VPS — the domain's DNS simply points there.
+
 
 Domain: optional. A paid domain (.in ≈ ₹700/yr) looks professional; the
 host's free subdomain (e.g. `mvpmi.up.railway.app`) works too.
