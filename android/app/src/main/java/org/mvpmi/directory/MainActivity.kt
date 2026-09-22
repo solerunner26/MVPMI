@@ -3,6 +3,10 @@ package org.mvpmi.directory
 import android.annotation.TargetApi
 import android.app.Activity
 import android.app.AlertDialog
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -11,6 +15,7 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.util.Base64
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
@@ -28,6 +33,40 @@ class MainActivity : Activity() {
     private var unregisterBack: (() -> Unit)? = null
     private var backPending = false
     private var serverUrl = BuildConfig.COMMUNITY_URL
+    private var pendingSave: Pair<String, ByteArray>? = null
+
+    /** Web bridge: file saving (phone or Google Drive via the system
+     *  picker), printing (Save as PDF anywhere) and local reminders. */
+    inner class Bridge {
+        @android.webkit.JavascriptInterface
+        fun saveFile(name: String, mime: String, base64: String) {
+            val bytes = Base64.decode(base64, Base64.DEFAULT)
+            runOnUiThread {
+                pendingSave = name to bytes
+                val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = if (mime.isBlank()) "application/octet-stream" else mime
+                    putExtra(Intent.EXTRA_TITLE, name)
+                }
+                try { startActivityForResult(intent, 101) }
+                catch (_: ActivityNotFoundException) {
+                    pendingSave = null
+                    message("સેવ કરવાનું શીટ નથી · No save sheet available")
+                }
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        fun printHtml(title: String, base64: String) {
+            val html = String(Base64.decode(base64, Base64.DEFAULT), Charsets.UTF_8)
+            runOnUiThread { printReport(title, html) }
+        }
+
+        @android.webkit.JavascriptInterface
+        fun notify(title: String, text: String) {
+            runOnUiThread { showReminder(title, text) }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,6 +99,10 @@ class MainActivity : Activity() {
             setSupportMultipleWindows(false)
             userAgentString += " MVPMlAndroid/0.1"
         }
+        web.addJavascriptInterface(Bridge(), "mvpmiBridge")
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED)
+            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 102)
         CookieManager.getInstance().setAcceptCookie(true)
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, false)
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
@@ -91,7 +134,9 @@ class MainActivity : Activity() {
                 return true
             }
         }
-        web.setDownloadListener { _, _, _, _, _ -> message("હાલ બ્રાઉઝરમાં એક્સપોર્ટ કરો · Use your computer browser for exports in this test build") }
+        // Exports are saved through the mvpmiBridge save sheet (phone or
+        // Google Drive); unexpected direct downloads fall back to the browser.
+        web.setDownloadListener { _, _, _, _, _ -> message("બ્રાઉઝરમાં ખોલો · Open this link in a browser") }
         if (NavigationPolicy.validServer(serverUrl, BuildConfig.DEBUG)) loadServer()
         else if (BuildConfig.DEBUG) configureServer()
         else showConnectionError("The application server is not configured.")
@@ -196,6 +241,52 @@ class MainActivity : Activity() {
         catch (_: ActivityNotFoundException) { message("એપ ઉપલબ્ધ નથી · No compatible app is installed") }
         catch (_: SecurityException) { message("ઉપકરણની નીતિએ એપ ખોલવા દીધી નથી · Device policy blocked opening this app") }
     }
+    /** Print an HTML report through the system print sheet — "Save as PDF"
+     *  can target phone storage or Google Drive. */
+    private fun printReport(title: String, html: String) {
+        try {
+            val printer = WebView(this)
+            printer.settings.javaScriptEnabled = false
+            printer.webViewClient = object : WebViewClient() {
+                override fun onPageFinished(view: WebView, url: String) {
+                    val manager = getSystemService(PRINT_SERVICE) as android.print.PrintManager
+                    manager.print(title, view.createPrintDocumentAdapter(title), android.print.PrintAttributes.Builder().build())
+                    view.postDelayed({ printer.destroy() }, 60000)
+                }
+            }
+            printer.loadDataWithBaseURL(serverUrl, html, "text/html", "utf-8", null)
+        } catch (_: Exception) {
+            message("પ્રિન્ટ ઉપલબ્ધ નથી · Printing is unavailable")
+        }
+    }
+
+    /** Local reminder notification while the app is being used. */
+    private fun showReminder(title: String, text: String) {
+        try {
+            val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+            if (Build.VERSION.SDK_INT >= 26) {
+                val channel = NotificationChannel("mvpmi-reminders", "Community reminders", NotificationManager.IMPORTANCE_DEFAULT)
+                manager.createNotificationChannel(channel)
+            }
+            val intent = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
+            val builder = if (Build.VERSION.SDK_INT >= 26)
+                Notification.Builder(this, "mvpmi-reminders")
+            else
+                @Suppress("DEPRECATION") Notification.Builder(this)
+            val notification = builder
+                .setSmallIcon(android.R.drawable.stat_notify_chat)
+                .setContentTitle(title)
+                .setContentText(text)
+                .setStyle(Notification.BigTextStyle().bigText(text))
+                .setContentIntent(intent)
+                .setAutoCancel(true)
+                .build()
+            manager.notify(1001, notification)
+        } catch (_: Exception) {
+            /* reminders are best-effort */
+        }
+    }
+
     private fun message(text: String) = Toast.makeText(this, text, Toast.LENGTH_LONG).show()
 
     @Deprecated("Required for Android 5 compatibility")
@@ -204,6 +295,19 @@ class MainActivity : Activity() {
         if (requestCode == 100) {
             upload?.onReceiveValue(if (resultCode == RESULT_OK && data?.data != null) arrayOf(data.data!!) else null)
             upload = null
+        }
+        if (requestCode == 101 && pendingSave != null) {
+            val (name, bytes) = pendingSave!!
+            pendingSave = null
+            val uri = data?.data
+            if (resultCode == RESULT_OK && uri != null) {
+                try {
+                    contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
+                    message("સેવ થઈ: $name · Saved")
+                } catch (_: Exception) {
+                    message("સેવ ન થઈ · Could not save the file")
+                }
+            }
         }
     }
     @Deprecated("Legacy back handling; API 33+ uses ModernBack")

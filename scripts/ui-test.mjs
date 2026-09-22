@@ -104,7 +104,7 @@ try {
   await panel.getByPlaceholder("admin", { exact: true }).fill("admin");
   await panel.locator("input[type=password]").fill("TestPreview@2026");
   await panel.getByRole("button", { name: /^Sign in$|^લોગિન કરો$/ }).click();
-  await panel.getByText("New requests", { exact: true }).click();
+  await panel.getByText("Requests", { exact: true }).click();
   await panel.getByRole("button", { name: /Approve|મંજૂર/ }).click();
   await panel
     .getByRole("button", { name: /Back to dashboard|ડેશબોર્ડ પર પાછા/ })
@@ -136,7 +136,7 @@ try {
   );
   assert.equal(stateBefore.updateRequests.length, 1);
   await panel.reload();
-  await panel.getByText("Update requests", { exact: true }).click();
+  await panel.getByText("Requests", { exact: true }).click();
   await panel.getByRole("button", { name: /Authorize|મંજૂર/ }).click();
   await page.reload();
   await page.getByTestId("My profile").click();

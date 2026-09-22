@@ -149,23 +149,23 @@ try {
   await panel.getByPlaceholder("admin", { exact: true }).fill("admin");
   await panel.locator("input[type=password]").fill("LanguageTest@2026");
   await panel.getByRole("button", { name: /^Sign in$|^લોગિન કરો$/ }).click();
-  await panel.getByText("New requests", { exact: true }).waitFor();
+  await panel.getByText("Requests", { exact: true }).first().waitFor();
   assert(
     (await panel.locator(".app").boundingBox()).width > 800,
     "Admin expands on desktop",
   );
-  await panel.getByText("New requests", { exact: true }).click();
+  await panel.getByText("Requests", { exact: true }).click();
   await panel.getByRole("button", { name: /Approve|મંજૂર/ }).click();
   await panel.getByRole("button", { name: /Back to dashboard|ડેશબોર્ડ પર પાછા/ }).click();
   for (const section of [
     "Total members",
-    "New requests",
-    "Update requests",
-    "Delete requests",
+    "Requests",
     "Members",
+    "Reports",
     "Archive",
     "Security alerts",
     "Backup & export",
+    "Notifications",
   ]) {
     await panel.getByText(section, { exact: true }).click();
     await selectedLanguage(panel, "en", section + " English");
@@ -212,7 +212,7 @@ try {
   await page.getByRole("button", { name: /Send for approval/ }).click();
   await page.getByRole("button", { name: /Edit my details|મારી વિગત બદલો/ }).waitFor();
   await panel.reload();
-  await panel.getByText("Update requests", { exact: true }).click();
+  await panel.getByText("Requests", { exact: true }).click();
   await selectedLanguage(panel, "en", "populated update comparison");
   assert.equal(
     (await panel.locator("body").innerText()).includes("phone2:"),

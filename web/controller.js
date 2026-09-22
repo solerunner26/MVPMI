@@ -14,41 +14,52 @@ class Component extends DesignComponent {
       );
     return singleLanguageStatus(value, this.state.lang);
   }
+  // Android app: the system print sheet (Save as PDF anywhere, including
+  // Google Drive). Ordinary browsers: the print preview frame.
+  printReport(titleGu, titleEn, html) {
+    printHtml(this.P(titleGu, titleEn), html);
+    this.flash(
+      "પ્રિન્ટ શીટ ખૂલી — Save as PDF પસંદ કરો.",
+      "Print sheet opened — choose Save as PDF.",
+    );
+  }
   printPdf(members) {
     members = [...members].sort(memberNameOrder(this.state.lang));
-    const frame = document.createElement("iframe");
-    frame.title = this.P("પ્રિન્ટ પૂર્વદર્શન", "Print preview");
-    frame.style.cssText = "position:fixed;width:0;height:0;border:0";
-    frame.onload = async () => {
-      try {
-        await frame.contentDocument.fonts.ready;
-        frame.contentWindow.focus();
-        frame.contentWindow.print();
-      } catch {
-        this.flash(
-          "પ્રિન્ટ ઉપલબ્ધ નથી.",
-          "Printing is unavailable in this browser.",
-        );
-      }
-      setTimeout(() => frame.remove(), 60000);
-    };
-    document.body.appendChild(frame);
-    frame.srcdoc = printDocument(
-      members.map((m) => ({
-        ...m,
-        villageGu:
-          VILLAGE_LIST.find((v) => v.gu === m.village || v.en === m.village)
-            ?.gu || m.village,
-        villageEn:
-          VILLAGE_LIST.find((v) => v.gu === m.village || v.en === m.village)
-            ?.en || m.village,
-        tehsilGu: TEHSIL_GU,
-        tehsilEn: TEHSIL_EN,
-        districtGu: DISTRICT_GU,
-        districtEn: DISTRICT_EN,
-      })),
-      this.state.lang,
+    this.printReport(
+      "સમાજ સંપર્ક યાદી",
+      "Community directory",
+      printDocument(
+        members.map((m) => ({
+          ...m,
+          villageGu:
+            VILLAGE_LIST.find((v) => v.gu === m.village || v.en === m.village)
+              ?.gu || m.village,
+          villageEn:
+            VILLAGE_LIST.find((v) => v.gu === m.village || v.en === m.village)
+              ?.en || m.village,
+          tehsilGu: TEHSIL_GU,
+          tehsilEn: TEHSIL_EN,
+          districtGu: DISTRICT_GU,
+          districtEn: DISTRICT_EN,
+        })),
+        this.state.lang,
+      ),
     );
+  }
+  // Android app: the system "save as" sheet offers phone memory and Google
+  // Drive. Ordinary browsers: a normal download.
+  download(name, data, type) {
+    if (androidBridge()) {
+      this.run(async () => {
+        await saveFile(name, type || "application/octet-stream", data);
+        this.flash(
+          "ફાઇલ સેવ કરો — ફોન કે Google Drive પસંદ કરો.",
+          "Choose where to save — phone or Google Drive.",
+        );
+      });
+      return;
+    }
+    return super.download(name, data, type);
   }
   componentDidMount() {
     this._alive = true;
@@ -117,10 +128,11 @@ class Component extends DesignComponent {
     };
     document.addEventListener("keydown", this._onKey);
     window.mvpmiBack = () => this.handleBack();
-    this.refresh(true);
+    this.refresh(true).then(() => this._androidReminder());
     this._clock = setInterval(() => this.forceUpdate(), 1000);
     this._poll = setInterval(() => {
-      if (!document.hidden && !this._busy) this.refresh();
+      if (!document.hidden && !this._busy)
+        this.refresh().then(() => this._androidReminder());
     }, 8000);
   }
   componentWillUnmount() {
@@ -440,6 +452,41 @@ class Component extends DesignComponent {
       connected: false,
       loaded: true,
     });
+  }
+  // While the app is open, pending work re-surfaces as an Android system
+  // notification whenever it appears or grows, at most every 10 minutes.
+  _androidReminder() {
+    const bridge = androidBridge();
+    if (!bridge || !this._alive) return;
+    const s = this.state;
+    const count =
+      s.role === "admin"
+        ? s.newRequests.length +
+          s.updateRequests.length +
+          s.deleteRequests.length
+        : (s.reviewQueue || []).length + (s.villageProposals || []).length;
+    if (!count) {
+      this._lastReminder = 0;
+      return;
+    }
+    const now = Date.now();
+    if (
+      this._lastReminder === count &&
+      now - (this._reminderAt || 0) < 600000
+    )
+      return;
+    this._lastReminder = count;
+    this._reminderAt = now;
+    androidNotify(
+      this.P("મહુવા ક્ષત્રિય રાજપૂત સમાજ", "Community directory"),
+      this.P(
+        count + " વિનંતીઓનો નિર્ણય બાકી છે.",
+        count +
+          (count === 1
+            ? " request needs a decision."
+            : " requests need a decision."),
+      ),
+    );
   }
   async refresh(initial = false) {
     try {
@@ -1097,11 +1144,538 @@ class Component extends DesignComponent {
           }),
         () => this.file("export.xlsx?lang=" + s.lang, "mvpmi-contacts.xlsx"),
         () =>
-          this.file("export.xlsx?lang=" + s.lang, "mvpmi-contacts.xlsx", true),
+          this.file(
+            "export.csv?type=members&lang=" + s.lang,
+            "mvpmi-members.csv",
+          ),
         () => this.file("backup", "mvpmi-backup.json"),
       ][i],
     }));
     v.restoreData = () => this.restore();
+
+    // ---- Reports (PDF via the print sheet, CSV via the export endpoint) ----
+    const villageLabelPair = (value) => {
+      const row = VILLAGE_LIST.find((x) => x.gu === value || x.en === value);
+      return row ? row.gu + " / " + row.en : value;
+    };
+    const reportWhen = (ms) =>
+      ms
+        ? new Date(ms).toLocaleString(
+            s.lang === "en" ? "en-GB" : "gu-IN",
+          )
+        : "";
+    const singleText = (gu, en) => (s.lang === "en" ? en : gu);
+    // The archive table keeps removed members; the rejection ledger keeps
+    // rejected and closed/withdrawn applications. Both are shown here with
+    // separate tags so nothing is ever silently mixed.
+    const lastLedgerEvent = (a) => a.events?.[a.events.length - 1] || {};
+    const archiveTagDefs = {
+      removed: {
+        gu: "કાઢી નાખેલા સભ્યો",
+        en: "Removed members",
+        icon: "ph-duotone ph-user-minus",
+        chipBg: "var(--danBg)",
+        chipFg: "var(--dan)",
+      },
+      rejected: {
+        gu: "નામંજૂર વિનંતીઓ",
+        en: "Rejected applications",
+        icon: "ph-duotone ph-x-circle",
+        chipBg: "rgba(233,161,59,.22)",
+        chipFg: "var(--ok)",
+      },
+      withdrawn: {
+        gu: "બંધ / પાછી ખેંચેલી વિનંતીઓ",
+        en: "Closed / withdrawn applications",
+        icon: "ph-duotone ph-arrow-counter-clockwise",
+        chipBg: "rgba(178,64,44,.14)",
+        chipFg: "var(--ind)",
+      },
+    };
+    const archiveSectionList = [
+      {
+        id: "removed",
+        ...archiveTagDefs.removed,
+        rows: s.archive.map((a) => ({
+          ...a,
+          status: this.O(
+            a.history?.[a.history.length - 1]?.reason || a.status || "",
+          ),
+          when: reportWhen(a.history?.[a.history.length - 1]?.at),
+        })),
+      },
+      {
+        id: "rejected",
+        ...archiveTagDefs.rejected,
+        rows: (s.rejectedApplications || [])
+          .filter((a) => lastLedgerEvent(a).action === "reject")
+          .map((a) => ({
+            id: a.id,
+            nameGu: a.name,
+            name: a.name,
+            phone: a.phone,
+            village: a.village,
+            place: villageLabelPair(a.village),
+            status:
+              singleText("નામંજૂર", "Rejected") +
+              (lastLedgerEvent(a).reason
+                ? " · " + lastLedgerEvent(a).reason
+                : ""),
+            when: reportWhen(lastLedgerEvent(a).at),
+          })),
+      },
+      {
+        id: "withdrawn",
+        ...archiveTagDefs.withdrawn,
+        rows: (s.rejectedApplications || [])
+          .filter((a) => lastLedgerEvent(a).action === "closed")
+          .map((a) => ({
+            id: a.id,
+            nameGu: a.name,
+            name: a.name,
+            phone: a.phone,
+            village: a.village,
+            place: villageLabelPair(a.village),
+            status:
+              singleText("બંધ", "Closed") +
+              (lastLedgerEvent(a).reason
+                ? " · " + lastLedgerEvent(a).reason
+                : ""),
+            when: reportWhen(lastLedgerEvent(a).at),
+          })),
+      },
+    ].filter((g) => g.rows.length);
+    v.archiveSections = archiveSectionList.map((g) => ({
+      ...g,
+      rows: g.rows.map((a) => ({
+        ...a,
+        nameGu: a.nameGu || a.name || "—",
+        name: a.name || a.nameGu || "—",
+      })),
+    }));
+    const archiveDocSections = () =>
+      archiveSectionList.map((g) => ({
+        headingGu: g.gu,
+        headingEn: g.en,
+        columns: [
+          ["નામ", "Name"],
+          ["નંબર", "Phone"],
+          ["ગામ", "Village"],
+          ["સ્થિતિ", "Status"],
+          ["સમય", "When"],
+        ],
+        rows: g.rows.map((a) => [
+          a.nameGu || a.name || "—",
+          a.phone || "—",
+          villageLabelPair(a.village),
+          a.status || "—",
+          a.when || "",
+        ]),
+      }));
+    v.archivePdf = () =>
+      this.printReport(
+        "આર્કાઇવ યાદી",
+        "Archive list",
+        reportDocument(
+          {
+            titleGu: "આર્કાઇવ યાદી",
+            titleEn: "Archive list",
+            summaryGu: s.archive.length + " નોંધો",
+            summaryEn: s.archive.length + " records",
+            sections: archiveDocSections(),
+          },
+          s.lang,
+        ),
+      );
+    v.archiveCsv = () =>
+      this.file("export.csv?type=archive&lang=" + s.lang, "mvpmi-archive.csv");
+    const requestsDocSections = () => [
+      {
+        headingGu: "નવી નોંધણી વિનંતીઓ",
+        headingEn: "New enrollments",
+        columns: [
+          ["નામ", "Name"],
+          ["નંબર", "Phone"],
+          ["ગામ", "Village"],
+          ["તબક્કો", "Stage"],
+          ["પહેલા નામંજૂર", "Rejected before"],
+        ],
+        rows: s.newRequests.map((r) => [
+          r.nameGu || r.name || "—",
+          r.phone,
+          villageLabelPair(r.village),
+          (s.reviewQueue || []).some((q) => q.id === r.id && !q.verification)
+            ? singleText(
+                "ગામ ચકાસણી બાકી",
+                "Awaiting village verification",
+              )
+            : singleText("મુખ્ય એડમિન પાસે", "With main admin"),
+          r.rejectedBefore
+            ? singleText("હા — ચકાસી લેવા", "Yes — verify carefully")
+            : "—",
+        ]),
+      },
+      {
+        headingGu: "ફેરફાર વિનંતીઓ",
+        headingEn: "Change requests",
+        columns: [
+          ["નામ", "Name"],
+          ["નંબર", "Phone"],
+          ["ગામ", "Village"],
+        ],
+        rows: s.updateRequests.map((r) => [
+          r.name || r.nameGu || "—",
+          r.next?.phone || r.old?.phone || "—",
+          villageLabelPair(r.next?.village || r.old?.village),
+        ]),
+      },
+      {
+        headingGu: "દૂર કરવાની વિનંતીઓ",
+        headingEn: "Removal requests",
+        columns: [
+          ["નામ", "Name"],
+          ["નંબર", "Phone"],
+          ["ગામ", "Village"],
+        ],
+        rows: s.deleteRequests.map((r) => [
+          r.name || "—",
+          r.phone || "—",
+          villageLabelPair((r.place || "").split(",")[0]),
+        ]),
+      },
+    ];
+    const villagesDocSections = () => [
+      {
+        headingGu: "ગામ પ્રમાણે સભ્યો",
+        headingEn: "Members by village",
+        columns: [
+          ["ગામ", "Village"],
+          ["સભ્યો", "Members"],
+        ],
+        rows: (s.villages || []).map((v) => [
+          v.gu + " / " + v.en,
+          s.members.filter((m) => m.village === v.gu).length,
+        ]),
+      },
+    ];
+    const rejectionsDocSections = () => [
+      {
+        headingGu: "નામંજૂર / બંધ વિનંતીઓ",
+        headingEn: "Rejected / closed applications",
+        columns: [
+          ["નામ", "Name"],
+          ["નંબર", "Phone"],
+          ["ગામ", "Village"],
+          ["છેલ્લો નિર્ણય", "Last decision"],
+          ["સમય", "When"],
+        ],
+        rows: (s.rejectedApplications || []).map((a) => {
+          const last = a.events?.[a.events.length - 1] || {};
+          return [
+            a.name || "—",
+            a.phone,
+            villageLabelPair(a.village),
+            (last.action === "closed"
+              ? singleText("બંધ", "Closed")
+              : singleText("નામંજૂર", "Rejected")) +
+              (last.reason ? " · " + last.reason : ""),
+            reportWhen(last.at),
+          ];
+        }),
+      },
+    ];
+    const activityDocSections = () => [
+      {
+        headingGu: "છેલ્લી પ્રવૃત્તિ",
+        headingEn: "Recent activity",
+        columns: [
+          ["સમય", "When"],
+          ["કરનાર", "Actor"],
+          ["ક્રિયા", "Action"],
+          ["લક્ષ્ય", "Target"],
+        ],
+        rows: (s.auditLog || []).map((a) => [
+          reportWhen(a.at),
+          a.actor,
+          a.action,
+          a.target,
+        ]),
+      },
+    ];
+    const summaryCount =
+      s.newRequests.length + s.updateRequests.length + s.deleteRequests.length;
+    v.reports = [
+      {
+        gu: "સંપૂર્ણ રિપોર્ટ",
+        en: "Full report",
+        descGu:
+          "સભ્યો, ગામ, બાકી વિનંતીઓ, આર્કાઇવ, નામંજૂરી અને પ્રવૃત્તિ — બધું એક ફાઇલમાં.",
+        descEn:
+          "Members, villages, pending requests, archive, rejections and activity — everything in one file.",
+        icon: "ph-duotone ph-files",
+        bg: "rgba(178,64,44,.14)",
+        fg: "var(--ind)",
+        onPdf: () =>
+          this.printReport(
+            "સમાજ સંપૂર્ણ રિપોર્ટ",
+            "Community full report",
+            reportDocument(
+              {
+                titleGu: "સમાજ સંપૂર્ણ રિપોર્ટ",
+                titleEn: "Community full report",
+                summaryGu:
+                  s.members.length +
+                  " મંજૂર સભ્યો · " +
+                  (s.villages || []).length +
+                  " ગામ",
+                summaryEn:
+                  s.members.length +
+                  " approved members · " +
+                  (s.villages || []).length +
+                  " villages",
+                sections: [
+                  ...villagesDocSections(),
+                  ...requestsDocSections(),
+                  ...archiveDocSections(),
+                  ...rejectionsDocSections(),
+                  ...activityDocSections(),
+                ],
+              },
+              s.lang,
+            ),
+          ),
+        onCsv: () =>
+          this.file("export.csv?type=full&lang=" + s.lang, "mvpmi-full.csv"),
+      },
+      {
+        gu: "સભ્યોની યાદી",
+        en: "Members directory",
+        descGu: "બધા મંજૂર સભ્યો નામ-નંબર સાથે.",
+        descEn: "Every approved member with names and numbers.",
+        icon: "ph-duotone ph-users-three",
+        bg: "rgba(178,64,44,.14)",
+        fg: "var(--ind)",
+        onPdf: () =>
+          this.run(async () => {
+            const data = await this.api("state");
+            if (data.role !== "admin")
+              throw new Error("Admin authentication required");
+            this.printPdf(data.members);
+          }),
+        onCsv: () =>
+          this.file(
+            "export.csv?type=members&lang=" + s.lang,
+            "mvpmi-members.csv",
+          ),
+      },
+      {
+        gu: "ગામ પ્રમાણે સારાંશ",
+        en: "Village summary",
+        descGu: "દરેક ગામમાં કેટલા સભ્યો છે.",
+        descEn: "How many members each village has.",
+        icon: "ph-duotone ph-house-line",
+        bg: "rgba(233,161,59,.22)",
+        fg: "var(--ok)",
+        onPdf: () =>
+          this.printReport(
+            "ગામ પ્રમાણે સારાંશ",
+            "Village summary",
+            reportDocument(
+              {
+                titleGu: "ગામ પ્રમાણે સારાંશ",
+                titleEn: "Village summary",
+                summaryGu: s.members.length + " મંજૂર સભ્યો",
+                summaryEn: s.members.length + " approved members",
+                sections: villagesDocSections(),
+              },
+              s.lang,
+            ),
+          ),
+        onCsv: () =>
+          this.file(
+            "export.csv?type=villages&lang=" + s.lang,
+            "mvpmi-villages.csv",
+          ),
+      },
+      {
+        gu: "બાકી વિનંતીઓ",
+        en: "Pending requests",
+        descGu: "નવી, ફેરફાર અને દૂર કરવાની વિનંતીઓ તબક્કા સાથે.",
+        descEn: "New, change and removal requests with their stage.",
+        icon: "ph-duotone ph-tray",
+        bg: "rgba(178,64,44,.14)",
+        fg: "var(--ind)",
+        onPdf: () =>
+          this.printReport(
+            "બાકી વિનંતીઓ",
+            "Pending requests",
+            reportDocument(
+              {
+                titleGu: "બાકી વિનંતીઓ",
+                titleEn: "Pending requests",
+                summaryGu: summaryCount + " વિનંતીઓ",
+                summaryEn: summaryCount + " requests",
+                sections: requestsDocSections(),
+              },
+              s.lang,
+            ),
+          ),
+        onCsv: () =>
+          this.file(
+            "export.csv?type=requests&lang=" + s.lang,
+            "mvpmi-requests.csv",
+          ),
+      },
+      {
+        gu: "નામંજૂર / બંધ વિનંતીઓ",
+        en: "Rejected / closed",
+        descGu: "પહેલા નામંજૂર થયેલા નંબરોની નોંધ.",
+        descEn: "The ledger of previously rejected numbers.",
+        icon: "ph-duotone ph-x-circle",
+        bg: "rgba(233,161,59,.22)",
+        fg: "var(--ok)",
+        onPdf: () =>
+          this.printReport(
+            "નામંજૂર / બંધ વિનંતીઓ",
+            "Rejected / closed applications",
+            reportDocument(
+              {
+                titleGu: "નામંજૂર / બંધ વિનંતીઓ",
+                titleEn: "Rejected / closed applications",
+                summaryGu: (s.rejectedApplications || []).length + " નોંધો",
+                summaryEn: (s.rejectedApplications || []).length + " records",
+                sections: rejectionsDocSections(),
+              },
+              s.lang,
+            ),
+          ),
+        onCsv: () =>
+          this.file(
+            "export.csv?type=rejections&lang=" + s.lang,
+            "mvpmi-rejections.csv",
+          ),
+      },
+      {
+        gu: "પ્રવૃત્તિ નોંધ",
+        en: "Activity log",
+        descGu: "છેલ્લા ૫૦૦ નિર્ણયો અને ક્રિયાઓ.",
+        descEn: "The last 500 decisions and actions.",
+        icon: "ph-duotone ph-clock-counter-clockwise",
+        bg: "var(--g2)",
+        fg: "var(--ink2)",
+        onPdf: () =>
+          this.printReport(
+            "પ્રવૃત્તિ નોંધ",
+            "Activity log",
+            reportDocument(
+              {
+                titleGu: "પ્રવૃત્તિ નોંધ",
+                titleEn: "Activity log",
+                summaryGu: (s.auditLog || []).length + " નોંધો",
+                summaryEn: (s.auditLog || []).length + " entries",
+                sections: activityDocSections(),
+              },
+              s.lang,
+            ),
+          ),
+        onCsv: () =>
+          this.file(
+            "export.csv?type=activity&lang=" + s.lang,
+            "mvpmi-activity.csv",
+          ),
+      },
+    ];
+
+    // ---- Notifications: pending work stays listed until it is finished ----
+    const notif = (icon, bg, fg, gu, en, detailGu, detailEn, onOpen) => ({
+      icon,
+      bg,
+      fg,
+      gu,
+      en,
+      detailGu,
+      detailEn,
+      onOpen: onOpen || null,
+    });
+    const notifications = [];
+    if (s.role === "admin") {
+      const pending = summaryCount;
+      if (pending)
+        notifications.push(
+          notif(
+            "ph-duotone ph-tray",
+            "rgba(178,64,44,.14)",
+            "var(--ind)",
+            pending + " વિનંતીઓનો નિર્ણય બાકી છે",
+            pending +
+              (pending === 1
+                ? " request needs a decision"
+                : " requests need a decision"),
+            "વિનંતીઓ ટાઇલ ખોલો અને મંજૂર કે નામંજૂર કરો.",
+            "Open the Requests tile and approve or reject them.",
+            () => this.set("tab", "requests"),
+          ),
+        );
+      const rejectedBeforeList = s.newRequests.filter(
+        (r) => r.rejectedBefore,
+      );
+      if (rejectedBeforeList.length)
+        notifications.push(
+          notif(
+            "ph-duotone ph-warning-circle",
+            "var(--danBg)",
+            "var(--dan)",
+            rejectedBeforeList.length +
+              " વિનંતી પહેલા નામંજૂર થયેલા નંબર પરથી છે",
+            rejectedBeforeList.length +
+              " application" +
+              (rejectedBeforeList.length === 1 ? "" : "s") +
+              " from a previously rejected number",
+            "આ નંબરો પહેલા નામંજૂર થયા હતા — ચકાસીને નિર્ણય કરો.",
+            "These numbers were rejected before — verify carefully before deciding.",
+            () => this.set("tab", "requests"),
+          ),
+        );
+      const villageWaiting = (s.reviewQueue || []).filter(
+        (r) => !r.verification,
+      ).length;
+      if (villageWaiting)
+        notifications.push(
+          notif(
+            "ph-duotone ph-hourglass",
+            "var(--danBg)",
+            "var(--dan)",
+            villageWaiting +
+              (villageWaiting === 1
+                ? " વિનંતી ગામ એડમિનની ચકાસણીની રાહમાં છે"
+                : " વિનંતીઓ ગામ એડમિનની ચકાસણીની રાહમાં છે"),
+            villageWaiting +
+              (villageWaiting === 1
+                ? " application is waiting for village verification"
+                : " applications are waiting for village verification"),
+            "ગામ એડમિન જોતા નહીં હોય તો તેમનો સંપર્ક કરો — All admins પેજમાં નંબર છે.",
+            "If the village administrator is not acting, contact them — their number is on the All admins page.",
+            () => this.set("tab", "requests"),
+          ),
+        );
+      if (s.alerts.length)
+        notifications.push(
+          notif(
+            "ph-duotone ph-shield-warning",
+            "var(--danBg)",
+            "var(--dan)",
+            s.alerts.length + " શંકાસ્પદ પ્રયાસ નોંધાયા છે",
+            s.alerts.length + " suspicious attempts logged",
+            "સુરક્ષા ટાઇલમાં વિગત જુઓ.",
+            "See the Security tile for details.",
+            () => this.set("tab", "security"),
+          ),
+        );
+    }
+    v.notifications = notifications;
+    v.notifCount = notifications.length;
+    v.openNotifications = () => this.set("tab", "notifications");
+
     v.setFs = (e) => this.set("fsPct", normalizeTextSize(e.target.value));
     v.resetFs = () => this.set("fsPct", 100);
     v.effectsEnabled = s.effects !== false;

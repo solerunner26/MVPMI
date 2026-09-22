@@ -103,7 +103,7 @@ try {
       .waitFor();
     await frame.locator("input[type=password]").fill("EmbeddedTest@2026");
     await frame.getByRole("button", { name: /^Sign in$|^લોગિન કરો$/ }).click();
-    await frame.getByText("New requests", { exact: true }).waitFor();
+    await frame.getByText("Requests", { exact: true }).first().waitFor();
     if (mode !== "cookies")
       assert.equal(
         (await context.cookies()).find((c) => c.name === "mvpm_session"),
@@ -112,12 +112,12 @@ try {
     await frame.getByText("Backup & export", { exact: true }).click();
     const [download] = await Promise.all([
       page.waitForEvent("download"),
-      frame.getByText("Export Excel", { exact: true }).click(),
+      frame.getByText("Excel (.xlsx)", { exact: true }).click(),
     ]);
     assert.equal(download.suggestedFilename(), "mvpmi-contacts.xlsx");
     if (mode !== "no-storage") {
       await page.reload();
-      await frame.getByText("New requests", { exact: true }).waitFor();
+      await frame.getByText("Requests", { exact: true }).first().waitFor();
     }
     await frame.getByTestId("Sign out").click();
     await frame.getByRole("button", { name: /Send request|રિક્વેસ્ટ મોકલો/ }).waitFor();

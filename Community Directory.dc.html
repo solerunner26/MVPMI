@@ -236,12 +236,12 @@
 
                   <label style="display:flex;flex-direction:column;gap:7px">
                     <div class="bi" style="font-size:var(--f-sm);font-weight:700;color:var(--ink2)"><span class="gu">તાલુકો</span><span class="en">Tehsil</span></div>
-                    <input value="{{ form.tehsil }}" readonly aria-readonly="true" style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid var(--gbd);background:var(--g2);color:var(--ink2);padding:0 15px;font:inherit;font-size:var(--f-md);cursor:not-allowed">
+                    <input value="{{ form.tehsil }}" readonly aria-readonly="true" style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid var(--fieldBd);background:var(--field);color:var(--ink2);padding:0 15px;font:inherit;font-size:var(--f-md);cursor:not-allowed">
                                                           </label>
 
                   <label style="display:flex;flex-direction:column;gap:7px">
                     <div class="bi" style="font-size:var(--f-sm);font-weight:700;color:var(--ink2)"><span class="gu">જિલ્લો</span><span class="en">District</span></div>
-                    <input value="{{ form.district }}" readonly aria-readonly="true" style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid var(--gbd);background:var(--g2);color:var(--ink2);padding:0 15px;font:inherit;font-size:var(--f-md);cursor:not-allowed">
+                    <input value="{{ form.district }}" readonly aria-readonly="true" style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid var(--fieldBd);background:var(--field);color:var(--ink2);padding:0 15px;font:inherit;font-size:var(--f-md);cursor:not-allowed">
                                       </label>
                 </div>
 
@@ -381,7 +381,7 @@
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                       <sc-for list="{{ villageTiles }}" as="v" hint-placeholder-count="7">
-                        <div draggable="true" onDragStart="{{ v.onDragStart }}" onDragOver="{{ v.onDragOver }}" onDrop="{{ v.onDrop }}" onDragEnd="{{ v.onDragEnd }}" onClick="{{ v.onClick }}" class="hovlift" style="position:relative;overflow:hidden;background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid {{ v.bd }};border-radius:24px;padding:14px;box-shadow:var(--shadow);cursor:grab;min-height:124px;display:flex;flex-direction:column;justify-content:space-between;opacity:{{ v.opacity }}">
+                        <div draggable="true" onDragStart="{{ v.onDragStart }}" onDragOver="{{ v.onDragOver }}" onDrop="{{ v.onDrop }}" onDragEnd="{{ v.onDragEnd }}" onClick="{{ v.onClick }}" class="hovlift" style="position:relative;overflow:hidden;background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid {{ v.bd }};border-radius:24px;padding:14px;box-shadow:var(--shadow);cursor:grab;min-height:124px;display:flex;flex-direction:column;justify-content:space-between;opacity:{{ v.opacity }}"><i class="tile-stripe" aria-hidden="true"></i>
                           <div style="position:absolute;top:-26px;right:-26px;width:92px;height:92px;opacity:.5;pointer-events:none">
                             <dc-import name="SunMark" hint-size="92px,92px" style="width:92px;height:92px"></dc-import>
                           </div>
@@ -576,11 +576,11 @@
                   <div style="display:flex;gap:12px">
                     <label style="flex:1;min-width:0;display:flex;flex-direction:column;gap:7px">
                       <div class="bi" style="font-size:var(--f-sm);font-weight:700;color:var(--ink2)"><span class="gu">તાલુકો</span><span class="en">Tehsil</span></div>
-                      <input value="{{ edit.tehsil }}" readonly aria-readonly="true" style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid var(--gbd);background:var(--g2);color:var(--ink2);padding:0 12px;font:inherit;font-size:var(--f-md);cursor:not-allowed">
+                      <input value="{{ edit.tehsil }}" readonly aria-readonly="true" style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid var(--fieldBd);background:var(--field);color:var(--ink2);padding:0 12px;font:inherit;font-size:var(--f-md);cursor:not-allowed">
                     </label>
                     <label style="flex:1;min-width:0;display:flex;flex-direction:column;gap:7px">
                       <div class="bi" style="font-size:var(--f-sm);font-weight:700;color:var(--ink2)"><span class="gu">જિલ્લો</span><span class="en">District</span></div>
-                      <input value="{{ edit.district }}" readonly aria-readonly="true" style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid var(--gbd);background:var(--g2);color:var(--ink2);padding:0 12px;font:inherit;font-size:var(--f-md);cursor:not-allowed">
+                      <input value="{{ edit.district }}" readonly aria-readonly="true" style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid var(--fieldBd);background:var(--field);color:var(--ink2);padding:0 12px;font:inherit;font-size:var(--f-md);cursor:not-allowed">
                     </label>
                   </div>
                 </div>
@@ -631,7 +631,7 @@
                   <div class="bi" style="align-items:center;text-align:center;font-size:var(--f-sm);color:var(--ink2)"><span class="gu">ફક્ત એડમિન માટે · સુરક્ષિત પ્રવેશ</span><span class="en">Authorised admins only</span></div>
                 </div>
 
-                <div style="background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--gbd);border-radius:26px;padding:18px 16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:14px">
+                <div style="background:var(--page);border:1px solid transparent;border-radius:26px;padding:18px 16px;box-shadow:none;display:flex;flex-direction:column;gap:14px">
                   <label style="display:flex;flex-direction:column;gap:7px">
                     <div class="bi" style="font-size:var(--f-sm);font-weight:700;color:var(--ink2)"><span class="gu">યુઝરનેમ</span><span class="en">Username</span></div>
                     <input value="{{ login.user }}" onInput="{{ setLoginUser }}" placeholder="admin" style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid var(--fieldBd);background:var(--field);color:var(--ink);padding:0 15px;font:inherit;font-size:var(--f-md)" style-focus="border-color:var(--ind);box-shadow:0 0 0 4px rgba(178,64,44,.14)">
@@ -666,7 +666,7 @@
               </div>
               <div class="noscroll" style="flex:1;overflow:auto;padding:18px 18px 40px;display:flex;flex-direction:column;gap:14px">
                 <div class="bi" style="font-size:var(--f-sm);color:var(--ink2);text-wrap:pretty"><span class="gu">૬ આંકડાનો કોડ એડમિનના રજિસ્ટર્ડ મોબાઇલ પર જશે. કોડ ૧૦ મિનિટમાં પૂરો થાય; ૫ ખોટા પ્રયાસે ખાતું ૧૫ મિનિટ બંધ થાય.</span><span class="en">A 6-digit code goes to the registered mobile; 5 wrong attempts lock the account for 15 minutes.</span></div>
-                <div style="background:var(--g);border:1px solid var(--gbd);border-radius:26px;padding:18px 16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:14px">
+                <div style="background:var(--page);border:1px solid transparent;border-radius:26px;padding:18px 16px;box-shadow:none;display:flex;flex-direction:column;gap:14px">
                   <label style="display:flex;flex-direction:column;gap:7px">
                     <div class="bi" style="font-size:var(--f-sm);font-weight:700;color:var(--ink2)"><span class="gu">રજિસ્ટર્ડ મોબાઇલ</span><span class="en">Registered mobile</span></div>
                     <input value="+91 98250 14523" readonly style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid var(--fieldBd);background:var(--chip);color:var(--ink2);padding:0 15px;font:inherit;font-size:var(--f-md);letter-spacing:.05em">
@@ -696,9 +696,9 @@
                   <div class="bi" style="font-size:var(--f-xs);letter-spacing:.1em;text-transform:uppercase;color:var(--ink2);font-weight:700"><span class="gu">એડમિન પેનલ</span><span class="en">Admin panel</span></div>
                   <div style="font-weight:700;font-size:var(--f-lg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ adminTitle }}</div>
                 </div>
-                <button onClick="{{ openSecurity }}" title="Security alerts" style="width:42px;height:42px;border-radius:14px;border:1px solid var(--gbd);background:var(--g);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;flex:0 0 auto" style-hover="border-color:var(--dan);color:var(--dan)">
+                <button onClick="{{ openNotifications }}" data-testid="Notifications" title="Notifications" style="width:42px;height:42px;border-radius:14px;border:1px solid var(--gbd);background:var(--g);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;flex:0 0 auto" style-hover="border-color:var(--dan);color:var(--dan)">
                   <i class="ph-duotone ph-bell-ringing" style="font-size:21px"></i>
-                  <sc-if value="{{ alertCount }}"><span class="en" style="position:absolute;top:-5px;right:-5px;min-width:19px;height:19px;padding:0 5px;box-sizing:border-box;border-radius:10px;background:var(--badgeDan);color:var(--onTint);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center">{{ alertCount }}</span></sc-if>
+                  <sc-if value="{{ notifCount }}"><span class="en" style="position:absolute;top:-5px;right:0;min-width:19px;height:19px;padding:0 5px;box-sizing:border-box;border-radius:10px;background:var(--badgeDan);color:var(--onTint);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center">{{ notifCount }}</span></sc-if>
                 </button>
                 <button onClick="{{ logout }}" title="Sign out" style="width:42px;height:42px;border-radius:14px;border:1px solid var(--gbd);background:var(--g);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto" style-hover="border-color:var(--ind);color:var(--ind)"><i class="ph-duotone ph-sign-out" style="font-size:21px"></i></button>
               </div>
@@ -716,7 +716,7 @@
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                       <sc-for list="{{ tiles }}" as="t" hint-placeholder-count="6">
-                        <button onClick="{{ t.onClick }}" class="hovlift" style="background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--gbd);border-radius:24px;padding:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:9px;cursor:pointer;text-align:left;color:var(--ink);font:inherit;min-height:124px" style-hover="border-color:var(--ind);transform:translateY(-2px)" style-active="transform:translateY(0)">
+                        <button onClick="{{ t.onClick }}" class="hovlift" style="background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--gbd);border-radius:24px;padding:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:9px;cursor:pointer;text-align:left;color:var(--ink);font:inherit;min-height:124px" style-hover="border-color:var(--ind);transform:translateY(-2px)" style-active="transform:translateY(0)"><i class="tile-stripe" aria-hidden="true"></i>
                           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
                             <div style="width:38px;height:38px;border-radius:13px;background:{{ t.iconBg }};color:{{ t.iconFg }};display:flex;align-items:center;justify-content:center"><i class="{{ t.icon }}" style="font-size:21px"></i></div>
                             <sc-if value="{{ t.count }}"><span class="en" style="min-width:24px;height:24px;padding:0 7px;box-sizing:border-box;border-radius:12px;background:{{ t.badgeBg }};color:var(--onTint);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center">{{ t.count }}</span></sc-if>
@@ -731,6 +731,7 @@
 
                 <sc-if value="{{ tabNew }}">
                   <div style="display:flex;flex-direction:column;gap:12px">
+                    <div class="bi section-heading"><span class="gu">નવી નોંધણી વિનંતીઓ · {{ newCount }}</span><span class="en">New enrollments · {{ newCount }}</span></div>
                     <sc-for list="{{ newRequests }}" as="r" hint-placeholder-count="2">
                       <div style="background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--gbd);border-radius:24px;padding:16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:11px">
                         <div style="display:flex;gap:12px;align-items:center">
@@ -744,6 +745,7 @@
                           <div style="font-size:var(--f-sm);letter-spacing:.05em;font-weight:600">{{ r.phones }}</div>
                           <div style="font-size:var(--f-sm);color:var(--ink2)">{{ r.place }}</div>
                         </div>
+                        <sc-if value="{{ r.rejectedBefore }}"><div class="bi rejected-before" role="alert"><i class="ph-duotone ph-warning-circle" aria-hidden="true"></i><span class="gu">આ નંબર પહેલા નામંજૂર થયો હતો — ચકાસીને નિર્ણય કરો.</span><span class="en">This number was rejected before — verify carefully before deciding.</span></div></sc-if>
                         <div style="display:flex;gap:9px">
                           <button onClick="{{ r.onApprove }}" style="flex:1;height:46px;border:0;border-radius:15px;background:var(--okBg);color:var(--ok);font:inherit;font-size:var(--f-sm);font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer" style-hover="filter:brightness(.97)"><i class="ph-duotone ph-check-circle" style="font-size:19px"></i><span class="bi row"><span class="gu">મંજૂર</span><span class="en">Approve</span></span></button>
                           <button onClick="{{ r.onReject }}" style="flex:1;height:46px;border:0;border-radius:15px;background:var(--danBg);color:var(--dan);font:inherit;font-size:var(--f-sm);font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer" style-hover="filter:brightness(.97)"><i class="ph-duotone ph-x-circle" style="font-size:19px"></i><span class="bi row"><span class="gu">નામંજૂર</span><span class="en">Reject</span></span></button>
@@ -756,6 +758,7 @@
 
                 <sc-if value="{{ tabUpdate }}">
                   <div style="display:flex;flex-direction:column;gap:12px">
+                    <div class="bi section-heading"><span class="gu">ફેરફાર વિનંતીઓ · {{ updateCount }}</span><span class="en">Change requests · {{ updateCount }}</span></div>
                     <sc-for list="{{ updateRequests }}" as="u" hint-placeholder-count="1">
                       <div style="background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--gbd);border-radius:24px;padding:16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:12px">
                         <div class="bi" style="font-weight:700;font-size:var(--f-md)"><span class="gu">{{ u.nameGu }}</span><span class="en">{{ u.name }}</span></div>
@@ -785,6 +788,7 @@
 
                 <sc-if value="{{ tabDelete }}">
                   <div style="display:flex;flex-direction:column;gap:12px">
+                    <div class="bi section-heading"><span class="gu">દૂર કરવાની વિનંતીઓ · {{ deleteCount }}</span><span class="en">Removal requests · {{ deleteCount }}</span></div>
                     <sc-for list="{{ deleteRequests }}" as="d" hint-placeholder-count="1">
                       <div style="background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--gbd);border-radius:24px;padding:16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:9px">
                         <div style="display:flex;align-items:center;gap:11px">
@@ -812,34 +816,33 @@
                         <div class="bi" style="font-size:var(--f-sm);font-weight:700;color:var(--ink2);margin-top:3px"><span class="gu">કુલ મંજૂર સભ્યો</span><span class="en">Total approved members</span></div>
                       </div>
                     </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-                      <sc-for list="{{ statHeads }}" as="h" hint-placeholder-count="3">
-                        <div style="background:var(--g2);border:1px solid var(--gbd);border-radius:18px;padding:12px;display:flex;flex-direction:column;gap:5px;align-items:center">
-                          <div class="en" style="font-size:var(--f-xl);font-weight:800;color:var(--ind);line-height:1">{{ h.count }}</div>
-                          <div class="bi" style="align-items:center;justify-content:center;text-align:center;font-size:var(--f-xs);font-weight:700;color:var(--ink2)"><span class="gu">{{ h.gu }}</span><span class="en">{{ h.en }}</span></div>
-                        </div>
-                      </sc-for>
-                    </div>
-                    <sc-for list="{{ statGroups }}" as="g" hint-placeholder-count="3">
-                      <div style="background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--gbd);border-radius:24px;padding:16px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:12px">
-                        <div style="display:flex;align-items:center;gap:10px">
-                          <div style="width:34px;height:34px;flex:0 0 auto;border-radius:12px;background:rgba(233,161,59,.22);color:var(--ok);display:flex;align-items:center;justify-content:center"><i class="{{ g.icon }}" style="font-size:19px"></i></div>
-                          <div class="bi" style="flex:1;font-size:var(--f-md);font-weight:700"><span class="gu">{{ g.gu }}</span><span class="en">{{ g.en }}</span></div>
-                          <div class="en" style="font-size:var(--f-xs);font-weight:700;color:var(--ink2);flex:0 0 auto">{{ g.n }}</div>
-                        </div>
-                        <div style="display:flex;flex-direction:column;gap:9px">
-                          <sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="4">
-                            <div style="display:flex;flex-direction:column;gap:5px">
-                              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px">
-                                <div style="font-size:var(--f-sm);font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.label }}</div>
-                                <div class="en" style="font-size:var(--f-sm);font-weight:800;color:var(--ind);flex:0 0 auto">{{ r.count }}</div>
-                              </div>
-                              <div style="height:7px;border-radius:4px;background:var(--chip);overflow:hidden"><div style="height:100%;width:{{ r.pct }};background:var(--grad);border-radius:4px"></div></div>
-                            </div>
-                          </sc-for>
-                        </div>
+                    <sc-if value="{{ !inStatsVillage }}">
+                      <div class="stats-village-grid">
+                        <sc-for list="{{ statVillages }}" as="v" hint-placeholder-count="7">
+                          <button onClick="{{ v.onClick }}" class="hovlift stats-village-tile" style="background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--gbd);border-radius:22px;padding:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:9px;cursor:pointer;text-align:left;color:var(--ink);font:inherit" style-hover="border-color:var(--ind);transform:translateY(-2px)" style-active="transform:translateY(0)"><i class="tile-stripe" aria-hidden="true"></i>
+                            <div style="width:38px;height:38px;border-radius:13px;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center"><i class="ph-duotone ph-house-line" style="font-size:21px"></i></div>
+                            <div class="bi" style="font-size:var(--f-md);font-weight:700;line-height:1.2">{{ v.label }}</div>
+                            <div class="bi" style="font-size:var(--f-xs);color:var(--ink2);margin-top:auto"><span class="gu">{{ v.count }} સભ્યો</span><span class="en">{{ v.count }} {{ v.count === 1 ? 'member' : 'members' }}</span></div>
+                          </button>
+                        </sc-for>
                       </div>
-                    </sc-for>
+                    </sc-if>
+                    <sc-if value="{{ inStatsVillage }}">
+                      <button onClick="{{ closeStatsVillage }}" class="stats-village-back"><i class="ph-duotone ph-arrow-left" aria-hidden="true"></i><span class="bi"><span class="gu">ગામની યાદી પર પાછા</span><span class="en">Back to village list</span></span></button>
+                      <div class="bi" style="font-size:var(--f-sm);font-weight:800;color:var(--ink2);padding:0 4px"><span class="gu">{{ statsVillageLabel }} · {{ statVillageMembers.length }} સભ્યો</span><span class="en">{{ statsVillageLabel }} · {{ statVillageMembers.length }} {{ statVillageMembers.length === 1 ? 'member' : 'members' }}</span></div>
+                      <div style="display:flex;flex-direction:column;gap:11px">
+                        <sc-for list="{{ statVillageMembers }}" as="m" hint-placeholder-count="4">
+                          <div style="background:var(--g);border:1px solid var(--gbd);border-radius:20px;padding:12px;display:flex;align-items:center;gap:11px;box-shadow:var(--shadow)">
+                            <div style="flex:1;min-width:0">
+                              <div class="bi" style="font-weight:700;font-size:var(--f-md)"><span class="gu">{{ m.nameGu }}</span><span class="en">{{ m.name }}</span></div>
+                              <div class="en" style="font-size:var(--f-xs);color:var(--ink2);letter-spacing:.04em">{{ m.phones }}</div>
+                            </div>
+                            <button onClick="{{ m.onAdminEdit }}" title="Edit" style="width:40px;height:40px;border:1px solid var(--gbd);border-radius:13px;background:var(--g);color:var(--ind);display:flex;align-items:center;justify-content:center;cursor:pointer" style-hover="border-color:var(--ind)"><i class="ph-duotone ph-pencil-simple" style="font-size:18px"></i></button>
+                          </div>
+                        </sc-for>
+                        <sc-if value="{{ !statVillageMembers.length }}"><div class="bi" style="padding:34px 10px;align-items:center;color:var(--ink2);font-size:var(--f-sm)"><span class="gu">આ ગામમાં હજુ કોઈ સભ્ય નથી.</span><span class="en">No members in this village yet.</span></div></sc-if>
+                      </div>
+                    </sc-if>
                   </div>
                 </sc-if>
 
@@ -859,14 +862,65 @@
                   </div>
                 </sc-if>
 
+                <sc-if value="{{ tabReports }}">
+                  <div style="display:flex;flex-direction:column;gap:12px">
+                    <div class="bi" style="font-size:var(--f-xs);color:var(--ink2);padding:0 4px;text-wrap:pretty"><span class="gu">દરેક રિપોર્ટ PDF અથવા CSV માં ડાઉનલોડ થાય છે. ફોનમાં સેવ કરો કે Google Drive માં મૂકો.</span><span class="en">Every report downloads as PDF or CSV. Save it to the phone or to Google Drive.</span></div>
+                    <sc-for list="{{ reports }}" as="r" hint-placeholder-count="4">
+                      <div style="background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--gbd);border-radius:22px;padding:15px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:9px">
+                        <div style="display:flex;align-items:center;gap:11px">
+                          <div style="width:40px;height:40px;flex:0 0 auto;border-radius:13px;background:{{ r.bg }};color:{{ r.fg }};display:flex;align-items:center;justify-content:center"><i class="{{ r.icon }}" style="font-size:21px"></i></div>
+                          <div style="flex:1;min-width:0">
+                            <div class="bi" style="font-weight:800;font-size:var(--f-md)"><span class="gu">{{ r.gu }}</span><span class="en">{{ r.en }}</span></div>
+                            <div class="bi" style="font-size:var(--f-xs);color:var(--ink2);margin-top:2px"><span class="gu">{{ r.descGu }}</span><span class="en">{{ r.descEn }}</span></div>
+                          </div>
+                        </div>
+                        <div style="display:flex;gap:9px">
+                          <button onClick="{{ r.onPdf }}" class="hovlift" style="flex:1;height:44px;border:1px solid var(--gbd);border-radius:14px;background:var(--g);color:var(--dan);font:inherit;font-size:var(--f-sm);font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer" style-hover="border-color:var(--dan)"><i class="ph-duotone ph-file-pdf" style="font-size:18px"></i>PDF</button>
+                          <button onClick="{{ r.onCsv }}" class="hovlift" style="flex:1;height:44px;border:1px solid var(--gbd);border-radius:14px;background:var(--g);color:var(--ok);font:inherit;font-size:var(--f-sm);font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer" style-hover="border-color:var(--ok)"><i class="ph-duotone ph-file-csv" style="font-size:18px"></i>CSV</button>
+                        </div>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{ tabNotifications }}">
+                  <div style="display:flex;flex-direction:column;gap:12px">
+                    <div class="bi" style="font-size:var(--f-xs);color:var(--ink2);padding:0 4px;text-wrap:pretty"><span class="gu">બાકી કામ અને સૂચનાઓ અહીં રહેશે જ્યાં સુધી પૂરું ન થાય. એપ ખૂલે કે ડેટા અપડેટ થાય ત્યારે ફરી દેખાશે.</span><span class="en">Pending work and alerts stay listed here until it is finished. They return every time the app opens or data updates.</span></div>
+                    <sc-for list="{{ notifications }}" as="n" hint-placeholder-count="2">
+                      <div style="background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--gbd);border-radius:20px;padding:14px;display:flex;gap:12px;align-items:flex-start;box-shadow:var(--shadow)">
+                        <div style="width:38px;height:38px;flex:0 0 auto;border-radius:13px;background:{{ n.bg }};color:{{ n.fg }};display:flex;align-items:center;justify-content:center"><i class="{{ n.icon }}" style="font-size:20px"></i></div>
+                        <div style="flex:1;min-width:0">
+                          <div class="bi" style="font-size:var(--f-sm);font-weight:700"><span class="gu">{{ n.gu }}</span><span class="en">{{ n.en }}</span></div>
+                          <div class="bi" style="font-size:var(--f-xs);color:var(--ink2);margin-top:3px"><span class="gu">{{ n.detailGu }}</span><span class="en">{{ n.detailEn }}</span></div>
+                        </div>
+                        <sc-if value="{{ n.onOpen }}">
+                          <button onClick="{{ n.onOpen }}" class="en" style="border:1px solid var(--gbd);border-radius:12px;background:none;color:var(--ind);font:inherit;font-size:var(--f-xs);font-weight:800;padding:8px 11px;cursor:pointer;flex:0 0 auto" style-hover="background:var(--chip)"><span class="bi"><span class="gu">ખોલો</span><span class="en">Open</span></span></button>
+                        </sc-if>
+                      </div>
+                    </sc-for>
+                    <sc-if value="{{ !notifications.length }}"><div class="bi" style="padding:44px 10px;align-items:center;color:var(--ink2);font-size:var(--f-sm)"><span class="gu">કોઈ સૂચના નથી. બધું અપ ટુ ડેટ છે.</span><span class="en">No notifications. Everything is up to date.</span></div></sc-if>
+                  </div>
+                </sc-if>
+
                 <sc-if value="{{ tabArchive }}">
                   <div style="display:flex;flex-direction:column;gap:12px">
                     <div class="bi" style="font-size:var(--f-xs);color:var(--ink2);padding:0 4px;text-wrap:pretty"><span class="gu">કેન્સલ, નામંજૂર અને કાઢી નાખેલી વિગતો. ફક્ત એડમિન જોઈ શકે — યાદીમાં કદી દેખાતી નથી.</span><span class="en">Withdrawn, rejected and removed entries — admin-only, never shown in the directory.</span></div>
-                    <sc-for list="{{ archive }}" as="a" hint-placeholder-count="2">
-                      <div style="background:var(--g2);border:1px dashed var(--gbd);border-radius:20px;padding:13px;display:flex;flex-direction:column;gap:4px">
-                        <div class="bi" style="font-weight:700;font-size:var(--f-md)"><span class="gu">{{ a.nameGu }}</span><span class="en">{{ a.name }}</span></div>
-                        <div class="en" style="font-size:var(--f-sm);color:var(--ink2);letter-spacing:.04em">{{ a.phone }} · {{ a.place }}</div>
-                        <div style="font-size:var(--f-xs);color:var(--ink2)">{{ a.status }} · {{ a.when }}</div>
+                    <div style="display:flex;gap:9px">
+                      <button onClick="{{ archivePdf }}" class="hovlift" style="flex:1;height:46px;border:1px solid var(--gbd);border-radius:15px;background:var(--g);color:var(--dan);font:inherit;font-size:var(--f-sm);font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer" style-hover="border-color:var(--dan)"><i class="ph-duotone ph-file-pdf" style="font-size:19px"></i><span class="bi row"><span class="gu">PDF ડાઉનલોડ</span><span class="en">Download PDF</span></span></button>
+                      <button onClick="{{ archiveCsv }}" class="hovlift" style="flex:1;height:46px;border:1px solid var(--gbd);border-radius:15px;background:var(--g);color:var(--ok);font:inherit;font-size:var(--f-sm);font-weight:800;display:flex;align-items:center;justify-content:center;gap:7px;cursor:pointer" style-hover="border-color:var(--ok)"><i class="ph-duotone ph-file-csv" style="font-size:19px"></i><span class="bi row"><span class="gu">CSV ડાઉનલોડ</span><span class="en">Download CSV</span></span></button>
+                    </div>
+                    <sc-for list="{{ archiveSections }}" as="g" hint-placeholder-count="2">
+                      <div style="display:flex;flex-direction:column;gap:9px">
+                        <div style="display:flex;align-items:center;gap:9px;padding:2px 2px 0">
+                          <span class="bi archive-tag" style="background:{{ g.chipBg }};color:{{ g.chipFg }}"><i class="{{ g.icon }}" aria-hidden="true" style="font-size:15px"></i><span class="gu">{{ g.gu }}</span><span class="en">{{ g.en }}</span><span class="en" style="margin-left:2px">· {{ g.rows.length }}</span></span>
+                        </div>
+                        <sc-for list="{{ g.rows }}" as="a" hint-placeholder-count="2">
+                          <div style="background:var(--g2);border:1px dashed var(--gbd);border-radius:20px;padding:13px;display:flex;flex-direction:column;gap:4px">
+                            <div class="bi" style="font-weight:700;font-size:var(--f-md)"><span class="gu">{{ a.nameGu }}</span><span class="en">{{ a.name }}</span></div>
+                            <div class="en" style="font-size:var(--f-sm);color:var(--ink2);letter-spacing:.04em">{{ a.phone }} · {{ a.place }}</div>
+                            <div style="font-size:var(--f-xs);color:var(--ink2)">{{ a.status }} · {{ a.when }}</div>
+                          </div>
+                        </sc-for>
                       </div>
                     </sc-for>
                     <sc-if value="{{ noArchive }}"><div class="bi" style="padding:44px 10px;align-items:center;color:var(--ink2);font-size:var(--f-sm)"><span class="gu">આર્કાઇવ ખાલી છે.</span><span class="en">Archive is empty.</span></div></sc-if>
@@ -900,14 +954,14 @@
                     </div>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                       <sc-for list="{{ exports }}" as="x" hint-placeholder-count="4">
-                        <button onClick="{{ x.onClick }}" class="hovlift" style="background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--gbd);border-radius:22px;padding:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:8px;cursor:pointer;color:var(--ink);font:inherit;text-align:left;min-height:108px" style-hover="border-color:var(--ind);transform:translateY(-2px)">
+                        <button onClick="{{ x.onClick }}" class="hovlift" style="background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--gbd);border-radius:22px;padding:14px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:8px;cursor:pointer;color:var(--ink);font:inherit;text-align:left;min-height:108px" style-hover="border-color:var(--ind);transform:translateY(-2px)"><i class="tile-stripe" aria-hidden="true"></i>
                           <div style="width:38px;height:38px;border-radius:13px;background:{{ x.bg }};color:{{ x.fg }};display:flex;align-items:center;justify-content:center"><i class="{{ x.icon }}" style="font-size:21px"></i></div>
                           <div class="bi" style="font-size:var(--f-sm);font-weight:700;line-height:1.25"><span class="gu">{{ x.gu }}</span><span class="en">{{ x.en }}</span></div>
                         </button>
                       </sc-for>
                     </div>
                     <button onClick="{{ restoreData }}" class="en" style="height:54px;border:1px solid var(--gbd);border-radius:18px;background:var(--g);color:var(--ink);font:inherit;font-weight:700;font-size:var(--f-md);display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer" style-hover="border-color:var(--ind);color:var(--ind)"><i class="ph-duotone ph-upload-simple" style="font-size:21px"></i><span class="bi row"><span class="gu">ડેટા પાછો લાવો</span><span class="en">Restore system data</span></span></button>
-                    <div class="bi" style="font-size:var(--f-xs);color:var(--ink2);text-wrap:pretty"><span class="gu">PDF એ પ્રિન્ટ કરવા તૈયાર સંપર્ક બુક છે (A4, ગામ પ્રમાણે). Excel ફાઇલ Excel કે Google Sheets માં ખૂલશે. બંને ફાઇલ સીધી વોટ્સએપ ગ્રુપમાં મોકલી શકાય.</span><span class="en">PDF is a print-ready A4 contact book; Excel opens anywhere. Both can go straight to WhatsApp.</span></div>
+                    <div class="bi" style="font-size:var(--f-xs);color:var(--ink2);text-wrap:pretty"><span class="gu">ફાઇલ સેવ કરતી વખતે ફોનની મેમરી કે Google Drive પસંદ કરી શકાય. PDF પ્રિન્ટ-તૈયાર સંપર્ક બુક છે; Excel અને CSV એક્સેલ કે Google Sheets માં ખૂલશે; JSON બેકઅપથી આખો ડેટા પાછો લાવી શકાય.</span><span class="en">When saving, choose phone memory or Google Drive. PDF is a print-ready contact book; Excel and CSV open in Excel or Google Sheets; the JSON backup restores everything.</span></div>
                   </div>
                 </sc-if>
 
@@ -1265,8 +1319,8 @@ class Component extends DCLogic {
     const pwColors = ['var(--fieldBd)', '#9E2B1E', '#B86A1F', '#D39A2B', '#8A5A10', '#8A5A10'];
 
     const pendingTotal = s.newRequests.length + s.updateRequests.length + s.deleteRequests.length;
-    const titles = { home: 'ડેશબોર્ડ', stats: 'સભ્યોના આંકડા', new: 'નવી રિક્વેસ્ટ', update: 'ફેરફાર રિક્વેસ્ટ', delete: 'ડિલીટ રિક્વેસ્ટ', members: 'બધા સભ્યો', archive: 'આર્કાઇવ', security: 'સુરક્ષા', backup: 'બેકઅપ અને એક્સપોર્ટ' };
-    const titlesEn = { home: 'Dashboard', stats: 'Member statistics', new: 'New requests', update: 'Update requests', delete: 'Delete requests', members: 'All members', archive: 'Archive', security: 'Security', backup: 'Backup & export' };
+    const titles = { home: 'ડેશબોર્ડ', stats: 'કુલ સભ્યો', requests: 'વિનંતીઓ', new: 'નવી રિક્વેસ્ટ', update: 'ફેરફાર રિક્વેસ્ટ', delete: 'ડિલીટ રિક્વેસ્ટ', members: 'બધા સભ્યો', reports: 'રિપોર્ટ', archive: 'આર્કાઇવ', security: 'સુરક્ષા', backup: 'બેકઅપ અને એક્સપોર્ટ', notifications: 'સૂચનાઓ' };
+    const titlesEn = { home: 'Dashboard', stats: 'Total members', requests: 'Requests', new: 'New requests', update: 'Update requests', delete: 'Delete requests', members: 'All members', reports: 'Reports', archive: 'Archive', security: 'Security', backup: 'Backup & export', notifications: 'Notifications' };
 
     const tally = (key) => {
       const map = {};
@@ -1279,15 +1333,19 @@ class Component extends DCLogic {
       return rows.map((r) => ({ ...r, pct: Math.round((r.count / max) * 100) + '%' }));
     };
 
+    const rejectedBeforeCount = s.newRequests.filter((r) => r.rejectedBefore).length;
+    const villageWaiting = (s.reviewQueue || []).filter((r) => !r.verification).length;
+    const notifCount = (pendingTotal ? 1 : 0) + (rejectedBeforeCount ? 1 : 0) + (s.alerts.length ? 1 : 0) + (villageWaiting ? 1 : 0);
+    const archiveTotal = s.archive.length + (s.rejectedApplications ? s.rejectedApplications.length : 0);
     const tileDefs = [
-      ['stats', 'કુલ સભ્યો', 'Total members', 'ph-duotone ph-chart-donut', 'rgba(178,64,44,.14)', 'var(--ind)', s.members.length, vRows.length + ' ' + this.P('ગામ', vRows.length === 1 ? 'village' : 'villages') + '  ·  ' + tRows.length + ' ' + this.P('તાલુકા', tRows.length === 1 ? 'tehsil' : 'tehsils')],
-      ['new', 'નવી રિક્વેસ્ટ', 'New requests', 'ph-duotone ph-user-plus', 'rgba(178,64,44,.14)', 'var(--ind)', s.newRequests.length, this.P('મંજૂર કે નામંજૂર કરો', 'approve or reject')],
-      ['update', 'ફેરફાર', 'Update requests', 'ph-duotone ph-swap', 'rgba(233,161,59,.22)', 'var(--ok)', s.updateRequests.length, this.P('જૂની સામે નવી વિગત', 'old vs new')],
-      ['delete', 'ડિલીટ', 'Delete requests', 'ph-duotone ph-user-minus', 'var(--danBg)', 'var(--dan)', s.deleteRequests.length, this.P('કાઢવાની લાઇન', 'removal queue')],
+      ['stats', 'કુલ સભ્યો', 'Total members', 'ph-duotone ph-chart-donut', 'rgba(178,64,44,.14)', 'var(--ind)', s.members.length, this.P('મંજૂર સભ્યો ગામ પ્રમાણે', 'approved members by village')],
+      ['requests', 'વિનંતીઓ', 'Requests', 'ph-duotone ph-tray', 'rgba(178,64,44,.14)', 'var(--ind)', pendingTotal, this.P('નવી · ફેરફાર · દૂર કરવાની', 'new · changes · removals')],
       ['members', 'સભ્યો', 'Members', 'ph-duotone ph-users-three', 'rgba(178,64,44,.14)', 'var(--ind)', 0, s.members.length + ' ' + this.P('મંજૂર સભ્યો', s.members.length === 1 ? 'approved member' : 'approved members')],
-      ['backup', 'બેકઅપ', 'Backup & export', 'ph-duotone ph-cloud-arrow-down', 'var(--okBg)', 'var(--ok)', 0, 'PDF · Excel · JSON'],
-      ['archive', 'આર્કાઇવ', 'Archive', 'ph-duotone ph-archive', 'rgba(233,161,59,.22)', 'var(--ok)', 0, s.archive.length + ' ' + this.P('જૂની વિગત', s.archive.length === 1 ? 'old entry' : 'old entries')],
-      ['security', 'સુરક્ષા', 'Security alerts', 'ph-duotone ph-shield-warning', 'var(--danBg)', 'var(--dan)', s.alerts.length, this.P('શંકાસ્પદ પ્રયાસ', 'intrusion attempts')]
+      ['reports', 'રિપોર્ટ', 'Reports', 'ph-duotone ph-file-text', 'var(--okBg)', 'var(--ok)', 0, this.P('ડાઉનલોડ કરી શકાય એવા', 'downloadable PDF · CSV')],
+      ['backup', 'બેકઅપ', 'Backup & export', 'ph-duotone ph-cloud-arrow-down', 'var(--okBg)', 'var(--ok)', 0, 'PDF · Excel · CSV · JSON'],
+      ['archive', 'આર્કાઇવ', 'Archive', 'ph-duotone ph-archive', 'rgba(233,161,59,.22)', 'var(--ok)', archiveTotal, this.P('કાઢેલા · નામંજૂર · કેન્સલ', 'removed · rejected · withdrawn')],
+      ['security', 'સુરક્ષા', 'Security alerts', 'ph-duotone ph-shield-warning', 'var(--danBg)', 'var(--dan)', s.alerts.length, this.P('શંકાસ્પદ પ્રયાસ', 'intrusion attempts')],
+      ['notifications', 'સૂચનાઓ', 'Notifications', 'ph-duotone ph-bell-ringing', 'var(--danBg)', 'var(--dan)', notifCount, this.P('બાકી કામ અને એલર્ટ', 'pending work & alerts')]
     ];
 
     const screens = [
@@ -1339,7 +1397,7 @@ class Component extends DCLogic {
       setFirstName: this.setNamePart('firstName'), setMiddleName: this.setNamePart('middleName'), setSurname: this.setNamePart('surname'),
       setDistrict: this.setForm('district'), setPhone: this.setPhoneField('phone'), setPhone2: this.setPhoneField('phone2'),
       err: { ...err, ...editErr },
-      bd: { name: bdOf('name', err), phone: bdOf('phone', err), phone2: bdOf('phone2', err), village: bdOf('village', err), tehsil: bdOf('tehsil', err), district: bdOf('district', err), editPhone: bdOf('editPhone', editErr), editPhone2: bdOf('editPhone2', editErr) },
+      bd: { name: bdOf('name', err), middleName: bdOf('middleName', err), phone: bdOf('phone', err), phone2: bdOf('phone2', err), village: bdOf('village', err), tehsil: bdOf('tehsil', err), district: bdOf('district', err), editPhone: bdOf('editPhone', editErr), editPhone2: bdOf('editPhone2', editErr) },
       vSuggest: vs ? { msg: this.P('શું તમે "' + vs.gu + '" (' + vs.en + ') લખવા માંગતા હતા?', 'Did you mean "' + vs.en + '" (' + vs.gu + ')?') } : null,
       tSuggest: ts ? { msg: this.P('શું તમે "' + ts.gu + '" (' + ts.en + ') લખવા માંગતા હતા?', 'Did you mean "' + ts.en + '" (' + ts.gu + ')?') } : null,
       applyVillage: () => {
@@ -1552,11 +1610,22 @@ class Component extends DCLogic {
         { gu: 'તાલુકા', en: tRows.length === 1 ? 'Tehsil' : 'Tehsils', count: tRows.length },
         { gu: 'જિલ્લા', en: dRows.length === 1 ? 'District' : 'Districts', count: dRows.length }
       ],
-      statGroups: [
-        { gu: 'ગામ પ્રમાણે', en: 'By village', icon: 'ph-duotone ph-house-line', n: vRows.length, rows: withPct(vRows).map((r) => ({ ...r, label: this.V(r.label) })) },
-        { gu: 'તાલુકા પ્રમાણે', en: 'By tehsil', icon: 'ph-duotone ph-map-trifold', n: tRows.length, rows: withPct(tRows).map((r) => ({ ...r, label: this.T(r.label) })) },
-        { gu: 'જિલ્લા પ્રમાણે', en: 'By district', icon: 'ph-duotone ph-globe-hemisphere-east', n: dRows.length, rows: withPct(dRows).map((r) => ({ ...r, label: this.D(r.label) })) }
-      ],
+      statVillages: (s.villages || []).map((v) => ({
+        label: this.V(v.gu),
+        count: s.members.filter((m) => m.village === v.gu).length,
+        onClick: () => this.setState({ statsVillage: v.gu })
+      })),
+      inStatsVillage: !!s.statsVillage,
+      statsVillageLabel: s.statsVillage ? this.V(s.statsVillage) : '',
+      statVillageMembers: s.statsVillage ? s.members.filter((m) => m.village === s.statsVillage).map((m) => ({
+        nameGu: m.nameGu, name: m.name, village: this.V(m.village),
+        phones: [this.fmt(m.phone), dg(m.phone2) ? this.fmt(m.phone2) : ''].filter(Boolean).join(' · '),
+        onAdminEdit: () => {
+          this.setState({ meId: m.id, edit: { name: m.nameGu, phone: this.fmt(m.phone), phone2: this.fmt(m.phone2), village: m.village, tehsil: m.tehsil, district: m.district }, screen: 'editprofile' });
+        }
+      })) : [],
+      closeStatsVillage: () => this.setState({ statsVillage: null }),
+      statHeads: [],
       tabStats: s.tab === 'stats',
       inSection: s.tab !== 'home',
       adminHome: () => this.set('tab', 'home'),
@@ -1566,11 +1635,12 @@ class Component extends DCLogic {
       adminGreetEn: pendingTotal ? pendingTotal + ' items need action' : 'Everything is up to date',
       tiles: tileDefs.map(([id, gu, en, icon, iconBg, iconFg, count, hint]) => ({
         gu, en, icon, iconBg, iconFg, count, hint,
-        badgeBg: id === 'security' || id === 'delete' ? 'var(--badgeDan)' : 'var(--badgeInd)',
+        badgeBg: id === 'security' || id === 'notifications' ? 'var(--badgeDan)' : 'var(--badgeInd)',
         onClick: () => this.set('tab', id)
       })),
-      tabHome: s.tab === 'home', tabNew: s.tab === 'new', tabUpdate: s.tab === 'update',
-      tabDelete: s.tab === 'delete', tabMembers: s.tab === 'members', tabArchive: s.tab === 'archive',
+      tabHome: s.tab === 'home', tabRequests: s.tab === 'requests', tabReports: s.tab === 'reports', tabNotifications: s.tab === 'notifications',
+      tabNew: s.tab === 'new' || s.tab === 'requests', tabUpdate: s.tab === 'update' || s.tab === 'requests',
+      tabDelete: s.tab === 'delete' || s.tab === 'requests', tabMembers: s.tab === 'members', tabArchive: s.tab === 'archive',
       tabSecurity: s.tab === 'security', tabBackup: s.tab === 'backup',
 
       newRequests: s.newRequests.map((r) => ({
@@ -1594,6 +1664,7 @@ class Component extends DCLogic {
           this.flash(r.nameGu + ' રિજેક્ટ થયા, આર્કાઇવમાં ગયા.', r.name + ' rejected and archived.');
         }
       })),
+      newCount: s.newRequests.length, updateCount: s.updateRequests.length, deleteCount: s.deleteRequests.length,
       noNew: s.newRequests.length === 0,
 
       updateRequests: s.updateRequests.map((u) => ({
@@ -1658,28 +1729,10 @@ class Component extends DCLogic {
       backupStat: s.members.length + ' ' + this.P('સભ્યો', 'members') + '  ·  ' + pendingTotal + ' ' + this.P('બાકી રિક્વેસ્ટ', 'pending') + '  ·  ' + s.archive.length + ' ' + this.P('આર્કાઇવ', 'archived'),
       lastBackup: s.lastBackup,
       exports: [
-        { gu: 'PDF યાદી બનાવો', en: 'Generate PDF book', icon: 'ph-duotone ph-file-pdf', bg: 'var(--danBg)', fg: 'var(--dan)', onClick: () => { this.printPdf(s.members); this.flash('PDF પ્રિન્ટ વિન્ડો ખૂલી — Save as PDF પસંદ કરો.', 'Print sheet opened — choose Save as PDF.'); } },
-        {
-          gu: 'Excel ફાઇલ', en: 'Export Excel', icon: 'ph-duotone ph-file-xls', bg: 'var(--okBg)', fg: 'var(--ok)', onClick: () => {
-            const head = '<tr><th>Name (Gujarati)</th><th>Name</th><th>Personal</th><th>Work</th><th>Village</th><th>Tehsil</th><th>District</th></tr>';
-            const body = s.members.map((m) => '<tr><td>' + m.nameGu + '</td><td>' + m.name + '</td><td>' + this.fmt(m.phone) + '</td><td>' + (dg(m.phone2) ? this.fmt(m.phone2) : '') + '</td><td>' + m.village + '</td><td>' + m.tehsil + '</td><td>' + m.district + '</td></tr>').join('');
-            this.download('samaj-contacts.xls', '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body><table border="1">' + head + body + '</table></body></html>', 'application/vnd.ms-excel');
-            this.setState({ lastBackup: 'just now' });
-            this.flash('Excel ફાઇલ ડાઉનલોડ થઈ.', 'Excel file downloaded.');
-          }
-        },
-        {
-          gu: 'WhatsApp પર મોકલો', en: 'Share to WhatsApp', icon: 'ph-duotone ph-whatsapp-logo', bg: 'var(--okBg)', fg: 'var(--ok)', onClick: () => this.setState({
-            dial: { icon: 'ph-duotone ph-whatsapp-logo', name: 'WhatsApp share', phone: s.members.length + ' contacts', gu: 'PDF અને Excel ફાઇલ એન્ડ્રોઇડના શેર મેનૂ દ્વારા વોટ્સએપ ગ્રુપમાં મોકલાશે.', en: 'The PDF and Excel files are handed to Android\'s share sheet — pick the WhatsApp group.' }
-          })
-        },
-        {
-          gu: 'JSON બેકઅપ', en: 'Full JSON backup', icon: 'ph-duotone ph-database', bg: 'rgba(178,64,44,.14)', fg: 'var(--ind)', onClick: () => {
-            this.download('samaj-backup.json', JSON.stringify({ exportedAt: new Date().toISOString(), members: s.members, newRequests: s.newRequests, updateRequests: s.updateRequests, deleteRequests: s.deleteRequests, archive: s.archive, alerts: s.alerts }, null, 2), 'application/json');
-            this.setState({ lastBackup: 'just now' });
-            this.flash('બેકઅપ ફાઇલ ડાઉનલોડ થઈ.', 'Backup downloaded.');
-          }
-        }
+        { gu: 'PDF યાદી બનાવો', en: 'Generate PDF book', icon: 'ph-duotone ph-file-pdf', bg: 'var(--danBg)', fg: 'var(--dan)', onClick: () => {} },
+        { gu: 'એક્સેલ (.xlsx)', en: 'Excel (.xlsx)', icon: 'ph-duotone ph-file-xls', bg: 'var(--okBg)', fg: 'var(--ok)', onClick: () => {} },
+        { gu: 'CSV યાદી', en: 'CSV list', icon: 'ph-duotone ph-file-csv', bg: 'var(--okBg)', fg: 'var(--ok)', onClick: () => {} },
+        { gu: 'JSON બેકઅપ', en: 'Full JSON backup', icon: 'ph-duotone ph-database', bg: 'rgba(178,64,44,.14)', fg: 'var(--ind)', onClick: () => {} }
       ],
       restoreData: () => {
         this.setState({ ...clone(SEED), lastBackup: 'restored just now' });

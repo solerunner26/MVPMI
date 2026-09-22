@@ -273,9 +273,9 @@ try {
 
   await admin.reload();
   await admin.getByTestId("Village management").waitFor();
-  await admin.getByText("Update requests", { exact: true }).click();
+  await admin.getByText("Requests", { exact: true }).click();
   await admin.getByRole("button", { name: /Authorize|મંજૂર/ }).click();
-  await admin.getByText("Update requests", { exact: true }).waitFor();
+  await admin.getByText("Requests", { exact: true }).waitFor();
   await applicant.reload();
   await applicant.getByTestId("My profile").click();
   await applicant.getByText("Ring Road, Surat").first().waitFor();
@@ -296,6 +296,30 @@ try {
     .getByText(/Previous application was closed|પાછલી વિનંતી બંધ/)
     .waitFor();
   await scan(rejected, "rejected-feedback");
+
+  // 7b. The rejected number applies again: the village administrator must
+  //     see the "rejected before" warning on the review card.
+  const repeat = await newPage();
+  await register(repeat, "Repeat Applicant", "9000000002");
+  await va.reload();
+  await va.getByTestId("Dashboard").waitFor();
+  await va.getByTestId("Dashboard").click();
+  const repeatCard = va
+    .locator(".workflow-card")
+    .filter({ hasText: "Repeat Applicant" });
+  await repeatCard.waitFor();
+  await scan(va, "rejected-before-warning");
+  assert.match(
+    await repeatCard.innerText(),
+    /rejected before/,
+    "Re-application from a rejected number is flagged",
+  );
+  await repeatCard.getByRole("button", { name: /Reject|નામંજૂર/ }).click();
+  await repeatCard.waitFor({ state: "detached" });
+  await va
+    .getByRole("button", { name: /Back to dashboard|ડેશબોર્ડ પર પાછા/ })
+    .click();
+  await repeat.close();
   await admin
     .getByRole("button", { name: /Back to dashboard|ડેશબોર્ડ પર પાછા/ })
     .click();
@@ -328,10 +352,10 @@ try {
     .getByRole("button", { name: /Back to dashboard|ડેશબોર્ડ પર પાછા/ })
     .click();
   await admin.reload();
-  await admin.getByText("Delete requests", { exact: true }).click();
+  await admin.getByText("Requests", { exact: true }).click();
   await admin.getByRole("button", { name: /Remove|કાઢી નાખો/ }).click();
   await admin.getByRole("button", { name: /Remove from directory/ }).click();
-  await admin.getByText("Delete requests", { exact: true }).waitFor();
+  await admin.getByText("No removal requests.", { exact: true }).waitFor();
   await applicant.reload();
   await applicant.getByRole("button", { name: /Send request|રિક્વેસ્ટ મોકલો/ }).waitFor();
 

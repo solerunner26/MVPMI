@@ -1,3 +1,75 @@
+# Beta test checklist — v0.3.0 (admin redesign, reports, notifications)
+
+## What changed in v0.3.0 (twelve items)
+
+Design uniformity:
+
+1. New-registration form: every control now shares one border and one
+   background (the father's-name field had a stray ink-coloured line;
+   the locked tehsil/district fields had a different border). Both themes.
+2. Admin login / password-reset cards sit on the page background colour
+   instead of a pale pure-white slab. Both themes.
+3. Tiles everywhere (admin dashboard, backup exports, village list, Total
+   members): the red brand stripe now appears on hover/keyboard focus for
+   every tile — not only the first — and pressing a tile gives a 3D
+   pressed-block effect. The stripe is a real element so screen-reader and
+   contrast tooling stays accurate.
+
+Admin dashboard redesign:
+
+4. Tiles are grouped by activity: New/Update/Delete requests are clubbed
+   under one **Requests** tile (all three lists with headings and counts on
+   one screen). New **Reports** and **Notifications** tiles join
+   Total members, Members, Backup, Archive and Security — eight tiles.
+5. **Total members** now shows a village tile per village with its member
+   count; tapping a village lists its members; "Back to village list"
+   returns. The fixed tehsil/district sections and the "7 villages · 1
+   tehsil · 1 district" counters are removed.
+6. **Archive** lists tagged sections — Removed members, Rejected
+   applications, Closed/withdrawn applications — each with counts, plus
+   Download PDF and Download CSV buttons.
+7. **Reports** tile: six reports (Full report, Members directory, Village
+   summary, Pending requests, Rejected/closed, Activity log), each as PDF
+   (system print sheet → Save as PDF) and CSV (opens in Excel/Sheets).
+
+Exports and backup:
+
+8. CSV export added (UTF-8 BOM so Gujarati opens correctly in Excel).
+   On Android, saving any file (CSV, Excel, JSON backup) or printing a
+   PDF opens the system sheet where the main admin picks **phone memory
+   or Google Drive** — two taps, no technical setup. (Direct Google Drive
+   API sync would need your own Google Cloud project and OAuth keys; the
+   system picker achieves the same with zero setup.)
+9. The Android app no longer blocks downloads (the old test build showed
+   "use your computer browser"). New bridge: `mvpmiBridge` with
+   saveFile / printHtml / notify.
+
+Notifications:
+
+10. **Notifications** tile + header bell for the main admin; Notifications
+    tab for village admins. Pending requests, applications waiting for
+    village verification, rejected-number warnings and security alerts
+    stay listed until they are handled — they re-appear every time the
+    app opens or data refreshes (the app polls every 8 s while open).
+11. If a phone number that was **rejected before** applies again, both the
+    village admin and the main admin see a red warning on the review card
+    and a notification entry. (Demo: 9002000003 applies to Jinjaka.)
+12. While the app is open on Android, a reminder system notification is
+    posted when decisions are pending (at most once per 10 minutes).
+    Honest limit: notifications that wake a closed app need Firebase push
+    infrastructure (FCM server keys) — not possible in this workspace;
+    the Android bridge code is in place for when that is added.
+
+Screenshots: `docs/modern-design/v03-admin/` (dashboard, requests, stats
+drill-down, archive, reports, notifications — light and dark, plus the
+village-admin notification tab).
+
+Automated results for v0.3.0: Node 101/101, UI 5, language 2,
+accessibility 29 screens / 0 violations, embedded 3, village-workflow 1
+(includes the rejected-number regression), materials 20, npm audit 0.
+
+---
+
 # Beta test checklist — Liquid Glass refinement (v0.2.0) + app icon (v0.2.1)
 
 Checkpoint before these changes: git tag `Pre-LiquidGlass-Refinement`
@@ -63,6 +135,19 @@ light and dark theme.
 
 Prerequisite: build the debug APK (see below), install over the previous
 version, and confirm existing sign-ins survive.
+
+v0.3.0 manual checks:
+
+13. On the phone: Backup & export → CSV list → the system save sheet opens
+    → choose Downloads or Drive → file appears there and opens with
+    Gujarati intact.
+14. Reports → Full report → PDF → the print sheet opens → Save as PDF to
+    Drive or phone → the PDF contains members, villages, pending requests,
+    archive, rejections and activity.
+15. Register with a previously rejected number (demo 9002000003) → both
+    admins see the red "rejected before" warning on the review card.
+16. With a request waiting, keep the app open ~10 minutes → a system
+    notification appears (allow notifications when asked the first time).
 
 1. First launch shows the LIGHT theme even if the device is in dark mode.
 2. Theme button switches instantly; reopen the app after closing it and after

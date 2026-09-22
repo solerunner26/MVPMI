@@ -136,6 +136,7 @@ export function createApp({
             .map((r) => ({
               ...r.payload,
               id: r.id,
+              rejectedBefore: r.rejectedBefore || null,
               when: new Date(r.createdAt).toISOString(),
             }))
         : [],
@@ -165,6 +166,18 @@ export function createApp({
         ? store.all("alerts").map(({ sessionId, ...a }) => a)
         : [],
       lastBackup: store.get("config", "backup")?.when || "—",
+      auditLog: req.isAdmin
+        ? store
+            .all("audit")
+            .sort((a, b) => b.at - a.at)
+            .slice(0, 500)
+            .map(({ at, actor, action, target }) => ({
+              at,
+              actor,
+              action,
+              target,
+            }))
+        : [],
       passwordDue:
         req.isAdmin &&
         Date.now() - store.get("config", "admin").changedAt > 60 * 86400000,
@@ -190,6 +203,25 @@ export function createApp({
         409,
       );
     store.unique(p, req.session.owner, undefined, true);
+    // Item: a phone that was rejected before shows a warning to both
+    // administrator levels while the new request is being decided.
+    const priorRejection =
+      store.all("rejections").find(
+        (a) => a.phone === p.phone || (a.phone2 && a.phone2 === p.phone),
+      ) ||
+      store
+        .all("archive")
+        .find(
+          (a) =>
+            [a.phone, a.phone2, ...(a.numbers || [])].some(
+              (n) => n && n === p.phone,
+            ) &&
+            /નામંજૂર/.test(
+              a.history?.[a.history.length - 1]?.reason || a.status || "",
+            ),
+        );
+    const lastEvent =
+      priorRejection?.events?.[priorRejection.events.length - 1];
     store.tx(() => {
       for (const r of store
         .all("requests")
@@ -205,6 +237,15 @@ export function createApp({
         createdAt: Date.now(),
         consentAt: Date.now(),
         consentVersion: "development-disclosure-v1",
+        ...(priorRejection
+          ? {
+              rejectedBefore: {
+                at: lastEvent?.at || null,
+                reason: lastEvent?.reason || "",
+                actorName: lastEvent?.actorName || "",
+              },
+            }
+          : {}),
       });
     });
     res.json(state(req));
@@ -622,6 +663,213 @@ export function createApp({
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     );
     res.send(Buffer.from(await book.xlsx.writeBuffer()));
+  });
+  // Downloadable CSV reports. UTF-8 BOM keeps Gujarati correct in Excel.
+  const csvCell = (value) => {
+    const text = String(value ?? "");
+    return /[",\n\r]/.test(text)
+      ? '"' + text.replaceAll('"', '""') + '"'
+      : text;
+  };
+  const csvLang = (req, gu, en) => (req.query.lang === "en" ? en : gu);
+  const villageLabel = (value) => {
+    const match = villages.find((v) => v.gu === value || v.en === value);
+    return match ? match.gu + " / " + match.en : value;
+  };
+  const iso = (ms) => (ms ? new Date(ms).toISOString().slice(0, 16) : "");
+  app.get("/api/admin/export.csv", admin, (req, res) => {
+    const type = String(req.query.type || "members");
+    const L = (gu, en) => csvLang(req, gu, en);
+    const rows = [];
+    const head = (cells) => rows.push(cells);
+    const section = (gu, en) => rows.push([L(gu, en)]);
+    const members = store.all("members");
+    const requests = store.all("requests");
+    const archive = store.all("archive");
+    const rejections = store.all("rejections");
+    const admins = Object.fromEntries(store.all("villageAdmins"));
+    const villagesAll = store.all("villages");
+    const audit = store
+      .all("audit")
+      .sort((a, b) => b.at - a.at)
+      .slice(0, 500);
+    if (type === "members") {
+      head([
+        L("ગુજરાતી નામ", "Name (Gujarati)"),
+        L("નામ", "Name"),
+        L("પોતાનો નંબર", "Personal number"),
+        L("બીજો નંબર", "Second number"),
+        L("પ્રકાર", "Label"),
+        L("ગામ", "Village"),
+        L("તાલુકો", "Tehsil"),
+        L("જિલ્લો", "District"),
+        L("હાલની જગ્યા", "Current location"),
+      ]);
+      for (const m of members)
+        rows.push([
+          m.nameGu,
+          m.name,
+          m.phone,
+          m.phone2,
+          m.label2,
+          villageLabel(m.village),
+          L("મહુવા", "Mahuva"),
+          L("ભાવનગર", "Bhavnagar"),
+          m.currentLocation || "",
+        ]);
+    } else if (type === "villages") {
+      head([
+        L("ગામ", "Village"),
+        L("સભ્યો", "Members"),
+        L("ગામ એડમિન", "Village administrator"),
+        L("એડમિન નંબર", "Administrator number"),
+      ]);
+      for (const v of villagesAll) {
+        const a = admins[v.gu] && store.get("members", admins[v.gu].memberId);
+        rows.push([
+          v.gu + " / " + v.en,
+          members.filter((m) => m.village === v.gu).length,
+          a ? a.nameGu || a.name : "",
+          a ? a.phone : "",
+        ]);
+      }
+    } else if (type === "requests") {
+      head([
+        L("પ્રકાર", "Kind"),
+        L("નામ", "Name"),
+        L("નંબર", "Phone"),
+        L("ગામ", "Village"),
+        L("તબક્કો", "Stage"),
+        L("પહેલા નામંજૂર", "Rejected before"),
+        L("સમય", "Created"),
+      ]);
+      const kindText = {
+        new: L("નવી નોંધણી", "New enrollment"),
+        update: L("ફેરફાર", "Change"),
+        delete: L("દૂર કરવાની", "Removal"),
+      };
+      for (const r of requests)
+        rows.push([
+          kindText[r.kind] || r.kind,
+          (r.payload || r.old || {}).nameGu || (r.payload || r.old || {}).name,
+          (r.payload || r.old || {}).phone,
+          villageLabel((r.payload || r.old || {}).village),
+          r.verification
+            ? L("મુખ્ય એડમિન પાસે", "With main admin")
+            : L("ગામ ચકાસણી બાકી", "Awaiting village verification"),
+          r.rejectedBefore ? L("હા", "Yes") : "",
+          iso(r.createdAt),
+        ]);
+    } else if (type === "rejections") {
+      head([
+        L("નામ", "Name"),
+        L("નંબર", "Phone"),
+        L("ગામ", "Village"),
+        L("કેટેગરી", "Category"),
+        L("છેલ્લો નિર્ણય", "Last decision"),
+        L("નિર્ણય કરનાર", "Decided by"),
+        L("સમય", "When"),
+      ]);
+      for (const a of rejections) {
+        const last = a.events?.[a.events.length - 1] || {};
+        rows.push([
+          a.name,
+          a.phone,
+          villageLabel(a.village),
+          a.category,
+          last.action === "closed"
+            ? L("બંધ", "Closed")
+            : last.action === "reject"
+              ? L("નામંજૂર", "Rejected")
+              : last.action || "",
+          last.actorName || "",
+          iso(last.at),
+        ]);
+      }
+    } else if (type === "archive") {
+      head([
+        L("નામ", "Name"),
+        L("નંબર", "Phone"),
+        L("ગામ", "Village"),
+        L("સ્થિતિ", "Status"),
+        L("સમય", "When"),
+      ]);
+      for (const a of archive) {
+        const last = a.history?.[a.history.length - 1];
+        rows.push([
+          a.nameGu || a.name,
+          a.phone,
+          villageLabel(a.village),
+          last?.reason || "",
+          iso(last?.at),
+        ]);
+      }
+    } else if (type === "activity") {
+      head([
+        L("સમય", "When"),
+        L("કરનાર", "Actor"),
+        L("ક્રિયા", "Action"),
+        L("લક્ષ્ય", "Target"),
+      ]);
+      for (const a of audit)
+        rows.push([iso(a.at), a.actor, a.action, a.target]);
+    } else if (type === "full") {
+      section("સમાજ સંપૂર્ણ રિપોર્ટ", "Community full report");
+      rows.push([]);
+      section("કુલ મંજૂર સભ્યો", "Total approved members");
+      rows.push([String(members.length)]);
+      rows.push([]);
+      section("ગામ પ્રમાણે સભ્યો", "Members by village");
+      head([L("ગામ", "Village"), L("સભ્યો", "Members")]);
+      for (const v of villagesAll)
+        rows.push([
+          v.gu + " / " + v.en,
+          members.filter((m) => m.village === v.gu).length,
+        ]);
+      rows.push([]);
+      section("બાકી વિનંતીઓ", "Pending requests");
+      head([
+        L("પ્રકાર", "Kind"),
+        L("નામ", "Name"),
+        L("નંબર", "Phone"),
+        L("તબક્કો", "Stage"),
+      ]);
+      for (const r of requests)
+        rows.push([
+          r.kind,
+          (r.payload || r.old || {}).nameGu || "",
+          (r.payload || r.old || {}).phone,
+          r.verification
+            ? L("મુખ્ય એડમિન પાસે", "With main admin")
+            : L("ગામ ચકાસણી બાકી", "Awaiting village verification"),
+        ]);
+      rows.push([]);
+      section("આર્કાઇવ", "Archive");
+      head([L("નામ", "Name"), L("નંબર", "Phone"), L("સ્થિતિ", "Status")]);
+      for (const a of archive)
+        rows.push([
+          a.nameGu || a.name,
+          a.phone,
+          a.history?.[a.history.length - 1]?.reason || "",
+        ]);
+      rows.push([]);
+      section("નામંજૂર નોંધણી", "Rejection ledger");
+      head([L("નામ", "Name"), L("નંબર", "Phone"), L("કેટેગરી", "Category")]);
+      for (const a of rejections) rows.push([a.name, a.phone, a.category]);
+      rows.push([]);
+      section(
+        "છેલ્લી પ્રવૃત્તિ (વધુમાં વધુ ૫૦૦)",
+        "Recent activity (up to 500)",
+      );
+      head([L("સમય", "When"), L("કરનાર", "Actor"), L("ક્રિયા", "Action")]);
+      for (const a of audit) rows.push([iso(a.at), a.actor, a.action]);
+    } else fail("Unknown report type");
+    res.setHeader(
+      "content-disposition",
+      'attachment; filename="mvpmi-' + type + '.csv"',
+    );
+    res.type("text/csv; charset=utf-8");
+    res.send("\uFEFF" + rows.map((r) => r.map(csvCell).join(",")).join("\r\n"));
   });
   app.use("/api", (req, res) => res.status(404).json({ error: "Not found" }));
   app.use(express.static("dist", { index: "index.html" }));

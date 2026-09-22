@@ -217,3 +217,47 @@
   background: var(--g2);
   color: var(--ink);
 }
+
+/* ---- v0.3.0: notifications tab and previously-rejected warnings ---- */
+.workflow-card .rejected-before {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 12px;
+  border-radius: 14px;
+  background: var(--danBg);
+  color: var(--dan);
+  font-size: var(--f-xs);
+  font-weight: 700;
+}
+.workflow-card .rejected-before i {
+  font-size: 16px;
+  flex: 0 0 auto;
+}
+.notification-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.notification-icon {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.notification-icon i {
+  font-size: 19px;
+}
+.notification-open {
+  align-self: flex-start;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--glass-border);
+  border-radius: 13px;
+  background: var(--glass-tint);
+  color: var(--ind);
+  font-weight: 700;
+}

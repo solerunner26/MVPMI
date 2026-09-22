@@ -8,7 +8,7 @@ test("Android static configuration: network permission only, no cleartext or dev
     [...manifest.matchAll(/uses-permission android:name="([^"]+)"/g)].map(
       (m) => m[1],
     ),
-    ["android.permission.INTERNET"],
+    ["android.permission.INTERNET", "android.permission.POST_NOTIFICATIONS"],
   );
   assert.ok(manifest.includes('android:allowBackup="false"'));
   assert.ok(manifest.includes('android:usesCleartextTraffic="false"'));
@@ -21,7 +21,15 @@ test("Android static source: HTTPS navigation policy, no SSL bypass or JavaScrip
   assert.ok(source.includes("MIXED_CONTENT_NEVER_ALLOW"));
   assert.ok(source.includes("Intent.ACTION_DIAL"));
   assert.ok(source.includes("request.isForMainFrame"));
-  assert.equal(source.includes("addJavascriptInterface"), false);
+  // The web bridge is deliberate and narrow: exactly three explicitly
+  // annotated methods (save sheet, print sheet, local reminder) — nothing
+  // else of the Activity is reachable from page JavaScript.
+  assert.ok(source.includes('addJavascriptInterface(Bridge(), "mvpmiBridge")'));
+  assert.equal(
+    (source.match(/@android\.webkit\.JavascriptInterface/g) || []).length,
+    3,
+  );
+  assert.ok(source.includes("printer.settings.javaScriptEnabled = false"));
   assert.equal(source.includes("handler.proceed"), false);
   assert.equal(source.includes("Intent.ACTION_CALL"), false);
 });

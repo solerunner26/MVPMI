@@ -154,6 +154,53 @@ test("backup validation is atomic, roundtrip restores links, export is a genuine
   const xlsx = Buffer.from(await admin("admin/export.xlsx"));
   assert.equal(xlsx.subarray(0, 2).toString(), "PK");
 });
+test("CSV reports download with a UTF-8 BOM and admin-only access", async (t) => {
+  const { client, admin } = await setup(t);
+  await client()("admin/export.csv?type=members", undefined, 403);
+  for (const type of [
+    "members",
+    "villages",
+    "requests",
+    "rejections",
+    "archive",
+    "activity",
+    "full",
+  ]) {
+    const csv = Buffer.from(await admin("admin/export.csv?type=" + type)).toString("utf8");
+    assert.ok(csv.startsWith("\uFEFF"), type + " has a BOM");
+    assert.ok(
+      csv.includes("ગામ") ||
+        csv.includes("Village") ||
+        csv.includes("Action") ||
+        csv.includes("ક્રિયા"),
+      type + " header",
+    );
+  }
+  await admin("admin/export.csv?type=nonsense", undefined, 400);
+});
+test("a rejected phone that applies again is flagged for both administrators", async (t) => {
+  const { client, admin, forward } = await setup(t);
+  const a = client();
+  await a("enrollment", { ...form, phone: "9003000001" });
+  let s = await admin("state");
+  await forward(s.newRequests[0].id);
+  await admin(
+    "admin/requests/" + s.newRequests[0].id + "/reject",
+    { reason: "Not recognised" },
+  );
+  // The same person applies again from a fresh session.
+  const b = client();
+  await b("enrollment", { ...form, phone: "9003000001" });
+  s = await admin("state");
+  assert.ok(
+    s.newRequests.some((r) => r.phone === "9003000001" && r.rejectedBefore),
+    "the new request carries the rejection warning",
+  );
+  assert.ok(
+    s.reviewQueue.some((r) => r.payload.phone === "9003000001" && r.rejectedBefore),
+    "the village administrator sees the warning too",
+  );
+});
 test("server rejects invalid fields, ignores injected approval, rejects stale updates", async (t) => {
   const { client, admin, forward } = await setup(t),
     a = client();

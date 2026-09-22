@@ -188,16 +188,16 @@ try {
   await page.getByPlaceholder("admin", { exact: true }).fill("admin");
   await page.locator("input[type=password]").fill("Accessible@2026");
   await page.getByRole("button", { name: /^Sign in$|^લોગિન કરો$/ }).click();
-  await page.getByText("New requests", { exact: true }).waitFor();
+  await page.getByText("Requests", { exact: true }).first().waitFor();
   await scan("admin-home");
   for (const section of [
-    "New requests",
-    "Update requests",
-    "Delete requests",
+    "Requests",
     "Members",
+    "Reports",
     "Archive",
     "Security alerts",
     "Backup & export",
+    "Notifications",
     "Total members",
   ]) {
     const item = page.getByText(section, { exact: true });

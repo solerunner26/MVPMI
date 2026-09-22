@@ -144,6 +144,33 @@ store.tx(() => {
     "not-community",
   );
 
+  // The same rejected number applies again: both administrators must see
+  // the "rejected before" warning on the review card.
+  store.put("requests", {
+    id: randomUUID(),
+    owner: randomUUID(),
+    kind: "new",
+    payload: profile(
+      {
+        name: "Unknown Umbre",
+        nameGu: "Unknown Umbre",
+        phone: "9002000003",
+        phone2: "",
+        label2: "work",
+        village: "જીંજકા",
+      },
+      store.all("villages"),
+    ),
+    createdAt: now,
+    consentAt: now,
+    consentVersion: "demo-seed-v1",
+    rejectedBefore: {
+      at: now,
+      reason: "Demo seed: not recognised as a community member",
+      actorName: "નિતાબેન મકવાણા",
+    },
+  });
+
   // A removed member kept once in the archive with full number history.
   const removed = {
     ...profile(

@@ -303,6 +303,7 @@ export function VillageWorkflow({
   const h = React.createElement,
     B = (gu, en) => bilingual(gu, en, lang);
   const [tab, setTab] = React.useState(initialTab),
+    openTab = setTab,
     [busy, setBusy] = React.useState(false),
     [error, setError] = React.useState("");
   const main = data.role === "admin";
@@ -328,6 +329,7 @@ export function VillageWorkflow({
     : [
         ["requests", "વિનંતીઓ", "Requests"],
         ["members", "મારા ગામના સભ્યો", "My village members"],
+        ["alerts", "સૂચનાઓ", "Notifications"],
         ["account", "ખાતું", "Account"],
       ];
   return h(
@@ -424,6 +426,9 @@ export function VillageWorkflow({
       !main &&
         tab === "account" &&
         h(WorkflowAccount, { data, lang, act, busy }),
+      !main &&
+        tab === "alerts" &&
+        h(WorkflowAlerts, { data, lang, busy, openTab }),
       main &&
         tab === "villages" &&
         h(WorkflowVillageManager, { data, lang, act, busy }),
@@ -523,6 +528,113 @@ function workflowTools(lang, busy) {
     h("label", { className: "workflow-field" }, label, h("input", props));
   return { h, B, field, button };
 }
+// Village-administrator notifications: pending verification, previously
+// rejected numbers and proposals waiting with the main administrator.
+function WorkflowAlerts({ data, lang, busy, openTab }) {
+  const { h, B, button } = workflowTools(lang, busy);
+  const queue = (data.reviewQueue || []).filter((r) => !r.verification);
+  const rejectedBefore = (data.reviewQueue || []).filter(
+    (r) => r.rejectedBefore,
+  );
+  const proposals = data.villageProposals || [];
+  const rows = [];
+  if (queue.length)
+    rows.push({
+      icon: "ph-duotone ph-tray",
+      bg: "rgba(178,64,44,.14)",
+      fg: "var(--ind)",
+      gu: queue.length + " વિનંતીઓની ચકાસણી બાકી છે",
+      en:
+        queue.length +
+        (queue.length === 1
+          ? " application is waiting for your verification"
+          : " applications are waiting for your verification"),
+      detailGu: "વિનંતીઓ ટેબમાં ચકાસીને મુખ્ય એડમિન પાસે મોકલો.",
+      detailEn: "Verify them in the Requests tab and forward them.",
+      tab: "requests",
+    });
+  if (rejectedBefore.length)
+    rows.push({
+      icon: "ph-duotone ph-warning-circle",
+      bg: "var(--danBg)",
+      fg: "var(--dan)",
+      gu:
+        rejectedBefore.length +
+        " વિનંતી પહેલા નામંજૂર થયેલા નંબર પરથી છે",
+      en:
+        rejectedBefore.length +
+        " application" +
+        (rejectedBefore.length === 1 ? "" : "s") +
+        " from a previously rejected number",
+      detailGu: "આ નંબરો પહેલા નામંજૂર થયા હતા — ચકાસીને નિર્ણય કરો.",
+      detailEn:
+        "These numbers were rejected before — verify carefully before deciding.",
+      tab: "requests",
+    });
+  if (proposals.length)
+    rows.push({
+      icon: "ph-duotone ph-hourglass",
+      bg: "var(--danBg)",
+      fg: "var(--dan)",
+      gu:
+        proposals.length +
+        " સૂચનો મુખ્ય એડમિનના નિર્ણયની રાહમાં છે",
+      en:
+        proposals.length +
+        (proposals.length === 1
+          ? " proposal is waiting with the main administrator"
+          : " proposals are waiting with the main administrator"),
+      detailGu: "મારા ગામના સભ્યો ટેબમાં 'બાકી' તરીકે દેખાશે.",
+      detailEn:
+        "They appear as pending in the My village members tab.",
+      tab: "members",
+    });
+  return h(
+    "div",
+    null,
+    h(
+      "p",
+      null,
+      B(
+        "બાકી કામ અહીં રહેશે જ્યાં સુધી પૂરું ન થાય.",
+        "Pending work stays listed here until it is finished.",
+      ),
+    ),
+    rows.length
+      ? rows.map((n) =>
+          h(
+            "article",
+            { key: n.gu, className: "workflow-card notification-card" },
+            h(
+              "div",
+              { className: "notification-head" },
+              h(
+                "span",
+                {
+                  className: "notification-icon",
+                  style: { background: n.bg, color: n.fg },
+                },
+                h("i", { "aria-hidden": "true", className: n.icon }),
+              ),
+              h("strong", null, B(n.gu, n.en)),
+            ),
+            h("p", null, B(n.detailGu, n.detailEn)),
+            n.tab
+              ? button(
+                  B("ખોલો", "Open"),
+                  () => openTab && openTab(n.tab),
+                  { className: "notification-open" },
+                )
+              : null,
+          ),
+        )
+      : h(
+          "p",
+          null,
+          B("કોઈ સૂચના નથી. બધું અપ ટુ ડેટ છે.", "No notifications. Everything is up to date."),
+        ),
+  );
+}
 function WorkflowDecision({ request: r, data, lang, act, busy }) {
   const { h, B, field, button } = workflowTools(lang, busy);
   const main = data.role === "admin";
@@ -553,6 +665,21 @@ function WorkflowDecision({ request: r, data, lang, act, busy }) {
       r.payload.phone,
       r.payload.phone2 ? " · " + r.payload.phone2 : "",
     ),
+    r.rejectedBefore
+      ? h(
+          "p",
+          { className: "rejected-before", role: "alert" },
+          h("i", {
+            "aria-hidden": "true",
+            className: "ph-duotone ph-warning-circle",
+          }),
+          " ",
+          B(
+            "આ નંબર પહેલા નામંજૂર થયો હતો — ચકાસીને નિર્ણય કરો.",
+            "This number was rejected before — verify carefully before deciding.",
+          ),
+        )
+      : null,
     r.kind === "update" && r.old
       ? h(
           "p",
