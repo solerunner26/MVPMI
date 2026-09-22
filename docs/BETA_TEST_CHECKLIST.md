@@ -133,8 +133,9 @@ light and dark theme.
 
 ## Manual checklist for testers (Android)
 
-Prerequisite: build the debug APK (see below), install over the previous
-version, and confirm existing sign-ins survive.
+Prerequisite: get the debug APK (CI download or local build — see
+"APK build" below), install over the previous version, and confirm existing
+sign-ins survive.
 
 v0.3.0 manual checks:
 
@@ -172,10 +173,25 @@ v0.3.0 manual checks:
     circular and squircle launcher masks. If the wrong source image was
     used, regenerate with the other option (see `docs/APP_ICON.md`).
 
-## APK build (blocked in this workspace — manual)
+## APK build
 
-This workspace has no Android SDK/Gradle/Java. On a machine with Android
-Studio (AGP compatible with compileSdk 36):
+Easiest — download the CI-built APK (no Android Studio needed):
+
+1. Open https://github.com/solerunner26/MVPMI/actions
+2. Click the latest green "Quality checks" run (top of the list, commit
+   "Admin redesign v0.3.0…").
+3. Scroll to the **Artifacts** section at the bottom of the run page and
+   download **mvpmi-debug-apk** (a zip containing `app-debug.apk` +
+   `SHA256SUMS.txt` + `BUILD-INFO.txt`).
+4. Unzip and copy `app-debug.apk` to the phone → install over the previous
+   version (same applicationId + signing identity; allow "unknown sources"
+   if asked).
+
+You must be signed in to GitHub as the repo owner to download artifacts.
+Every successful run of the "Quality checks" workflow produces a fresh APK.
+
+Alternative — build locally on a machine with Android Studio (AGP compatible
+with compileSdk 36):
 
 ```
 cd android
