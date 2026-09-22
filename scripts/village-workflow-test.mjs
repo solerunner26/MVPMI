@@ -112,6 +112,8 @@ async function loginAsAdmin(page) {
   await page.locator("input").nth(1).fill("WorkflowTest@2026!");
   await page.getByRole("button", { name: /^Sign in$|^લોગિન કરો$/ }).click();
   await page.getByTestId("Village management").waitFor();
+  // First sign-in shows the one-time recovery-code notice; dismiss it.
+  await page.getByRole("button", { name: /^Saved it$|^સાચવી લીધો$/ }).click();
 }
 async function loginAsVillageAdmin(page, phone, pass) {
   await page.getByTestId("Village admin sign in").click();

@@ -150,6 +150,10 @@ try {
   await panel.locator("input[type=password]").fill("LanguageTest@2026");
   await panel.getByRole("button", { name: /^Sign in$|^લોગિન કરો$/ }).click();
   await panel.getByText("Requests", { exact: true }).first().waitFor();
+  // First sign-in shows the one-time recovery-code notice; dismiss it.
+  await panel
+    .getByRole("button", { name: /^Saved it$|^સાચવી લીધો$/ })
+    .click();
   assert(
     (await panel.locator(".app").boundingBox()).width > 800,
     "Admin expands on desktop",

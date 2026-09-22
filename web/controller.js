@@ -1,4 +1,7 @@
 // The supplied design remains the renderer; all domain actions below go to the API.
+function formatRecovery(code) {
+  return String(code || "").replace(/^(.{4})(.{4})(.{4})(.{4})$/, "$1-$2-$3-$4");
+}
 class Component extends DesignComponent {
   L(gu, en) {
     return this.P(gu, en);
@@ -1110,50 +1113,111 @@ class Component extends DesignComponent {
             user: this.state.login.user.trim().toLowerCase(),
           });
           this.apply(data, false, "admin");
-          this.setState({ login: { user: "", pass: "" }, loginError: false });
+          this.setState({
+            login: { user: "", pass: "" },
+            loginError: false,
+            // First sign-in issues the recovery code exactly once; the
+            // overlay makes the administrator save it before anything else.
+            recoveryNotice: data.recovery
+              ? formatRecovery(data.recovery)
+              : null,
+          });
         } catch (e) {
           this.setState({ loginError: true, loginErrorMessage: e.message });
           throw e;
         }
       });
     v.goAdminForgot = () => {
-      this.set("screen", "adminforgot");
-    };
-    v.resetPhone = s.resetPhone
-      ? "••••••" + s.resetPhone
-      : uiText("adminPhone", s.lang);
-    v.resetOtp = s.resetOtp || "";
-    v.resetPassword = s.resetPassword || "";
-    v.setResetOtp = (e) => this.set("resetOtp", dg(e.target.value).slice(0, 6));
-    v.setResetPassword = (e) => this.set("resetPassword", e.target.value);
-    v.sendReset = () =>
-      this.run(async () => {
-        if (s.resendAt > Date.now())
-          throw new Error("Please wait before resending");
-        const r = await this.api("admin/reset/send", {});
-        this.setState({ resetPhone: r.phone, resendAt: Date.now() + 60000 });
-        this.flash("કોડ મોકલ્યો.", "Code sent to the registered admin phone.");
+      this.setState({
+        screen: "adminforgot",
+        resetError: null,
+        resetDone: false,
       });
-    v.resendLabel =
-      s.resendAt > Date.now()
-        ? this.L(
-            "ફરી મોકલવા રાહ જુઓ",
-            `Resend in ${Math.ceil((s.resendAt - Date.now()) / 1000)}s`,
-          )
-        : this.L("કોડ મોકલો / ફરી મોકલો", "Send / resend code");
+    };
+    // Offline recovery code instead of SMS OTP: no per-message cost, no
+    // phone-number dependency and far more entropy than a 6-digit code.
+    v.resetRecovery = s.resetRecovery || "";
+    v.resetPassword = s.resetPassword || "";
+    v.setResetRecovery = (e) =>
+      this.set(
+        "resetRecovery",
+        e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 19),
+      );
+    v.setResetPassword = (e) => this.set("resetPassword", e.target.value);
+    v.resetCodeShown = !!s.resetCodeShown;
+    v.resetPassShown = !!s.resetPassShown;
+    v.resetCodeType = s.resetCodeShown ? "text" : "password";
+    v.resetCodeIcon = s.resetCodeShown
+      ? "ph-duotone ph-eye-slash"
+      : "ph-duotone ph-eye";
+    v.resetPassType = s.resetPassShown ? "text" : "password";
+    v.resetPassIcon = s.resetPassShown
+      ? "ph-duotone ph-eye-slash"
+      : "ph-duotone ph-eye";
+    v.toggleResetCode = () => this.set("resetCodeShown", !s.resetCodeShown);
+    v.toggleResetPass = () => this.set("resetPassShown", !s.resetPassShown);
+    v.resetCodeEyeLabel = this.L("કોડ બતાવો કે છુપાવો", "Show or hide the code");
+    v.resetPassEyeLabel = this.L(
+      "પાસવર્ડ બતાવો કે છુપાવો",
+      "Show or hide the password",
+    );
+    const rpScore = pwStrength(s.resetPassword || ""),
+      { labels: pwLabels, colors: pwColors } = v.pwPalette;
+    v.resetPwWidth = (rpScore / 5) * 100 + "%";
+    v.resetPwColor = pwColors[rpScore];
+    v.resetPwLabel =
+      pwLabels[rpScore] +
+      " · " +
+      this.L(
+        "૧૦+ અક્ષર, નાના-મોટા, આંકડો, ચિહ્ન",
+        "10+ chars, mixed case, number, symbol",
+      );
+    v.resetErrorGu = errorText(s.resetError || "", "gu");
+    v.resetErrorEn = errorText(s.resetError || "", "en");
+    v.resetDone = !!s.resetDone;
+    v.newRecovery = formatRecovery(s.newRecovery || "");
     v.resetPasswordSubmit = () =>
       this.run(async () => {
-        await this.api("admin/reset", {
-          otp: s.resetOtp,
-          password: s.resetPassword,
-        });
-        this.setState({
-          screen: "adminlogin",
-          resetOtp: "",
-          resetPassword: "",
-        });
-        this.flash("પાસવર્ડ બદલાયો.", "Password changed. Sign in again.");
+        try {
+          const r = await this.api("admin/recover", {
+            recovery: s.resetRecovery,
+            password: s.resetPassword,
+          });
+          this.setState({
+            resetDone: true,
+            newRecovery: r.recovery,
+            resetRecovery: "",
+            resetPassword: "",
+            resetError: null,
+          });
+        } catch (e) {
+          this.setState({ resetError: e.message });
+          throw e;
+        }
       });
+    v.resetDoneNext = () =>
+      this.setState({
+        screen: "adminlogin",
+        resetDone: false,
+        newRecovery: "",
+        loginError: false,
+      });
+    v.closeRecoveryNotice = () => this.set("recoveryNotice", null);
+    v.recoveryNoticeLabel = this.L("રિકવરી કોડ", "Recovery code");
+    v.regenerateRecovery = () =>
+      this.confirmAction(
+        "નવો રિકવરી કોડ બનાવો?",
+        "Generate a new recovery code?",
+        "The current code stops working immediately — save the new one somewhere safe.",
+        async () => {
+          const r = await this.api("admin/recovery/regenerate", {});
+          this.setState({
+            confirm: null,
+            recoveryNotice: formatRecovery(r.recovery),
+          });
+        },
+        "જૂનો કોડ તરત રદ થઈ જશે — નવો કોડ સુરક્ષિત જગ્યાએ સાચવી લેજો.",
+      );
     for (const [key, approve] of [
       ["newRequests", "onApprove"],
       ["updateRequests", "onAuthorize"],

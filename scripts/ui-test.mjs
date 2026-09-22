@@ -103,7 +103,29 @@ try {
     await panel.getByRole("button", { name: digit, exact: true }).click();
   await panel.getByPlaceholder("admin", { exact: true }).fill("admin");
   await panel.locator("input[type=password]").fill("TestPreview@2026");
+  // The brown ADMIN PANEL card now carries the community emblem, and it
+  // must actually load inside the card.
+  const emblem = panel.locator('img[src="/brand/admin-emblem.png"]');
+  assert.equal(await emblem.count(), 1, "admin-panel emblem present");
+  assert.ok(
+    (await emblem.evaluate((el) => el.naturalWidth)) > 0,
+    "admin-panel emblem image loads",
+  );
   await panel.getByRole("button", { name: /^Sign in$|^લોગિન કરો$/ }).click();
+  // First sign-in shows the one-time recovery-code notice; capture the code
+  // and dismiss before the dashboard becomes usable.
+  const notice = panel.getByRole("dialog", {
+    name: /Recovery code|રિકવરી કોડ/,
+  });
+  await notice.waitFor();
+  const issuedCode = await notice
+    .getByText(/^[0-9A-HJKMNP-TV-Z]{4}(-[0-9A-HJKMNP-TV-Z]{4}){3}$/, {
+      exact: true,
+    })
+    .innerText();
+  await panel
+    .getByRole("button", { name: /^Saved it$|^સાચવી લીધો$/ })
+    .click();
   await panel.getByText("Requests", { exact: true }).click();
   await panel.getByRole("button", { name: /Approve|મંજૂર/ }).click();
   await panel
@@ -258,6 +280,71 @@ try {
     null,
     "lock fully removed",
   );
+
+  // Recovery-code password reset from the login page — the SMS/OTP-free
+  // flow. Generate a fresh code in the Security tab, then use it while
+  // signed out to set a new password.
+  await panel.goto(url);
+  await panel.getByText("Security alerts", { exact: true }).click();
+  await panel.getByRole("button", { name: /^New code$|^નવો બનાવો$/ }).click();
+  await panel
+    .getByRole("button", { name: /^Continue$|^આગળ વધો$/ })
+    .click();
+  await notice.waitFor();
+  const codeFromSecurity = await notice
+    .getByText(/^[0-9A-HJKMNP-TV-Z]{4}(-[0-9A-HJKMNP-TV-Z]{4}){3}$/, {
+      exact: true,
+    })
+    .innerText();
+  assert.notEqual(codeFromSecurity, issuedCode);
+  await panel
+    .getByRole("button", { name: /^Saved it$|^સાચવી લીધો$/ })
+    .click();
+  await panel.getByTestId("Sign out").click();
+  await panel.getByRole("button", { name: /Send request|રિક્વેસ્ટ મોકલો/ }).waitFor();
+  for (let i = 0; i < 5; i++)
+    await panel.getByTestId("Brand logo").click({ force: true });
+  await panel.getByRole("button", { name: "5", exact: true }).first().waitFor();
+  for (const digit of "5831")
+    await panel.getByRole("button", { name: digit, exact: true }).click();
+  await panel.getByPlaceholder("admin", { exact: true }).waitFor();
+  await panel.getByRole("button", { name: /Forgot password/ }).click();
+  await panel.getByText("Reset password", { exact: true }).waitFor();
+  // Eye toggles reveal the masked recovery-code field.
+  await panel
+    .getByRole("button", { name: /Show or hide the code/ })
+    .click();
+  assert.equal(
+    await panel
+      .getByPlaceholder("XXXX-XXXX-XXXX-XXXX")
+      .getAttribute("type"),
+    "text",
+  );
+  await panel.getByPlaceholder("XXXX-XXXX-XXXX-XXXX").fill(codeFromSecurity);
+  await panel
+    .locator('input[placeholder="At least 10 characters"]')
+    .fill("Rotated@2026!");
+  await panel.getByRole("button", { name: /Set new password/ }).click();
+  await panel.getByText("Password changed", { exact: true }).waitFor();
+  const rotatedCode = await panel
+    .getByText(/^[0-9A-HJKMNP-TV-Z]{4}(-[0-9A-HJKMNP-TV-Z]{4}){3}$/, {
+      exact: true,
+    })
+    .innerText();
+  assert.notEqual(rotatedCode, codeFromSecurity);
+  await panel.getByRole("button", { name: /Go to sign in/ }).click();
+  await panel.getByPlaceholder("admin", { exact: true }).fill("admin");
+  await panel.locator("input[type=password]").fill("Rotated@2026!");
+  await panel.getByRole("button", { name: /^Sign in$|^લોગિન કરો$/ }).click();
+  // The panel reopens on the last-used tab (Security); the recovery card
+  // there proves the admin session works with the rotated password.
+  await panel.getByText("Recovery code", { exact: true }).waitFor();
+  await panel
+    .getByRole("button", { name: /Back to dashboard|ડેશબોર્ડ પર પાછા/ })
+    .click();
+  await panel.getByText("Requests", { exact: true }).first().waitFor();
+  // A later sign-in never resends or re-shows the recovery code.
+  assert.equal(await notice.count(), 0);
 
   assert.deepEqual(errors, []);
   console.log(

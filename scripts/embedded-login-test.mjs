@@ -104,6 +104,10 @@ try {
     await frame.locator("input[type=password]").fill("EmbeddedTest@2026");
     await frame.getByRole("button", { name: /^Sign in$|^લોગિન કરો$/ }).click();
     await frame.getByText("Requests", { exact: true }).first().waitFor();
+    // First sign-in shows the one-time recovery-code notice; dismiss it.
+    // Only the very first sign-in on a fresh database shows it.
+    const saved = frame.getByRole("button", { name: /^Saved it$|^સાચવી લીધો$/ });
+    if (await saved.count()) await saved.click();
     if (mode !== "cookies")
       assert.equal(
         (await context.cookies()).find((c) => c.name === "mvpm_session"),

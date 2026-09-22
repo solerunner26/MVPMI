@@ -275,3 +275,18 @@
   font-size: 28px;
   color: #f3bc6a;
 }
+/* Community sun crest on the admin sign-in card. Decorative (alt=""):
+   the heading below carries the meaning. */
+.admin-signin-heading .admin-emblem {
+  display: block;
+  width: 92px;
+  height: 92px;
+  margin: 0 auto 8px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(243, 188, 106, 0.7);
+  box-shadow:
+    0 0 0 5px rgba(233, 161, 59, 0.14),
+    0 14px 30px rgba(0, 0, 0, 0.5);
+  background: #2a1410;
+}

@@ -269,6 +269,23 @@ v0.3.3 manual checks (see `docs/modern-design/v033-admin/` and
     Change or turn off the PIN any time from the same place (current PIN
     required).
 
+v0.3.4 additions (recovery codes replace SMS/OTP — see
+`docs/TEST_REPORT_v034.md` for the full report):
+
+29. Admin login page: the brown "ADMIN PANEL" card now shows a round
+    golden sun emblem at the top; check it loads (no broken-image icon)
+    in both light and dark theme.
+30. First sign-in: a "રિકવરી કોડ સાચવો / Save your recovery code" panel
+    appears with a code like XXXX-XXXX-XXXX-XXXX. Write it down on paper
+    before tapping "સાચવી લીધો / Saved it". It is shown only this once.
+31. Forgot password (main admin, phone test): from the login page tap
+    "પાસવર્ડ ભૂલી ગયા? / Forgot password?" → enter the saved recovery code
+    (eye button shows it) and a new strong password → "નવો પાસવર્ડ સેટ
+    કરો" → the success panel shows a NEW code (the old one is dead —
+    save the new one) → "લોગિન પર જાઓ" → sign in with the new password.
+    No SMS or OTP is used anywhere. A lost code can be replaced from
+    Security → "નવો બનાવો / New code" while signed in.
+
 Role logins for manual testing (dummy data):
 
 - Main administrator: tap the sun 5 times → code 5831 → admin /

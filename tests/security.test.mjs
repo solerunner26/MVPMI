@@ -23,6 +23,7 @@ const protectedRoutes = [
   ["village/members/unknown/update", { reason: "Attempted action" }],
   ["village/members/unknown/delete", { reason: "Attempted action" }],
   ["village/password", { current: "Attempt@2026!", next: "Attempt@2026!" }],
+  ["admin/recovery/regenerate", {}],
 ];
 for (const role of ["guest", "pending", "member"])
   test(`${role}: every admin data/mutation endpoint requires admin authorization`, async (t) => {
@@ -47,7 +48,8 @@ for (const [label, body] of [
     for (const path of [
       "enrollment",
       "admin/login",
-      "admin/reset",
+      "admin/recover",
+      "admin/recovery/regenerate",
       "admin/restore",
     ]) {
       const r = await fetch(url + "/api/" + path, {
@@ -203,81 +205,59 @@ test("expiry, logout and device blocking are enforced by the server", async (t) 
   await u("admin/gate", { code: "5831" }, 403);
 });
 
-test("unauthenticated password-reset attempts cannot consume the admin SMS quota", async (t) => {
-  let sent = 0;
-  const { client, admin, store } = await fixture(t, {
-      sms: async () => {
-        sent++;
-      },
-      adminPhone: "+919000000000",
-    }),
+test("recovery attempts require the gate, are rate limited and lock reset for 15 minutes after five wrong codes", async (t) => {
+  const { client, admin, store } = await fixture(t),
     u = client();
-  for (let i = 0; i < 8; i++) await u("admin/reset/send", {}, 403);
-  assert.equal(store.get("limits", "reset-global"), null);
-  await admin("admin/reset/send", {});
-  assert.equal(sent, 1);
-  await admin("admin/reset/send", {}, 429);
-});
-
-test("failed SMS delivery clears the OTP and returns no provider secrets", async (t) => {
-  const { admin, store } = await fixture(t, {
-    sms: async () => {
-      throw new Error("private-provider-secret");
-    },
-    adminPhone: "+919000000000",
-  });
-  const r = await admin("admin/reset/send", {}, 503);
-  assert.equal(r.error.includes("private-provider-secret"), false);
-  assert.equal(
-    store.all("sessions").some((s) => s.reset),
-    false,
-  );
-});
-
-test("reset OTP expires and locks for 15 minutes after five wrong codes", async (t) => {
-  const { admin, store } = await fixture(t, {
-    sms: async () => {},
-    adminPhone: "+919000000000",
-  });
-  await admin("admin/reset/send", {});
-  let s = store.all("sessions").find((s) => s.reset);
-  s.reset.expires = Date.now() - 1;
-  store.put("sessions", s);
-  await admin("admin/reset", { otp: "111111", password: "NextPass@2026" }, 400);
-  s.reset.expires = Date.now() + 600000;
-  s.reset.hash = hash("654321");
-  store.put("sessions", s);
+  const code = (await admin("admin/recovery/regenerate", {})).recovery;
+  // Without the access gate the endpoint is closed.
+  await u("admin/recover", { recovery: code, password: "NextPass@2026" }, 403);
+  await u("admin/gate", { code: "5831" });
   for (let i = 0; i < 4; i++)
-    await admin(
-      "admin/reset",
-      { otp: "000000", password: "NextPass@2026" },
-      400,
-    );
-  await admin("admin/reset", { otp: "000000", password: "NextPass@2026" }, 429);
+    await u("admin/recover", { recovery: "BAD" + i, password: "NextPass@2026" }, 401);
+  await u("admin/recover", { recovery: "BAD4", password: "NextPass@2026" }, 429);
   assert.ok(store.get("config", "reset-lock").until > Date.now() + 14 * 60000);
-  await admin("admin/reset", { otp: "654321", password: "NextPass@2026" }, 429);
+  // Every wrong code raises a security alert like other failed credentials.
+  assert.equal(
+    store.all("alerts").filter((x) => /recovery/i.test(x.title)).length,
+    5,
+  );
+  // The lock also stops a correct code, even from a brand-new session.
+  await u("admin/recover", { recovery: code, password: "NextPass@2026" }, 429);
+  const v = client();
+  await v("admin/gate", { code: "5831" });
+  await v("admin/recover", { recovery: code, password: "NextPass@2026" }, 429);
 });
 
-test("changing password invalidates every admin session, gate and OTP", async (t) => {
-  let otp;
-  const { admin, client, store } = await fixture(t, {
-      sms: async (p, c) => {
-        otp = c;
-      },
-      adminPhone: "+919000000000",
-    }),
+test("recovery codes never appear in stored records, responses other than issuance, or error text", async (t) => {
+  const { admin, client, store } = await fixture(t);
+  const code = (await admin("admin/recovery/regenerate", {})).recovery;
+  const u = client();
+  await u("admin/gate", { code: "5831" });
+  const r = await u("admin/recover", { recovery: code, password: "wrong" }, 400);
+  assert.equal(JSON.stringify(r).includes(code), false);
+  for (const row of store.all("sessions"))
+    assert.equal(JSON.stringify(row).includes(code), false);
+  const record = store.get("config", "admin");
+  assert.equal(JSON.stringify(record).includes(code), false);
+  assert.ok(passwordMatches(code, record.recoveryHash));
+});
+
+test("changing password from the login page invalidates every other admin session and gate", async (t) => {
+  const { admin, client, store } = await fixture(t),
     other = client();
   await other("admin/gate", { code: "5831" });
   await other("admin/login", { user: "admin", pass: "Testing@2026!" });
-  await admin("admin/reset/send", {});
-  await admin("admin/reset", { otp, password: "ChangedPass@2026" });
-  for (const s of store.all("sessions")) {
-    assert.equal(s.adminUntil, undefined);
-    assert.equal(s.gateUntil, undefined);
-    assert.equal(s.reset, undefined);
-  }
+  const code = (await admin("admin/recovery/regenerate", {})).recovery;
+  await admin("admin/recover", { recovery: code, password: "ChangedPass@2026" });
+  const sessions = store.all("sessions");
+  const keeper = sessions.find((s) => s.adminUntil === undefined && s.gateUntil > Date.now());
+  // Only the resetting device keeps its gate so the new password can be
+  // used immediately; every other session is fully revoked.
+  assert.equal(sessions.filter((s) => s.adminUntil !== undefined).length, 0);
+  assert.ok(keeper);
   await other("admin/backup", undefined, 403);
   await other("admin/login", { user: "admin", pass: "ChangedPass@2026" }, 403);
+  await admin("admin/login", { user: "admin", pass: "ChangedPass@2026" });
 });
 
 test("cookie-independent transport retains identity without granting admin or accepting invalid tokens", async (t) => {

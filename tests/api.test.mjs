@@ -240,23 +240,41 @@ test("authentication, failed attempt auditing, device blocking and logout", asyn
   await admin("admin/logout", {});
   await admin("admin/backup", undefined, 403);
 });
-test("password reset uses delivered OTP, enforces strength, revokes admin sessions", async (t) => {
-  let code;
-  const { client, admin } = await setup(t, {
-    sms: async (p, c) => {
-      code = c;
-    },
-    adminPhone: "+919000000000",
-  });
-  const a = client();
+test("password recovery uses an offline recovery code, enforces strength, rotates the code and revokes sessions", async (t) => {
+  const { client, admin, store } = await setup(t),
+    a = client();
+  // The login-page reset requires the access gate.
+  await a("admin/recover", { recovery: "ANY", password: "NewSecret@2026" }, 403);
+  // A fresh code comes from the security-tab action and is shown once.
+  const issued = await admin("admin/recovery/regenerate", {});
+  assert.equal(typeof issued.recovery, "string");
+  assert.equal(issued.recovery.length, 16);
+  assert.match(issued.recovery, /^[0-9A-HJKMNP-TV-Z]{16}$/);
+  assert.ok(
+    store
+      .all("audit")
+      .some((r) => r.action === "admin.recovery-regenerated"),
+  );
+  // The code is stored hashed, never in plaintext.
+  const record = store.get("config", "admin");
+  assert.match(record.recoveryHash, /^\w{32}:[a-f0-9]{128}$/);
+  assert.equal(record.recoveryHash.includes(issued.recovery), false);
   await a("admin/gate", { code: "5831" });
-  await a("admin/reset/send", {});
-  await a("admin/reset", { otp: "000000", password: "NewSecret@2026" }, 400);
-  await a("admin/reset", { otp: code, password: "weak" }, 400);
-  await a("admin/reset", { otp: code, password: "NewSecret@2026" });
+  // Wrong code and weak passwords are rejected.
+  await a("admin/recover", { recovery: "WRONGCODE000000", password: "NewSecret@2026" }, 401);
+  await a("admin/recover", { recovery: issued.recovery, password: "weak" }, 400);
+  // Success accepts the dashed form, rotates the code and revokes every
+  // other administrator session.
+  const dashed = issued.recovery.replace(/^(.{4})(.{4})(.{4})(.{4})$/, "$1-$2-$3-$4");
+  const reset = await a("admin/recover", { recovery: dashed, password: "NewSecret@2026" });
+  assert.equal(reset.recovery.length, 16);
+  assert.notEqual(reset.recovery, issued.recovery);
   await admin("admin/backup", undefined, 403);
-  await a("admin/gate", { code: "5831" });
+  // The new password works; the old recovery code is invalid, the new one is not.
   await a("admin/login", { user: "admin", pass: "NewSecret@2026" });
+  await a("admin/recover", { recovery: issued.recovery, password: "Again@2026!x" }, 401);
+  await a("admin/recover", { recovery: reset.recovery, password: "Again@2026!x" });
+  await a("admin/login", { user: "admin", pass: "Again@2026!x" });
 });
 test("gate attempts are rate limited", async (t) => {
   const { client } = await setup(t),

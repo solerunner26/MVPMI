@@ -643,6 +643,7 @@
                 <div style="display:flex;flex-direction:column;align-items:center;gap:14px;perspective:900px">
                   <div style="width:100%;box-sizing:border-box;padding:26px 18px 22px;border-radius:30px;background:linear-gradient(160deg,#2A1410 0%,#4A2310 52%,#1C0C09 100%);border:1px solid rgba(255,255,255,.16);box-shadow:0 22px 50px rgba(36,20,19,.45),inset 0 1px 0 rgba(255,255,255,.18);display:flex;flex-direction:column;align-items:center;gap:12px;overflow:hidden;position:relative">
                     <div style="position:absolute;top:-40%;left:-10%;width:70%;height:120%;background:radial-gradient(closest-side,rgba(233,161,59,.28),rgba(233,161,59,0))"></div>
+                    <img src="/brand/admin-emblem.png" alt="" width="92" height="92" style="width:92px;height:92px;border-radius:50%;object-fit:cover;border:2px solid rgba(243,188,106,.7);box-shadow:0 0 0 5px rgba(233,161,59,.14),0 14px 30px rgba(0,0,0,.5);background:#2A1410;position:relative">
                     <div style="transform:rotateX(16deg) rotateZ(-2deg);transform-style:preserve-3d;animation:float 5s ease-in-out infinite;position:relative">
                       <div class="en" style="font-size:36px;font-weight:800;letter-spacing:.01em;line-height:.94;text-align:center;background:linear-gradient(180deg,#FFFFFF 0%,#F6DCBB 46%,#E9A13B 72%,#9C3E1C 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 2px 0 rgba(36,20,19,.55)) drop-shadow(0 14px 26px rgba(178,64,44,.55))">ADMIN<br>PANEL</div>
                     </div>
@@ -689,23 +690,40 @@
                 <div class="bi" style="font-weight:700;font-size:var(--f-lg)"><span class="gu">પાસવર્ડ રીસેટ</span><span class="en">Reset password</span></div>
               </div>
               <div class="noscroll" style="flex:1;overflow:auto;padding:18px 18px 40px;display:flex;flex-direction:column;gap:14px">
-                <div class="bi" style="font-size:var(--f-sm);color:var(--ink2);text-wrap:pretty"><span class="gu">૬ આંકડાનો કોડ એડમિનના રજિસ્ટર્ડ મોબાઇલ પર જશે. કોડ ૧૦ મિનિટમાં પૂરો થાય; ૫ ખોટા પ્રયાસે ખાતું ૧૫ મિનિટ બંધ થાય.</span><span class="en">A 6-digit code goes to the registered mobile; 5 wrong attempts lock the account for 15 minutes.</span></div>
-                <div style="background:var(--page);border:1px solid transparent;border-radius:26px;padding:18px 16px;box-shadow:none;display:flex;flex-direction:column;gap:14px">
-                  <label style="display:flex;flex-direction:column;gap:7px">
-                    <div class="bi" style="font-size:var(--f-sm);font-weight:700;color:var(--ink2)"><span class="gu">રજિસ્ટર્ડ મોબાઇલ</span><span class="en">Registered mobile</span></div>
-                    <input value="+91 98250 14523" readonly style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid var(--fieldBd);background:var(--chip);color:var(--ink2);padding:0 15px;font:inherit;font-size:var(--f-md);letter-spacing:.05em">
-                  </label>
-                  <label style="display:flex;flex-direction:column;gap:7px">
-                    <div class="bi" style="font-size:var(--f-sm);font-weight:700;color:var(--ink2)"><span class="gu">OTP કોડ</span><span class="en">OTP code</span></div>
-                    <input placeholder="• • • • • •" style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid var(--fieldBd);background:var(--field);color:var(--ink);padding:0 15px;font:inherit;font-size:var(--f-lg);letter-spacing:.34em;text-align:center" style-focus="border-color:var(--ind)">
-                  </label>
-                  <label style="display:flex;flex-direction:column;gap:7px">
-                    <div class="bi" style="font-size:var(--f-sm);font-weight:700;color:var(--ink2)"><span class="gu">નવો પાસવર્ડ</span><span class="en">New password</span></div>
-                    <input type="password" placeholder="At least 10 characters" style="width:100%;box-sizing:border-box;height:var(--tap);border-radius:16px;border:1px solid var(--fieldBd);background:var(--field);color:var(--ink);padding:0 15px;font:inherit;font-size:var(--f-md)" style-focus="border-color:var(--ind)">
-                  </label>
-                </div>
-                <button onClick="{{ goAdminLogin }}" class="en" style="height:var(--tap);min-height:52px;border:0;border-radius:18px;background:var(--grad);color:#fff;font:inherit;font-weight:700;font-size:var(--f-md);cursor:pointer;box-shadow:0 10px 26px rgba(178,64,44,.36)"><span class="bi row"><span class="gu">નવો પાસવર્ડ સેટ કરો</span><span class="en">Set new password</span></span></button>
-                <button onClick="{{ goAdminLogin }}" class="en" style="background:none;border:0;color:var(--ink2);font:inherit;font-size:var(--f-sm);cursor:pointer;padding:8px"><span class="bi"><span class="gu">૦:૪૨ પછી કોડ ફરી મોકલો</span><span class="en">Resend code in 0:42</span></span></button>
+                <sc-if value="{{ !resetDone }}">
+                  <div class="bi" style="font-size:var(--f-sm);color:var(--ink2);text-wrap:pretty"><span class="gu">એસએમએસ કે OTP નથી — લોગિન વખતે મળેલો રિકવરી કોડ વાપરી સીધો નવો પાસવર્ડ સેટ કરો. ૫ ખોટા પ્રયાસે રીસેટ ૧૫ મિનિટ બંધ રહે.</span><span class="en">No SMS or OTP — set a new password directly with the recovery code you saved at sign-in. Five wrong attempts lock reset for 15 minutes.</span></div>
+                  <div style="background:var(--page);border:1px solid transparent;border-radius:26px;padding:18px 16px;box-shadow:none;display:flex;flex-direction:column;gap:14px">
+                    <label style="display:flex;flex-direction:column;gap:7px">
+                      <div class="bi" style="font-size:var(--f-sm);font-weight:700;color:var(--ink2)"><span class="gu">રિકવરી કોડ</span><span class="en">Recovery code</span></div>
+                      <div style="display:flex;align-items:center;gap:8px;height:var(--tap);border-radius:16px;border:1px solid var(--fieldBd);background:var(--field);padding:0 8px 0 15px">
+                        <input value="{{ resetRecovery }}" onInput="{{ setResetRecovery }}" type="{{ resetCodeType }}" placeholder="XXXX-XXXX-XXXX-XXXX" autocomplete="off" style="flex:1;min-width:0;border:0;background:none;color:var(--ink);font:inherit;font-size:var(--f-md);letter-spacing:.05em;outline:none;text-transform:uppercase">
+                        <button onClick="{{ toggleResetCode }}" title="{{ resetCodeEyeLabel }}" aria-label="{{ resetCodeEyeLabel }}" aria-pressed="{{ resetCodeShown }}" style="width:40px;height:40px;border:0;border-radius:12px;background:none;color:var(--ink2);display:flex;align-items:center;justify-content:center;cursor:pointer" style-hover="background:var(--chip);color:var(--ind)"><i class="{{ resetCodeIcon }}" style="font-size:20px"></i></button>
+                      </div>
+                    </label>
+                    <label style="display:flex;flex-direction:column;gap:7px">
+                      <div class="bi" style="font-size:var(--f-sm);font-weight:700;color:var(--ink2)"><span class="gu">નવો પાસવર્ડ</span><span class="en">New password</span></div>
+                      <div style="display:flex;align-items:center;gap:8px;height:var(--tap);border-radius:16px;border:1px solid var(--fieldBd);background:var(--field);padding:0 8px 0 15px">
+                        <input value="{{ resetPassword }}" onInput="{{ setResetPassword }}" type="{{ resetPassType }}" placeholder="At least 10 characters" style="flex:1;min-width:0;border:0;background:none;color:var(--ink);font:inherit;font-size:var(--f-md);outline:none">
+                        <button onClick="{{ toggleResetPass }}" title="{{ resetPassEyeLabel }}" aria-label="{{ resetPassEyeLabel }}" aria-pressed="{{ resetPassShown }}" style="width:40px;height:40px;border:0;border-radius:12px;background:none;color:var(--ink2);display:flex;align-items:center;justify-content:center;cursor:pointer" style-hover="background:var(--chip);color:var(--ind)"><i class="{{ resetPassIcon }}" style="font-size:20px"></i></button>
+                      </div>
+                      <div style="height:7px;border-radius:4px;background:var(--chip);overflow:hidden;margin-top:3px"><div style="height:100%;width:{{ resetPwWidth }};background:{{ resetPwColor }};transition:width .2s ease"></div></div>
+                      <div style="font-size:var(--f-xs);color:var(--ink2)">{{ resetPwLabel }}</div>
+                    </label>
+                    <sc-if value="{{ resetError }}">
+                      <div class="en" style="background:var(--danBg);color:var(--dan);border-radius:14px;padding:11px 13px;font-size:var(--f-sm);display:flex;gap:8px;align-items:center"><i class="ph-duotone ph-warning-circle" style="font-size:18px"></i><span class="bi" style="text-wrap:pretty"><span class="gu">{{ resetErrorGu }}</span><span class="en">{{ resetErrorEn }}</span></span></div>
+                    </sc-if>
+                  </div>
+                  <button onClick="{{ resetPasswordSubmit }}" class="en" style="height:var(--tap);min-height:52px;border:0;border-radius:18px;background:var(--grad);color:#fff;font:inherit;font-weight:700;font-size:var(--f-md);display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;box-shadow:0 10px 26px rgba(178,64,44,.36)"><i class="ph-duotone ph-shield-check" style="font-size:20px"></i><span class="bi row"><span class="gu">નવો પાસવર્ડ સેટ કરો</span><span class="en">Set new password</span></span></button>
+                </sc-if>
+                <sc-if value="{{ resetDone }}">
+                  <div style="background:var(--page);border:1px solid transparent;border-radius:26px;padding:22px 18px;box-shadow:none;display:flex;flex-direction:column;gap:14px;align-items:center;text-align:center">
+                    <div style="width:60px;height:60px;border-radius:20px;background:var(--okBg);color:var(--ok);display:flex;align-items:center;justify-content:center"><i class="ph-duotone ph-check-circle" style="font-size:30px"></i></div>
+                    <div class="bi" style="font-weight:700;font-size:var(--f-lg)"><span class="gu">પાસવર્ડ બદલાયો</span><span class="en">Password changed</span></div>
+                    <div class="bi" style="font-size:var(--f-sm);color:var(--ink2);text-wrap:pretty"><span class="gu">નવા પાસવર્ડથી લોગિન કરો. નીચેનો નવો રિકવરી કોડ એક જ વાર દેખાય છે — જૂનો કોડ રદ થઈ ગયો. કાગળ પર લખી સાચવો.</span><span class="en">Sign in with the new password. The new recovery code below is shown only once — the old code is now invalid. Write it down and keep it safe.</span></div>
+                    <div class="en" style="width:100%;box-sizing:border-box;padding:14px 10px;border-radius:16px;border:1px dashed var(--ind);background:var(--g);color:var(--ind);font-size:18px;font-weight:800;letter-spacing:.08em;user-select:all">{{ newRecovery }}</div>
+                    <button onClick="{{ resetDoneNext }}" class="en" style="height:var(--tap);min-height:52px;border:0;border-radius:18px;background:var(--grad);color:#fff;font:inherit;font-weight:700;font-size:var(--f-md);display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;box-shadow:0 10px 26px rgba(178,64,44,.36)"><i class="ph-duotone ph-sign-in" style="font-size:20px"></i><span class="bi row"><span class="gu">લોગિન પર જાઓ</span><span class="en">Go to sign in</span></span></button>
+                  </div>
+                </sc-if>
               </div>
             </div>
           </sc-if>
@@ -928,6 +946,14 @@
                 <sc-if value="{{ tabSecurity }}">
                   <div style="display:flex;flex-direction:column;gap:12px">
                     <div class="bi" style="font-size:var(--f-xs);color:var(--ink2);padding:0 4px;text-wrap:pretty"><span class="gu">દરેક ખોટો કોડ કે લોગિન પ્રયાસ ડિવાઇસ સાથે નોંધાય છે. દર વખતે તમને જાણ થાય છે.</span><span class="en">Every failed code or login attempt is logged with the device.</span></div>
+                    <div style="background:var(--g);border:1px solid var(--gbd);border-radius:20px;padding:14px;display:flex;gap:12px;align-items:flex-start;box-shadow:var(--shadow)">
+                      <div style="width:38px;height:38px;flex:0 0 auto;border-radius:13px;background:var(--okBg);color:var(--ok);display:flex;align-items:center;justify-content:center"><i class="ph-duotone ph-key" style="font-size:20px"></i></div>
+                      <div style="flex:1;min-width:0">
+                        <div class="bi" style="font-size:var(--f-sm);font-weight:700"><span class="gu">રિકવરી કોડ</span><span class="en">Recovery code</span></div>
+                        <div class="bi" style="font-size:var(--f-xs);color:var(--ink2);margin-top:3px;text-wrap:pretty"><span class="gu">પાસવર્ડ ભૂલી જવાય તો લોગિન પેજના "પાસવર્ડ ભૂલી ગયા?"થી આ કોડ વાપરી નવો પાસવર્ડ સેટ થાય — એસએમએસ કે OTP નથી. નવો કોડ બનાવતાં જૂનો કોડ તરત રદ થાય છે.</span><span class="en">If you forget the password, set a new one from "Forgot password?" on the login page using this code — no SMS or OTP. Generating a new code invalidates the old one immediately.</span></div>
+                      </div>
+                      <button onClick="{{ regenerateRecovery }}" class="en" style="border:1px solid var(--gbd);border-radius:12px;background:none;color:var(--ind);font:inherit;font-size:var(--f-xs);font-weight:800;padding:8px 11px;cursor:pointer;flex-shrink:0" style-hover="background:var(--chip)"><span class="bi"><span class="gu">નવો બનાવો</span><span class="en">New code</span></span></button>
+                    </div>
                     <sc-for list="{{ alerts }}" as="al" hint-placeholder-count="2">
                       <div style="background:var(--g);border:1px solid var(--gbd);border-radius:20px;padding:14px;display:flex;gap:12px;align-items:flex-start;box-shadow:var(--shadow)">
                         <div style="width:38px;height:38px;flex:0 0 auto;border-radius:13px;background:var(--danBg);color:var(--dan);display:flex;align-items:center;justify-content:center"><i class="ph-duotone ph-shield-warning" style="font-size:20px"></i></div>
@@ -994,6 +1020,19 @@
                     <sc-if value="{{ o.active }}"><i class="ph-duotone ph-check-circle" style="font-size:20px;color:var(--ind)"></i></sc-if>
                   </button>
                 </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ recoveryNotice }}">
+            <div role="dialog" aria-modal="true" aria-label="{{ recoveryNoticeLabel }}" tabindex="-1" style="position:absolute;inset:0;z-index:27;background:var(--scrim);display:flex;align-items:center;justify-content:center;padding:26px">
+              <div style="width:100%;background:var(--sheet);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--gbd);border-radius:28px;padding:22px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:14px;animation:rise .18s ease;text-align:center;align-items:center">
+                <div style="width:56px;height:56px;border-radius:19px;background:var(--okBg);color:var(--ok);display:flex;align-items:center;justify-content:center"><i class="ph-duotone ph-shield-check" style="font-size:28px"></i></div>
+                <div class="bi" style="align-items:center;font-weight:700;font-size:var(--f-lg)"><span class="gu">રિકવરી કોડ સાચવો</span><span class="en">Save your recovery code</span></div>
+                <div class="bi" style="align-items:center;font-size:var(--f-sm);color:var(--ink2);text-wrap:pretty"><span class="gu">આ કોડ એક જ વાર દેખાય છે. પાસવર્ડ ભૂલી જવાય તો લોગિન પેજના "પાસવર્ડ ભૂલી ગયા?"થી આ કોડ વાપરી નવો પાસવર્ડ સેટ થાય — એસએમએસ કે OTP નથી. કાગળ પર લખી સુરક્ષિત જગ્યાએ રાખો.</span><span class="en">This code is shown only once. If you ever forget the password, use it from "Forgot password?" on the login page to set a new one — no SMS or OTP. Write it down and keep it somewhere safe.</span></div>
+                <div class="en" style="width:100%;box-sizing:border-box;padding:14px 10px;border-radius:16px;border:1px dashed var(--ind);background:var(--g);color:var(--ind);font-size:18px;font-weight:800;letter-spacing:.08em;user-select:all">{{ recoveryNotice }}</div>
+                <div class="bi" style="font-size:var(--f-xs);color:var(--ink2);text-wrap:pretty"><span class="gu">કોડ ખોવાઈ જાય તો લોગિન પછી સુરક્ષા ટેબમાંથી નવો બનાવી શકાય.</span><span class="en">If the code is lost, generate a new one from the Security tab after signing in.</span></div>
+                <button onClick="{{ closeRecoveryNotice }}" class="en" style="width:100%;height:48px;border:0;border-radius:16px;background:var(--grad);color:#fff;font:inherit;font-size:var(--f-sm);font-weight:800;cursor:pointer"><span class="bi"><span class="gu">સાચવી લીધો</span><span class="en">Saved it</span></span></button>
               </div>
             </div>
           </sc-if>
@@ -1124,6 +1163,15 @@ function lev(a, b) {
   return m[b.length][a.length];
 }
 
+function pwStrength(p) {
+  let score = 0;
+  if (p.length >= 8) score++;
+  if (p.length >= 12) score++;
+  if (/[A-Z]/.test(p) && /[a-z]/.test(p)) score++;
+  if (/[0-9]/.test(p)) score++;
+  if (/[^A-Za-z0-9]/.test(p)) score++;
+  return score;
+}
 function bestMatch(input, pairs) {
   const v = String(input || '').trim();
   if (v.length < 3) return null;
@@ -1308,13 +1356,7 @@ class Component extends DCLogic {
     const vs = bestMatch(s.form.village, VILLAGES);
     const ts = bestMatch(s.form.tehsil, TEHSILS);
 
-    const pw = s.login.pass;
-    let pwScore = 0;
-    if (pw.length >= 8) pwScore++;
-    if (pw.length >= 12) pwScore++;
-    if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) pwScore++;
-    if (/[0-9]/.test(pw)) pwScore++;
-    if (/[^A-Za-z0-9]/.test(pw)) pwScore++;
+    const pwScore = pwStrength(s.login.pass);
     const pwLabels = [this.L('પાસવર્ડ નાખો', 'Enter a password'), this.L('કમજોર', 'Weak'), this.L('ઠીક', 'Fair'), this.L('સારો', 'Good'), this.L('મજબૂત', 'Strong'), this.L('ખૂબ મજબૂત', 'Very strong')];
     const pwColors = ['var(--fieldBd)', '#9E2B1E', '#B86A1F', '#D39A2B', '#8A5A10', '#8A5A10'];
 
@@ -1588,6 +1630,7 @@ class Component extends DCLogic {
       passIcon: s.showPass ? 'ph-duotone ph-eye-slash' : 'ph-duotone ph-eye',
       togglePass: () => this.set('showPass', !s.showPass),
       pwWidth: (pwScore / 5) * 100 + '%', pwColor: pwColors[pwScore],
+      pwPalette: { labels: pwLabels, colors: pwColors },
       pwLabel: pwLabels[pwScore] + ' · ' + (pwScore >= 4 ? this.P('૬૦ દિવસે બદલવાની યાદ અપાશે', 'Change reminder in 60 days') : this.P('૧૦+ અક્ષર, નાના-મોટા, આંકડો, ચિહ્ન', '10+ chars, mixed case, number, symbol')),
       loginError: s.loginError,
       doLogin: () => {
@@ -1595,7 +1638,35 @@ class Component extends DCLogic {
         else { this.logIntrusion('એડમિન લોગિન નિષ્ફળ · Failed admin login: "' + (s.login.user || '—') + '"', 'ડિવાઇસ ધારક · ' + this.fmt(me.phone)); this.setState({ loginError: true }); }
       },
       goAdminLogin: () => this.setState({ screen: 'adminlogin', loginError: false }),
-      goAdminForgot: () => this.set('screen', 'adminforgot'),
+      goAdminForgot: () => this.setState({ screen: 'adminforgot', resetError: null, resetDone: false }),
+      resetRecovery: s.resetRecovery || '',
+      resetPassword: s.resetPassword || '',
+      setResetRecovery: (e) => this.set('resetRecovery', e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 19)),
+      setResetPassword: (e) => this.set('resetPassword', e.target.value),
+      resetCodeShown: !!s.resetCodeShown, resetPassShown: !!s.resetPassShown,
+      resetCodeType: s.resetCodeShown ? 'text' : 'password', resetCodeIcon: s.resetCodeShown ? 'ph-duotone ph-eye-slash' : 'ph-duotone ph-eye',
+      resetPassType: s.resetPassShown ? 'text' : 'password', resetPassIcon: s.resetPassShown ? 'ph-duotone ph-eye-slash' : 'ph-duotone ph-eye',
+      toggleResetCode: () => this.set('resetCodeShown', !s.resetCodeShown),
+      toggleResetPass: () => this.set('resetPassShown', !s.resetPassShown),
+      resetCodeEyeLabel: this.L('કોડ બતાવો કે છુપાવો', 'Show or hide the code'),
+      resetPassEyeLabel: this.L('પાસવર્ડ બતાવો કે છુપાવો', 'Show or hide the password'),
+      resetPwWidth: (pwStrength(s.resetPassword || '') / 5) * 100 + '%',
+      resetPwColor: pwColors[pwStrength(s.resetPassword || '')],
+      resetPwLabel: pwLabels[pwStrength(s.resetPassword || '')] + ' · ' + this.P('૧૦+ અક્ષર, નાના-મોટા, આંકડો, ચિહ્ન', '10+ chars, mixed case, number, symbol'),
+      resetError: s.resetError || null,
+      resetErrorGu: s.resetErrorGu || '',
+      resetErrorEn: s.resetErrorEn || '',
+      resetDone: !!s.resetDone,
+      newRecovery: s.newRecovery || '',
+      resetPasswordSubmit: () => {
+        if (!s.resetRecovery || !s.resetPassword) this.setState({ resetError: true, resetErrorGu: 'રિકવરી કોડ અને નવો પાસવર્ડ નાખો.', resetErrorEn: 'Enter the recovery code and a new password.' });
+        else this.setState({ resetDone: true, newRecovery: 'DEMO-CODE-XXXX-XXXX', resetError: null });
+      },
+      resetDoneNext: () => this.setState({ screen: 'adminlogin', resetDone: false, resetRecovery: '', resetPassword: '', newRecovery: '' }),
+      recoveryNotice: s.recoveryNotice || null,
+      recoveryNoticeLabel: this.L('રિકવરી કોડ', 'Recovery code'),
+      closeRecoveryNotice: () => this.set('recoveryNotice', null),
+      regenerateRecovery: () => this.set('recoveryNotice', 'DEMO-CODE-XXXX-XXXX'),
       exitAdmin: () => this.set('screen', s.myRequest ? 'pending' : 'directory'),
       logout: () => this.setState({ screen: 'directory', login: { user: '', pass: '' }, tab: 'home' }),
 

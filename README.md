@@ -67,7 +67,7 @@ Open `http://localhost:3000`. The server binds to `0.0.0.0`; the UI calls same-o
 - Original light/dark styling, sun and waiting animations, Gujarati/English language switching, four text-size presets (Default, Big, Bigger, Biggest); preferences persist without persisting the directory in localStorage.
 - Browser dialer links (not automatic calls), clipboard copy where supported, and WhatsApp chat URLs.
 - Hidden admin gate, scrypt password hashes, opaque HttpOnly session cookies, 30-minute admin sessions, server-side attempt limits, security alerts, session blocking, and sign-out.
-- Admin reset OTP generation/expiry/attempt limit, strong-password enforcement, session revocation, and a configurable SMS webhook. **Real SMS is not configured in the preview.** Codes are never returned to the browser or logged. A 60-day password reminder is shown when due.
+- Admin password recovery uses an **offline recovery code** (no SMS, no OTP, no per-message cost): a 16-character code is issued once at the first sign-in, rotated on every use, and can be regenerated from the Security tab. Stored scrypt-hashed; five wrong attempts lock reset for 15 minutes; a successful reset revokes every admin session. A 60-day password reminder is shown when due.
 - Real `.xlsx` export; print-ready browser PDF/Save-as-PDF workflow; Web Share file sharing where supported, with a download fallback.
 - Versioned directory-data JSON export and validated, confirmed, transactional restore. Includes members, open request queues and archive, **not authentication credentials, sessions or security/audit history**.
 - Basic loading, connection/retry and operation-failure states; reduced-motion support and scroll-layout fix so profile settings do not collapse on short screens.

@@ -150,7 +150,7 @@ export function refineDesign(template) {
   if (headingStart >= 0 && headingEnd > headingStart)
     template =
       template.slice(0, headingStart) +
-      '<section class="admin-signin-heading"><i class="ph-duotone ph-lock-key"></i><h1>{{ ui.adminPanel }}</h1><p>{{ ui.restricted }}</p></section>' +
+      '<section class="admin-signin-heading"><img class="admin-emblem" src="/brand/admin-emblem.png" alt="" width="92" height="92"><h1>{{ ui.adminPanel }}</h1><p>{{ ui.restricted }}</p></section>' +
       template.slice(headingEnd);
   template = template.replace(
     "{{ k.label }}</button>",

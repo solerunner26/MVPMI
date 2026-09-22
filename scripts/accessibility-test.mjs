@@ -189,6 +189,12 @@ try {
   await page.locator("input[type=password]").fill("Accessible@2026");
   await page.getByRole("button", { name: /^Sign in$|^લોગિન કરો$/ }).click();
   await page.getByText("Requests", { exact: true }).first().waitFor();
+  // The one-time recovery-code notice covers the dashboard until it is saved.
+  await page.getByRole("dialog", { name: /Recovery code|રિકવરી કોડ/ }).waitFor();
+  await scan("admin-recovery-notice");
+  await page
+    .getByRole("button", { name: /^Saved it$|^સાચવી લીધો$/ })
+    .click();
   await scan("admin-home");
   for (const section of [
     "Requests",

@@ -114,7 +114,6 @@ export const UI_COPY = {
     "તમારો પાસવર્ડ ૬૦ દિવસથી જૂનો છે. પાસવર્ડ બદલો.",
     "Your password is over 60 days old. Reset it.",
   ],
-  adminPhone: ["એડમિનનો નોંધાયેલ ફોન", "Registered admin phone"],
 };
 export const FIELD_COPY = {
   name: ["નામ", "Name"],
@@ -162,6 +161,7 @@ export function errorText(message, lang = "gu") {
       "કોડ ખોટો છે અથવા મુદત પૂરી થઈ છે. એડમિન પાસેથી નવો કોડ મેળવો.",
     "Wrong username or password": "યુઝરનેમ અથવા પાસવર્ડ ખોટો છે.",
     "Incorrect access code": "પ્રવેશ કોડ ખોટો છે.",
+    "Incorrect recovery code": "રિકવરી કોડ ખોટો છે.",
     "Access code required": "પ્રવેશ કોડ દાખલ કરો.",
     "Admin authentication required": "એડમિન તરીકે લોગિન કરો.",
     "Admin approval required": "એડમિનની મંજૂરી જરૂરી છે.",

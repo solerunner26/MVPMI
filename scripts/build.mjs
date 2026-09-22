@@ -49,18 +49,6 @@ template = template
     "યુઝરનેમ કે પાસવર્ડ ખોટો — પ્રયાસ નોંધાયો. વિગતો તપાસો.",
     "લોગિન થઈ શક્યું નથી. નીચેનો સંદેશ તપાસો.",
   );
-template = template.replace(
-  'value="+91 98250 14523"',
-  'value="{{ resetPhone }}"',
-);
-template = template.replace(
-  'placeholder="• • • • • •"',
-  'value="{{ resetOtp }}" onInput="{{ setResetOtp }}" inputmode="numeric" maxlength="6" placeholder="• • • • • •"',
-);
-template = template.replace(
-  'type="password" placeholder="At least 10 characters"',
-  'type="password" value="{{ resetPassword }}" onInput="{{ setResetPassword }}" placeholder="At least 10 characters"',
-);
 // Keep the supplied button styling, but use real user-activated external links.
 for (const [handler, href] of [
   ["onCall", "callHref"],
@@ -114,18 +102,8 @@ template = template.replace(
 );
 const resetStart = template.indexOf('<sc-if value="{{ isAdminForgot }}">'),
   resetEnd = template.indexOf('<sc-if value="{{ isAdmin }}">');
-let reset = template.slice(resetStart, resetEnd);
-let n = 0;
-reset = reset.replace(
-  /onClick="\{\{ goAdminLogin \}\}"/g,
-  () =>
-    `onClick="{{ ${["goAdminLogin", "resetPasswordSubmit", "sendReset"][n++]} }}"`,
-);
-reset = reset.replace(
-  '<span class="bi"><span class="gu">૦:૪૨ પછી કોડ ફરી મોકલો</span><span class="en">Resend code in 0:42</span></span>',
-  "<span>{{ resendLabel }}</span>",
-);
-template = template.slice(0, resetStart) + reset + template.slice(resetEnd);
+if (resetStart < 0 || resetEnd < 0 || resetStart > resetEnd)
+  throw new Error("Admin recovery screen markup is missing or out of order");
 template = template
   .replace('onInput="{{ setEditTehsil }}"', "readonly")
   .replace('onInput="{{ setEditDistrict }}"', "readonly");

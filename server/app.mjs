@@ -9,7 +9,7 @@ import { isDeepStrictEqual } from "node:util";
 import { installSessions } from "./session.mjs";
 import express from "express";
 import ExcelJS from "exceljs";
-import { randomUUID, randomBytes, randomInt } from "node:crypto";
+import { randomUUID, randomBytes } from "node:crypto";
 import {
   Store,
   villages,
@@ -28,8 +28,6 @@ export function createApp({
   adminPassword,
   gateCode,
   secure = false,
-  sms,
-  adminPhone = "",
   development = false,
 } = {}) {
   const store = new Store(dbPath),
@@ -335,7 +333,14 @@ export function createApp({
     store.put("sessions", req.session);
     req.isAdmin = true;
     store.audit(req.session.owner, "admin.login", a.id);
-    res.json(state(req));
+    const payload = state(req);
+    // First sign-in on a fresh account issues the offline recovery code
+    // exactly once; the client must make the administrator save it. Later
+    // sign-ins never resend it — a lost code is replaced from the security
+    // tab while signed in, not by this endpoint.
+    if (!a.recoveryHash)
+      payload.recovery = issueRecovery(a, req.session.owner, "admin.recovery-issued");
+    res.json(payload);
   });
   // Full device sign-out (used by the app-lock "forgot PIN" flow): the
   // session, including member identity and any administrator role, is
@@ -354,59 +359,85 @@ export function createApp({
     req.isAdmin = false;
     res.json(state(req));
   });
-  app.post("/api/admin/reset/send", async (req, res) => {
+  // Password recovery without SMS or OTP: the administrator saves a long
+  // offline recovery code (issued once at first sign-in, rotated on every
+  // use and on demand from the security tab). Possession of that code plus
+  // the access gate is enough to set a new password. This removes the
+  // per-message SMS cost entirely and is stronger than a 6-digit OTP:
+  // 80 bits of entropy, no phone-number dependency, no SIM-swap risk.
+  const recoveryCode = () => {
+    const alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+    let value = BigInt("0x" + randomBytes(10).toString("hex")),
+      raw = "";
+    for (let i = 0; i < 16; i++, value >>= 5n)
+      raw = alphabet[Number(value & 31n)] + raw;
+    return raw;
+  };
+  const normalizeRecovery = (input) =>
+    String(input || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "")
+      .slice(0, 16);
+  const issueRecovery = (a, actor, action) => {
+    const code = recoveryCode();
+    a.recoveryHash = passwordHash(code);
+    a.recoveryAt = Date.now();
+    store.put("config", a);
+    store.audit(actor, action, "admin");
+    return code;
+  };
+  app.post("/api/admin/recover", (req, res) => {
     if (!req.isAdmin && !(req.session.gateUntil > Date.now()))
       fail("Access code required", 403);
-    if (!sms || !/^\+91[6-9]\d{9}$/.test(adminPhone))
-      fail("SMS recovery is not configured. Contact the server operator.", 503);
     if (store.get("config", "reset-lock")?.until > Date.now())
       fail("Reset temporarily locked. Try again in 15 minutes.", 429);
-    rate("reset-session:" + req.session.id, 1, 60000);
-    rate("reset-global", 5, 3600000);
-    const otp = String(randomInt(100000, 1000000));
-    req.session.reset = {
-      hash: hash(otp),
-      expires: Date.now() + 600000,
-      attempts: 0,
-    };
-    store.put("sessions", req.session);
-    try {
-      await sms(adminPhone, otp);
-    } catch {
-      const latest = store.get("sessions", req.session.id);
-      delete latest.reset;
-      store.put("sessions", latest);
-      fail("SMS delivery failed. Please retry later.", 503);
-    }
-    res.json({ ok: true, phone: adminPhone.slice(-4) });
-  });
-  app.post("/api/admin/reset", (req, res) => {
-    if (store.get("config", "reset-lock")?.until > Date.now())
-      fail("Reset temporarily locked. Try again in 15 minutes.", 429);
-    const r = req.session.reset;
-    if (!r || r.expires < Date.now()) fail("Code expired. Request a new code");
-    if (hash(String(req.body.otp)) !== r.hash) {
-      r.attempts++;
-      store.put("sessions", req.session);
-      if (r.attempts >= 5) {
+    rate("recover:" + req.session.id, 10);
+    rate("recover-global", 20, 3600000);
+    const a = store.get("config", "admin");
+    if (
+      !a.recoveryHash ||
+      !passwordMatches(normalizeRecovery(req.body.recovery), a.recoveryHash)
+    ) {
+      alert(req, "ખોટો રિકવરી કોડ · Wrong recovery code");
+      req.session.recoverTries = (req.session.recoverTries || 0) + 1;
+      if (req.session.recoverTries >= 5) {
+        req.session.recoverTries = 0;
+        store.put("sessions", req.session);
         store.put("config", { id: "reset-lock", until: Date.now() + 900000 });
         fail("Too many attempts. Reset locked for 15 minutes.", 429);
       }
-      fail("Incorrect code");
+      store.put("sessions", req.session);
+      fail("Incorrect recovery code", 401);
     }
     if (!strong(req.body.password))
       fail("Use 10+ characters, upper/lowercase, a number and a symbol");
-    const a = store.get("config", "admin");
     a.password = passwordHash(req.body.password);
     a.changedAt = Date.now();
-    store.put("config", a);
+    const next = issueRecovery(
+      a,
+      req.session.owner,
+      "admin.password-recovered",
+    );
+    // Every administrator session is revoked; the resetting device keeps
+    // only its gate so the new password can be used immediately without
+    // repeating the hidden-logo gesture.
     for (const s of store.all("sessions")) {
       delete s.adminUntil;
       delete s.reset;
-      delete s.gateUntil;
+      delete s.recoverTries;
+      if (s.id !== req.session.id) delete s.gateUntil;
       store.put("sessions", s);
     }
-    res.json({ ok: true });
+    res.json({ ok: true, recovery: next });
+  });
+  app.post("/api/admin/recovery/regenerate", admin, (req, res) => {
+    const a = store.get("config", "admin");
+    const next = issueRecovery(
+      a,
+      req.session.owner,
+      "admin.recovery-regenerated",
+    );
+    res.json({ ok: true, recovery: next });
   });
   // The main administrator may correct typos in a joining request before the
   // final approval; moving it to another village restarts that village's

@@ -57,9 +57,8 @@ npm run test:coverage
 | Restore could overwrite changes made after the administrator previewed the backup | Restore preview now includes a digest of the current data; the transaction rejects a stale confirmation with 409 |
 | Equivalent JSON key order could produce a false stale-update conflict | Structural equality replaces JSON-string equality |
 | Enrollment approval dropped consent evidence | Approved records retain consent timestamp/version, original request timestamp and approving admin identity. This remains development disclosure, **not an approved legal policy** |
-| Unauthenticated reset requests could consume the shared SMS quota | Authenticate gate/admin before consuming SMS quota; server-side resend interval; five-error reset lock, OTP expiry and delivery-failure cleanup tested |
-| Password reset did not invalidate every gate capability | Reset now revokes admin access, gate state and outstanding OTPs across all sessions |
-| SMS configuration could use insecure transport or follow a redirect | HTTPS-only authenticated delivery adapter; credentials-in-URL rejected; redirects refused; provider errors not returned to users |
+| Password reset depended on paid SMS OTP delivery | Removed the SMS adapter entirely; recovery now uses an offline 80-bit recovery code (scrypt-hashed at rest, issued once at first sign-in, rotated on every use, regenerable from the Security tab). Gate required, per-session and global rate limits, five-error 15-minute lock, all tested |
+| Password reset did not invalidate every gate capability | Reset now revokes admin access and gate state across all sessions; the resetting device keeps only its gate so the new password can be used immediately |
 | Admin edit selection could outlive the editor | Clear selected admin member on successful navigation/save and when returning to own profile |
 | Scroll region was not keyboard-focusable; blank keypad control had no accessible name | Added focusability and semantic labels; disabled the decorative blank key without changing the keypad layout |
 | Dialogs lacked semantics, focus containment and Escape handling | Added dialog labels, modal semantics, focus restoration, Tab containment and Escape support. Browser keyboard checks pass |
