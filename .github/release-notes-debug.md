@@ -17,7 +17,7 @@ contacts only.
 ## Before you install
 
 The app needs a **test server running on a computer** on the same Wi-Fi as
-the phone. Full step-by-step guide (with pictures of what to type where):
+the phone. Full step-by-step guide, every command and address explained:
 **[docs/PHONE_TESTING.md](https://github.com/solerunner26/MVPMI/blob/main/docs/PHONE_TESTING.md)**
 
 Quick summary:
