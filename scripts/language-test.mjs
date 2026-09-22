@@ -164,7 +164,6 @@ try {
     "Archive",
     "Security alerts",
     "Backup & export",
-    "Notifications",
   ]) {
     await panel.getByText(section, { exact: true }).click();
     await selectedLanguage(panel, "en", section + " English");

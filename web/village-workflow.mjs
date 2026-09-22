@@ -335,14 +335,13 @@ export function VillageWorkflow({
   const tabs = main
     ? [
         ["requests", "વિનંતીઓ", "Requests"],
-        ["villages", "ગામ અને એડમિન", "Villages & admins"],
+        ["villages", "પાસવર્ડ રીસેટ", "Password reset"],
         ["rejections", "નામંજૂર / બંધ વિનંતીઓ", "Rejected / closed requests"],
         ["removed", "દૂર કરેલા સભ્યો", "Removed members"],
       ]
     : [
         ["requests", "વિનંતીઓ", "Requests"],
         ["members", "મારા ગામના સભ્યો", "My village members"],
-        ["alerts", "સૂચનાઓ", "Notifications"],
         ["account", "ખાતું", "Account"],
       ];
   return h(
@@ -474,9 +473,6 @@ export function VillageWorkflow({
       !main &&
         tab === "account" &&
         h(WorkflowAccount, { data, lang, act, busy }),
-      !main &&
-        tab === "alerts" &&
-        h(WorkflowAlerts, { data, lang, busy, openTab }),
       main &&
         tab === "villages" &&
         h(WorkflowVillageManager, { data, lang, act, busy }),
@@ -574,114 +570,49 @@ function workflowTools(lang, busy) {
     h("button", { type: "button", disabled: busy, onClick, ...props }, label);
   const field = (label, props) =>
     h("label", { className: "workflow-field" }, label, h("input", props));
-  return { h, B, field, button };
-}
-// Village-administrator notifications: pending verification, previously
-// rejected numbers and proposals waiting with the main administrator.
-function WorkflowAlerts({ data, lang, busy, openTab }) {
-  const { h, B, button } = workflowTools(lang, busy);
-  const queue = (data.reviewQueue || []).filter((r) => !r.verification);
-  const rejectedBefore = (data.reviewQueue || []).filter(
-    (r) => r.rejectedBefore,
-  );
-  const proposals = data.villageProposals || [];
-  const rows = [];
-  if (queue.length)
-    rows.push({
-      icon: "ph-duotone ph-tray",
-      bg: "rgba(178,64,44,.14)",
-      fg: "var(--ind)",
-      gu: queue.length + " વિનંતીઓની ચકાસણી બાકી છે",
-      en:
-        queue.length +
-        (queue.length === 1
-          ? " application is waiting for your verification"
-          : " applications are waiting for your verification"),
-      detailGu: "વિનંતીઓ ટેબમાં ચકાસીને મુખ્ય એડમિન પાસે મોકલો.",
-      detailEn: "Verify them in the Requests tab and forward them.",
-      tab: "requests",
-    });
-  if (rejectedBefore.length)
-    rows.push({
-      icon: "ph-duotone ph-warning-circle",
-      bg: "var(--danBg)",
-      fg: "var(--dan)",
-      gu:
-        rejectedBefore.length +
-        " વિનંતી પહેલા નામંજૂર થયેલા નંબર પરથી છે",
-      en:
-        rejectedBefore.length +
-        " application" +
-        (rejectedBefore.length === 1 ? "" : "s") +
-        " from a previously rejected number",
-      detailGu: "આ નંબરો પહેલા નામંજૂર થયા હતા — ચકાસીને નિર્ણય કરો.",
-      detailEn:
-        "These numbers were rejected before — verify carefully before deciding.",
-      tab: "requests",
-    });
-  if (proposals.length)
-    rows.push({
-      icon: "ph-duotone ph-hourglass",
-      bg: "var(--danBg)",
-      fg: "var(--dan)",
-      gu:
-        proposals.length +
-        " સૂચનો મુખ્ય એડમિનના નિર્ણયની રાહમાં છે",
-      en:
-        proposals.length +
-        (proposals.length === 1
-          ? " proposal is waiting with the main administrator"
-          : " proposals are waiting with the main administrator"),
-      detailGu: "મારા ગામના સભ્યો ટેબમાં 'બાકી' તરીકે દેખાશે.",
-      detailEn:
-        "They appear as pending in the My village members tab.",
-      tab: "members",
-    });
-  return h(
-    "div",
-    null,
-    h(
-      "p",
-      null,
-      B(
-        "બાકી કામ અહીં રહેશે જ્યાં સુધી પૂરું ન થાય.",
-        "Pending work stays listed here until it is finished.",
-      ),
-    ),
-    rows.length
-      ? rows.map((n) =>
-          h(
-            "article",
-            { key: n.gu, className: "workflow-card notification-card" },
-            h(
-              "div",
-              { className: "notification-head" },
-              h(
-                "span",
-                {
-                  className: "notification-icon",
-                  style: { background: n.bg, color: n.fg },
-                },
-                h("i", { "aria-hidden": "true", className: n.icon }),
-              ),
-              h("strong", null, B(n.gu, n.en)),
-            ),
-            h("p", null, B(n.detailGu, n.detailEn)),
-            n.tab
-              ? button(
-                  B("ખોલો", "Open"),
-                  () => openTab && openTab(n.tab),
-                  { className: "notification-open" },
-                )
-              : null,
-          ),
-        )
-      : h(
-          "p",
-          null,
-          B("કોઈ સૂચના નથી. બધું અપ ટુ ડેટ છે.", "No notifications. Everything is up to date."),
+  // Password field with the show/hide "eye" control, so an entered password
+  // can be read back in English characters before saving.
+  const secretField = (label, value, setValue, props = {}) => {
+    const [shown, setShown] = React.useState(false);
+    return h(
+      "label",
+      { className: "workflow-field" },
+      label,
+      h(
+        "div",
+        { className: "workflow-secret" },
+        h("input", {
+          type: shown ? "text" : "password",
+          value,
+          autoComplete: "off",
+          ...props,
+          onChange: (e) => setValue(e.target.value),
+        }),
+        h(
+          "button",
+          {
+            type: "button",
+            className: "workflow-eye",
+            title: shown
+              ? B("પાસવર્ડ છુપાવો", "Hide password")
+              : B("પાસવર્ડ બતાવો", "Show password"),
+            "aria-label": shown
+              ? B("પાસવર્ડ છુપાવો", "Hide password")
+              : B("પાસવર્ડ બતાવો", "Show password"),
+            "aria-pressed": shown,
+            onClick: () => setShown(!shown),
+          },
+          h("i", {
+            className: shown
+              ? "ph-duotone ph-eye-slash"
+              : "ph-duotone ph-eye",
+            "aria-hidden": true,
+          }),
         ),
-  );
+      ),
+    );
+  };
+  return { h, B, field, button, secretField };
 }
 function WorkflowDecision({ request: r, data, lang, act, busy }) {
   const { h, B, field, button } = workflowTools(lang, busy);
@@ -1185,10 +1116,15 @@ function WorkflowAccount({ data, lang, act, busy }) {
     ),
   );
 }
+// Village administration: one dropdown selects the village; the card below
+// shows that village's current administrator, members and the password reset
+// controls. The village list itself is fixed (seven villages) — there is no
+// add-village feature any more.
 function WorkflowVillageManager({ data, lang, act, busy }) {
   const { h, B, field, button } = workflowTools(lang, busy);
-  const [gu, setGu] = React.useState(""),
-    [en, setEn] = React.useState("");
+  const [villageId, setVillageId] = React.useState("");
+  const villages = data.villages || [];
+  const selected = villages.find((x) => x.id === villageId) || villages[0];
   return h(
     "div",
     null,
@@ -1196,45 +1132,40 @@ function WorkflowVillageManager({ data, lang, act, busy }) {
       "p",
       null,
       B(
-        "દરેક ગામ માટે પહેલા એક એડમિન નોંધાવો. એડમિન નોંધાયા પછી જ એ ગામના સભ્યો જોડાઈ શકે.",
-        "Enroll one administrator per village first. Community members can join a village only after its administrator is enrolled.",
+        "ગામ પસંદ કરો — તે ગામના સભ્યો, હાલના એડમિન અને પાસવર્ડ રીસેટ નીચે દેખાશે. ગામની યાદી સાત ગામમાં સ્થિર છે.",
+        "Choose a village — its members, current administrator and password reset appear below. The village list is fixed at seven villages.",
       ),
     ),
     h(
-      "form",
-      {
-        className: "workflow-card",
-        onSubmit: (e) => {
-          e.preventDefault();
-          act("admin/villages", { gu, en });
-        },
-      },
-      h("h3", null, B("નવું ગામ ઉમેરો", "Add village")),
-      field(B("ગુજરાતી નામ", "Gujarati name"), {
-        value: gu,
-        required: true,
-        maxLength: 80,
-        onChange: (e) => setGu(e.target.value),
-      }),
-      field(B("અંગ્રેજી નામ", "English name"), {
-        value: en,
-        required: true,
-        maxLength: 80,
-        onChange: (e) => setEn(e.target.value),
-      }),
+      "label",
+      { className: "workflow-field" },
+      B("ગામ", "Village"),
       h(
-        "button",
-        { disabled: busy, type: "submit" },
-        B("ગામ ઉમેરો", "Add village"),
+        "select",
+        {
+          value: selected ? selected.id : "",
+          "data-testid": "Village select",
+          onChange: (e) => setVillageId(e.target.value),
+        },
+        ...villages.map((x) =>
+          h("option", { key: x.id, value: x.id }, bilingual(x.gu, x.en, lang)),
+        ),
       ),
     ),
-    ...data.villages.map((v) =>
-      h(WorkflowAssignment, { key: v.id, village: v, data, lang, act, busy }),
-    ),
+    selected
+      ? h(WorkflowAssignment, {
+          key: selected.id,
+          village: selected,
+          data,
+          lang,
+          act,
+          busy,
+        })
+      : h("p", null, B("ગામ નથી.", "No villages.")),
   );
 }
 function WorkflowAssignment({ village: v, data, lang, act, busy }) {
-  const { h, B, field, button } = workflowTools(lang, busy);
+  const { h, B, field, button, secretField } = workflowTools(lang, busy);
   const a = data.villageAssignments.find((a) => a.id === v.id);
   const admin = a && data.members.find((m) => m.id === a.memberId);
   const members = data.members
@@ -1253,14 +1184,23 @@ function WorkflowAssignment({ village: v, data, lang, act, busy }) {
   return h(
     "article",
     { className: "workflow-card" },
-    h("h3", null, B(v.gu, v.en)),
+    h("h3", null, bilingual(v.gu, v.en, lang)),
     h(
       "p",
       null,
       B("હાલના એડમિન: ", "Current administrator: "),
       admin
-        ? bilingual(admin.nameGu, admin.name, lang)
+        ? bilingual(admin.nameGu, admin.name, lang) + " · " + admin.phone
         : B("નિયુક્ત નથી", "Unassigned"),
+    ),
+    h(
+      "p",
+      { className: "workflow-memberlist" },
+      members.length
+        ? members
+            .map((m) => bilingual(m.nameGu, m.name, lang))
+            .join(" · ")
+        : B("હજુ કોઈ સભ્ય નથી.", "No members yet."),
     ),
     !a &&
       h(
@@ -1309,23 +1249,16 @@ function WorkflowAssignment({ village: v, data, lang, act, busy }) {
           maxLength: 13,
           onChange: (e) => setPhone(e.target.value),
         }),
-        field(B("હાલ : સ્થળ (વૈકલ્પિક)", "Current location (optional)"), {
+        field(B("હાલ : સ્થળ (વૈકલપિક)", "Current location (optional)"), {
           value: location,
           maxLength: 240,
           onChange: (e) => setLocation(e.target.value),
         }),
-        field(
-          B(
-            "પ્રારંભિક પાસવર્ડ (વ્યક્તિને જણાવો)",
-            "Initial password (share it with the person)",
-          ),
-          {
-            type: "password",
-            value: pass,
-            required: true,
-            autoComplete: "off",
-            onChange: (e) => setPass(e.target.value),
-          },
+        secretField(
+          B("પ્રારંભિક પાસવર્ડ (વ્યક્તિને જણાવો)", "Initial password (share it with the person)"),
+          pass,
+          setPass,
+          { required: true },
         ),
         h(
           "label",
@@ -1335,17 +1268,11 @@ function WorkflowAssignment({ village: v, data, lang, act, busy }) {
             checked: confirmed,
             onChange: (e) => setConfirmed(e.target.checked),
           }),
-          B(
-            "વ્યક્તિની ઓળખ ખાતરી કરી છે.",
-            "I have confirmed this person's identity.",
-          ),
+          B("વ્યક્તિની ઓળખ ખાતરી કરી છે.", "I have confirmed this person's identity."),
         ),
         h(
           "button",
-          {
-            disabled: busy || !confirmed,
-            type: "submit",
-          },
+          { disabled: busy || !confirmed, type: "submit" },
           B("ગામ એડમિન નોંધાવો", "Enroll administrator"),
         ),
       ),
@@ -1359,7 +1286,11 @@ function WorkflowAssignment({ village: v, data, lang, act, busy }) {
           B("નવો એડમિન પસંદ કરો", "Choose a new administrator"),
           h(
             "select",
-            { value: selection, onChange: (e) => setSelection(e.target.value) },
+            {
+              value: selection,
+              "data-testid": "New admin select",
+              onChange: (e) => setSelection(e.target.value),
+            },
             h("option", { value: "" }, "—"),
             h(
               "option",
@@ -1381,12 +1312,7 @@ function WorkflowAssignment({ village: v, data, lang, act, busy }) {
         ),
         selection &&
           selection !== "remove" &&
-          field(B("નવા એડમિનનો પાસવર્ડ", "New administrator's password"), {
-            type: "password",
-            value: pass,
-            autoComplete: "off",
-            onChange: (e) => setPass(e.target.value),
-          }),
+          secretField(B("નવા એડમિનનો પાસવર્ડ", "New administrator's password"), pass, setPass),
         h(
           "label",
           { className: "workflow-check" },
@@ -1416,20 +1342,18 @@ function WorkflowAssignment({ village: v, data, lang, act, busy }) {
               }),
             {
               disabled:
-                busy || !selection || !confirmed || (selection !== "remove" && !pass),
+                busy ||
+                !selection ||
+                !confirmed ||
+                (selection !== "remove" && !pass),
             },
           ),
         ),
         h(
           "details",
-          null,
+          { className: "workflow-reset" },
           h("summary", null, B("પાસવર્ડ રીસેટ કરો", "Reset password")),
-          field(B("નવો પાસવર્ડ", "New password"), {
-            type: "password",
-            value: resetPass,
-            autoComplete: "off",
-            onChange: (e) => setResetPass(e.target.value),
-          }),
+          secretField(B("નવો પાસવર્ડ", "New password"), resetPass, setResetPass),
           button(
             B("પાસવર્ડ રીસેટ કરો", "Reset password"),
             () =>
@@ -1442,9 +1366,7 @@ function WorkflowAssignment({ village: v, data, lang, act, busy }) {
                   identityConfirmed: confirmed,
                 },
               ),
-            {
-              disabled: busy || !resetPass || !confirmed,
-            },
+            { disabled: busy || !resetPass || !confirmed },
           ),
         ),
       ),

@@ -192,12 +192,10 @@ try {
   await scan("admin-home");
   for (const section of [
     "Requests",
-    "Members",
     "Reports",
     "Archive",
     "Security alerts",
     "Backup & export",
-    "Notifications",
     "Total members",
   ]) {
     const item = page.getByText(section, { exact: true });

@@ -146,7 +146,7 @@ try {
   // 2. Main administrator enrolls the first village administrator directly.
   await loginAsAdmin(admin);
   await admin.getByTestId("Village management").click();
-  await admin.getByRole("button", { name: /Villages & admins/ }).click();
+  await admin.getByRole("button", { name: /Password reset|\u0aaa\u0abe\u0ab8\u0ab5\u0ab0\u0acd\u0aa1 \u0ab0\u0ac0\u0ab8\u0ac7\u0a9f/ }).click();
   const card = admin
     .locator(".workflow-card")
     .filter({ has: admin.getByRole("heading", { name: /થોરાળા|Thorala/ }) });
@@ -374,24 +374,26 @@ try {
   await applicant.reload();
   await applicant.getByRole("button", { name: /Send request|રિક્વેસ્ટ મોકલો/ }).waitFor();
 
-  // 9. New villages appear immediately but stay closed until an administrator
-  //    is enrolled.
+  // 9. The village list is fixed at seven; the manager is a dropdown with
+  //    the selected village's administrator, members and password reset.
   await admin.getByTestId("Village management").click();
-  await admin.getByRole("button", { name: /Villages & admins/ }).click();
-  const add = admin.locator("form.workflow-card");
-  await add.getByLabel(/Gujarati name/).fill("નવું ગામ");
-  await add.getByLabel(/English name/).fill("New Village");
-  await add.getByRole("button", { name: /Add village/ }).click();
-  await admin.getByRole("heading", { name: /New Village/ }).waitFor();
-  await scan(admin, "manage-villages");
-  await rejected.reload();
-  await rejected.getByRole("combobox", { name: /Village|ગામ/ }).waitFor();
-  assert.equal(await rejected.locator("select option").count(), 9);
+  await admin.getByRole("button", { name: /Password reset|પાસવર્ડ રીસેટ/ }).click();
+  const manager = admin.locator(".workflow-panel");
   assert.equal(
-    await optionState(rejected, "નવું ગામ"),
-    true,
-    "A new village without an administrator stays closed",
+    await manager.getByTestId("Village select").locator("option").count(),
+    7,
+    "Exactly the seven fixed villages",
   );
+  assert.equal(
+    await manager.locator("form.workflow-card").count(),
+    0,
+    "The add-village form is gone",
+  );
+  await manager.getByTestId("Village select").selectOption("સથરા");
+  await manager
+    .getByRole("heading", { name: /સથરા|Sathra/ })
+    .waitFor();
+  await scan(admin, "manage-villages");
 
   // 10. Administrator account: password change and sign-out.
   await va.getByTestId("Dashboard").click();
@@ -434,7 +436,7 @@ try {
   await chooseLanguage(admin, "en");
   await chooseTheme(admin, "dark");
   await admin.getByTestId("Village management").click();
-  await admin.getByRole("button", { name: /Villages & admins/ }).click();
+  await admin.getByRole("button", { name: /Password reset|\u0aaa\u0abe\u0ab8\u0ab5\u0ab0\u0acd\u0aa1 \u0ab0\u0ac0\u0ab8\u0ac7\u0a9f/ }).click();
   await scan(admin, "management-en-dark-165");
 
   assert.deepEqual(errors, []);

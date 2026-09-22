@@ -244,3 +244,36 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 Release builds stay intentionally blocked until the items in
 `docs/RELEASE_AUDIT.md` are resolved; do not distribute a release APK yet.
+
+v0.3.3 manual checks (see `docs/modern-design/v033-admin/` and
+`docs/modern-design/v033-lock/` for screenshots, and
+`docs/TEST_REPORT_v033.md` for the full report):
+
+25. Main admin → Village management → the tab is now "પાસવર્ડ રીસેટ":
+    pick a village from the dropdown, check the current administrator and
+    member list, use the eye button to read a password before saving.
+    There is no add-village form anywhere (the list is fixed at seven).
+26. Notifications: there is no notifications tile or tab. Keep the app
+    open on the phone: when someone applies to your village, a system
+    notification appears ("નવી નોંધણી વિનંતી આવી"); when the main
+    administrator finally approves, the village administrator gets
+    "નવો સભ્ય ઉમેરાયો · <village>". (Notifications while the app is closed
+    need Firebase — see TEST_REPORT_v033.md §5.)
+27. Village administrator sign-out: after signing out of the
+    administrator role, a member lands straight on the community member
+    list.
+28. App lock (every user): Reading settings → એપ લોક → set a four-digit
+    PIN → close and reopen the app → the lock screen appears with the
+    keypad; a wrong PIN shows an error, five wrong PINs pause for 30
+    seconds; "પિન ભૂલી ગયા?" removes the lock and signs the device out.
+    Change or turn off the PIN any time from the same place (current PIN
+    required).
+
+Role logins for manual testing (dummy data):
+
+- Main administrator: tap the sun 5 times → code 5831 → admin /
+  Preview@2026! (on the preview; your own server prints its own).
+- Village administrators: 9001000001 Thorala · 9001000002 Sathra ·
+  9001000003 Taredi · 9001000004 Lilvan · 9001000005 Dudhala ·
+  9001000006 Talgajarada · 9001000007 Jinjaka — passwords
+  <VillageName>@2026 (demo seed).

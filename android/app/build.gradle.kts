@@ -11,8 +11,8 @@ android {
         applicationId = "org.mvpmi.directory"
         minSdk = 21
         targetSdk = 36
-        versionCode = 6
-        versionName = "0.3.2-dev"
+        versionCode = 7
+        versionName = "0.3.3-dev"
         buildConfigField("String", "COMMUNITY_URL", "\"${communityUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
     }
     buildFeatures { buildConfig = true }

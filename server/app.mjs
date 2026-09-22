@@ -337,6 +337,16 @@ export function createApp({
     store.audit(req.session.owner, "admin.login", a.id);
     res.json(state(req));
   });
+  // Full device sign-out (used by the app-lock "forgot PIN" flow): the
+  // session, including member identity and any administrator role, is
+  // destroyed so resetting a forgotten lock never leaves data accessible.
+  app.post("/api/logout", (req, res) => {
+    const id = req.session.id;
+    store.audit(req.session.owner, "device.logout", id);
+    store.del("sessions", id);
+    res.clearCookie("mvpm_session", { path: "/" });
+    res.json({ signedOut: true });
+  });
   app.post("/api/admin/logout", (req, res) => {
     delete req.session.adminUntil;
     delete req.session.gateUntil;

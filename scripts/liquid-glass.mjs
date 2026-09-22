@@ -29,6 +29,7 @@ export function liquidGlass(template) {
     slider +
     `
     <div class="effects-control"><button role="switch" aria-checked="{{ effectsEnabled }}" aria-label="{{ ui.effects }}" onClick="{{ toggleEffects }}"><span>{{ ui.effects }}</span><span class="switch-track" aria-hidden="true"><span></span></span></button><p>{{ ui.effectsHelp }}</p></div>
+    <h3 class="settings-label">{{ ui.appLock }}</h3>{{ appLockPanel }}
   ` +
     template.slice(end);
   const profileSlider =

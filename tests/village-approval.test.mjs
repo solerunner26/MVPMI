@@ -184,34 +184,17 @@ test("village queues are scoped, self verification is denied, arbitrary villages
   await f.va("થોરાળા")(`village/requests/${own.id}/forward`, forward, 403);
 });
 
-test("only main admin adds villages; villages without administrators cannot receive applications", async (t) => {
+test("the village list is fixed at seven villages and adding villages is removed", async (t) => {
   const f = await fixture(t);
+  assert.equal((await f.client()("state")).villages.length, 7);
   await f.ensureAdmin("Thorala");
   await f.va("થોરાળા")(
     "admin/villages",
     { gu: "નવું ગામ", en: "New Village" },
-    403,
+    404,
   );
-  await f.admin("admin/villages", { gu: "નવું ગામ", en: "New Village" });
-  assert.equal((await f.client()("state")).villages.length, 8);
-  await f.admin("admin/villages", { gu: "નવું ગામ", en: "Other name" }, 409);
-  const guest = f.client();
-  await guest(
-    "enrollment",
-    { ...example, village: "New Village", currentLocation: "Adajan, Surat" },
-    409,
-  );
-  await f.ensureAdmin("New Village");
-  await guest("enrollment", {
-    ...example,
-    village: "New Village",
-    currentLocation: "Adajan, Surat",
-  });
-  const r = f.store
-    .all("requests")
-    .find((x) => x.payload.currentLocation === "Adajan, Surat");
-  await f.va("નવું ગામ")(`village/requests/${r.id}/forward`, forward);
-  await f.admin(`admin/requests/${r.id}/approve`, {});
+  await f.admin("admin/villages", { gu: "નવું ગામ", en: "New Village" }, 404);
+  assert.equal((await f.client()("state")).villages.length, 7);
 });
 
 test("village admin proposals always require the main administrator's final decision", async (t) => {

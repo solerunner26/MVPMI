@@ -128,6 +128,18 @@ class Component extends DesignComponent {
     };
     document.addEventListener("keydown", this._onKey);
     window.mvpmiBack = () => this.handleBack();
+    this._lockCfg = readAppLock();
+    if (this._lockCfg) this._engageLock();
+    this._onVisibility = () => {
+      if (document.hidden) this._hiddenAt = Date.now();
+      else if (
+        this._lockCfg &&
+        !this._locked &&
+        Date.now() - (this._hiddenAt || 0) > 60000
+      )
+        this._engageLock();
+    };
+    document.addEventListener("visibilitychange", this._onVisibility);
     this.refresh(true).then(() => this._androidReminder());
     this._clock = setInterval(() => this.forceUpdate(), 1000);
     this._poll = setInterval(() => {
@@ -142,12 +154,24 @@ class Component extends DesignComponent {
       else q.removeListener(this._materialChanged);
     }
     document.removeEventListener("keydown", this._onKey);
+    document.removeEventListener("visibilitychange", this._onVisibility);
     delete window.mvpmiBack;
     this._alive = false;
     clearInterval(this._poll);
     super.componentWillUnmount();
   }
+  _engageLock() {
+    this._locked = true;
+    this.setState({
+      screen: "applock",
+      appLockInput: "",
+      appLockError: false,
+      appLockFails: 0,
+      appLockUntil: 0,
+    });
+  }
   handleBack() {
+    if (this._locked) return true;
     if (this.state.workflowOpen) {
       this.set("workflowOpen", false);
       return true;
@@ -422,7 +446,26 @@ class Component extends DesignComponent {
       patch.confirm = null;
       patch.dial = null;
     }
+    // While the device lock is engaged the app shows only the lock screen;
+    // no directory data is rendered.
+    if (this._locked) patch.screen = "applock";
     this.setState(patch);
+    // A changed signed-in identity (sign-in, role change) rebaselines the
+    // OS-notifier's seen set, so signing in never floods the device with
+    // old items — and genuinely new items still notify on the next poll.
+    const sig =
+      (data.role || "") +
+      ":" +
+      (data.villageAdmin ? "va" : "") +
+      ":" +
+      (data.meId || "");
+    if (this._notifySig === undefined) this._notifySig = sig;
+    else if (this._notifySig !== sig) {
+      this._notifySig = sig;
+      this._notifyReady = false;
+      this._notified = new Set();
+      this._androidReminder();
+    }
   }
   clearAccess() {
     if (!this._alive) return;
@@ -453,40 +496,103 @@ class Component extends DesignComponent {
       loaded: true,
     });
   }
-  // While the app is open, pending work re-surfaces as an Android system
-  // notification whenever it appears or grows, at most every 10 minutes.
+  // OS-level notifications: every newly observed item for this signed-in
+  // role is posted as an Android system notification (new requests to the
+  // village administrator, forwarded requests and proposals to the main
+  // administrator, and finally-approved members back to the village
+  // administrator). Delivery while the app is open is driven by the state
+  // poll; notifications when the app is closed need Firebase push and
+  // remain an owner setup step (see docs/BETA_TEST_CHECKLIST.md).
   _androidReminder() {
-    const bridge = androidBridge();
-    if (!bridge || !this._alive) return;
+    if (!androidBridge() || !this._alive) return;
     const s = this.state;
-    const count =
-      s.role === "admin"
-        ? s.newRequests.length +
-          s.updateRequests.length +
-          s.deleteRequests.length
-        : (s.reviewQueue || []).length + (s.villageProposals || []).length;
-    if (!count) {
-      this._lastReminder = 0;
-      return;
+    if (!this._notified) this._notified = new Set();
+    const events = [];
+    const label = (m) => (s.lang === "gu" ? m.nameGu || m.name : m.name);
+    if (s.role === "admin") {
+      for (const r of s.reviewQueue || [])
+        if (r.verification)
+          events.push([
+            "fwd:" + r.id,
+            [
+              "\u0a97\u0abe\u0aae \u0a9a\u0a95\u0abe\u0ab8\u0abe\u0a88 \u00b7 \u0a85\u0a82\u0aa4\u0abf\u0aae \u0aae\u0a82\u0a9c\u0ac2\u0ab0\u0ac0 \u0aac\u0abe\u0a95\u0ac0",
+              "Village-verified \u00b7 final decision needed",
+            ],
+            [
+              (r.payload || r.old || {}).nameGu +
+                " \u00b7 " +
+                (r.payload || r.old || {}).village,
+              (r.payload || r.old || {}).name +
+                " \u00b7 " +
+                (r.payload || r.old || {}).village,
+            ],
+          ]);
+      for (const p of [
+        ...(s.updateRequests || []).map((r) => ({ ...r, kind: "update" })),
+        ...(s.deleteRequests || []).map((r) => ({ ...r, kind: "delete" })),
+      ])
+        events.push([
+          "prop:" + p.id + ":" + p.kind,
+          [
+            p.kind === "delete"
+              ? "\u0a26\u0ac2\u0ab0 \u0a95\u0ab0\u0ab5\u0abe\u0aa8\u0ac0 \u0ab8\u0ac2\u0a9a\u0aa8\u0abe \u0a86\u0ab5\u0ac0"
+              : "\u0aae\u0abe\u0ab9\u0abf\u0aa4\u0ac0 \u0aac\u0aa6\u0ab2\u0ab5\u0abe\u0aa8\u0ac0 \u0ab8\u0ac2\u0a9a\u0aa8\u0abe \u0a86\u0ab5\u0ac0",
+            p.kind === "delete"
+              ? "Removal proposal received"
+              : "Change proposal received",
+          ],
+          [
+            ((p.old || {}).nameGu || (p.old || {}).name || "") +
+              " \u00b7 " +
+              ((p.old || {}).village || ""),
+            ((p.old || {}).name || "") +
+              " \u00b7 " +
+              ((p.old || {}).village || ""),
+          ],
+        ]);
+      for (const a of s.alerts || [])
+        events.push([
+          "alert:" + a.id,
+          ["\u0ab6\u0a82\u0a95\u0abe\u0ab8\u0acd\u0aaa\u0aa6 \u0aaa\u0acd\u0ab0\u0aaf\u0abe\u0ab8 \u0aa8\u0acb\u0a82\u0aa7\u0abe\u0aaf\u0acb", "Suspicious attempt logged"],
+          [a.who || "", a.who || ""],
+        ]);
+    } else if (s.villageAdmin) {
+      for (const r of s.reviewQueue || [])
+        if (!r.verification)
+          events.push([
+            "new:" + r.id,
+            ["\u0aa8\u0ab5\u0ac0 \u0aa8\u0acb\u0a82\u0aa7\u0aa3\u0ac0 \u0ab5\u0abf\u0aa8\u0a82\u0aa4\u0ac0 \u0a86\u0ab5\u0ac0", "New enrollment request"],
+            [
+              ((r.payload || {}).nameGu || (r.payload || {}).name || "") +
+                " \u00b7 " +
+                s.villageAdminVillage,
+              ((r.payload || {}).name || "") +
+                " \u00b7 " +
+                s.villageAdminVillage,
+            ],
+          ]);
+      for (const m of s.members || [])
+        if (m.village === s.villageAdminVillage)
+          events.push([
+            "member:" + m.id,
+            [
+              "\u0aa8\u0ab5\u0acb \u0ab8\u0aad\u0acd\u0aaf \u0a89\u0aae\u0ac7\u0ab0\u0abe\u0aaf\u0acb \u00b7 " + s.villageAdminVillage,
+              "New member added \u00b7 " + s.villageAdminVillage,
+            ],
+            [label(m), label(m)],
+          ]);
     }
-    const now = Date.now();
-    if (
-      this._lastReminder === count &&
-      now - (this._reminderAt || 0) < 600000
-    )
-      return;
-    this._lastReminder = count;
-    this._reminderAt = now;
-    androidNotify(
-      this.P("મહુવા ક્ષત્રિય રાજપૂત સમાજ", "Community directory"),
-      this.P(
-        count + " વિનંતીઓનો નિર્ણય બાકી છે.",
-        count +
-          (count === 1
-            ? " request needs a decision."
-            : " requests need a decision."),
-      ),
-    );
+    // The first poll after opening only records what already exists, so the
+    // app never floods the device with old items; only genuinely new
+    // events raise a notification.
+    const first = !this._notifyReady;
+    this._notifyReady = true;
+    for (const [key, titles, texts] of events) {
+      if (this._notified.has(key)) continue;
+      this._notified.add(key);
+      if (first) continue;
+      androidNotify(this.P(titles[0], titles[1]), this.P(texts[0], texts[1]));
+    }
   }
   async refresh(initial = false) {
     try {
@@ -692,6 +798,10 @@ class Component extends DesignComponent {
             onAction: async (path, body) => {
               const data = await this.api(path, body);
               this.apply(data);
+              // Signing out of the village-administrator role returns a
+              // community member straight to the member list.
+              if (path === "village/logout" && data.meId)
+                this.setState({ screen: "directory", workflowOpen: false });
             },
           })
         : null;
@@ -875,6 +985,86 @@ class Component extends DesignComponent {
     };
     v.leaveGate = () =>
       this.setState({ screen: this.home(), gateInput: "", gateError: false });
+    // ---- Device app lock (four-digit PIN, managed in Reading settings) ----
+    v.isAppLock = s.screen === "applock";
+    v.appLockEnabled = !!this._lockCfg;
+    v.lockDots = [0, 1, 2, 3].map((i) => ({
+      bg: (s.appLockInput || "").length > i ? "var(--ind)" : "var(--chip)",
+    }));
+    v.lockError = !!s.appLockError;
+    const lockWait = Math.max(
+      0,
+      Math.ceil(((s.appLockUntil || 0) - Date.now()) / 1000),
+    );
+    v.lockCooldown = lockWait
+      ? this.P(
+          lockWait + " સેકન્ડ રાહ જુઓ, પછી ફરી પ્રયાસ કરો.",
+          "Wait " + lockWait + " seconds, then try again.",
+        )
+      : "";
+    v.lockKeyPad = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "\u232b"].map(
+      (k) => ({
+        label: k,
+        disabled: !k || !!lockWait,
+        onClick: () => {
+          if (!k || this.state.appLockUntil > Date.now()) return;
+          if (k === "\u232b") {
+            this.setState({
+              appLockInput: this.state.appLockInput.slice(0, -1),
+              appLockError: false,
+            });
+            return;
+          }
+          const code = (this.state.appLockInput + k).slice(0, 4);
+          if (code.length < 4) {
+            this.setState({ appLockInput: code, appLockError: false });
+            return;
+          }
+          const ok = this._lockCfg && verifyAppLock(code, this._lockCfg);
+          if (ok) {
+            this._locked = false;
+            this.setState({
+              screen: this.home(),
+              appLockInput: "",
+              appLockError: false,
+              appLockFails: 0,
+              appLockUntil: 0,
+            });
+          } else {
+            const fails = (this.state.appLockFails || 0) + 1;
+            this.setState({
+              appLockInput: "",
+              appLockError: true,
+              appLockFails: fails,
+              appLockUntil: fails >= 5 ? Date.now() + 30000 : 0,
+            });
+          }
+        },
+      }),
+    );
+    v.lockForgot = () =>
+      this.confirmAction(
+        "\u0aaa\u0abf\u0aa8 \u0aad\u0ac2\u0ab2\u0ac0 \u0a97\u0aaf\u0abe \u0a9b\u0acb?",
+        "Forgot the PIN?",
+        "The app lock will be removed and this device will be signed out of the community directory.",
+        async () => {
+          await this.api("logout", {});
+          clearAppLock();
+          this._lockCfg = null;
+          this._locked = false;
+          this.clearAccess();
+        },
+        "\u0a8f\u0aaa \u0ab2\u0acb\u0a95 \u0aa6\u0ac2\u0ab0 \u0aa5\u0ab6\u0ac7 \u0a85\u0aa8\u0ac7 \u0a86 \u0aab\u0acb\u0aa8 \u0ab8\u0aae\u0abe\u0a9c\u0aa8\u0ac0 \u0aaf\u0abe\u0aa6\u0ac0\u0aae\u0abe\u0a82\u0aa5\u0ac0 \u0ab8\u0abe\u0a87\u0aa8 \u0a86\u0a89\u0a9f \u0aa5\u0a88 \u0a9c\u0ab6\u0ac7. \u0aaa\u0a9b\u0ac0 \u0aab\u0ab0\u0ac0 \u0aa4\u0aae\u0abe\u0ab0\u0abe \u0aa8\u0a82\u0aac\u0ab0\u0aa5\u0ac0 \u0a9c\u0acb\u0aa1\u0abe\u0a88 \u0ab6\u0a95\u0abe\u0ab6\u0ac7.",
+        "\u0a8f\u0aaa \u0ab2\u0acb\u0a95 \u0aa6\u0ac2\u0ab0 \u0a95\u0ab0\u0acb",
+        "Remove app lock",
+      );
+    v.appLockPanel = React.createElement(AppLockSettings, {
+      lang: s.lang,
+      onChange: () => {
+        this._lockCfg = readAppLock();
+        this.forceUpdate();
+      },
+    });
     v.exitAdmin = () => this.mutate("admin/logout");
     v.logout = v.exitAdmin;
     v.keypad = v.keypad.map((k) => ({
@@ -1589,95 +1779,6 @@ class Component extends DesignComponent {
       },
     ];
 
-    // ---- Notifications: pending work stays listed until it is finished ----
-    const notif = (icon, bg, fg, gu, en, detailGu, detailEn, onOpen) => ({
-      icon,
-      bg,
-      fg,
-      gu,
-      en,
-      detailGu,
-      detailEn,
-      onOpen: onOpen || null,
-    });
-    const notifications = [];
-    if (s.role === "admin") {
-      const pending = summaryCount;
-      if (pending)
-        notifications.push(
-          notif(
-            "ph-duotone ph-tray",
-            "rgba(178,64,44,.14)",
-            "var(--ind)",
-            pending + " વિનંતીઓનો નિર્ણય બાકી છે",
-            pending +
-              (pending === 1
-                ? " request needs a decision"
-                : " requests need a decision"),
-            "વિનંતીઓ ટાઇલ ખોલો અને મંજૂર કે નામંજૂર કરો.",
-            "Open the Requests tile and approve or reject them.",
-            () => this.set("tab", "requests"),
-          ),
-        );
-      const rejectedBeforeList = s.newRequests.filter(
-        (r) => r.rejectedBefore,
-      );
-      if (rejectedBeforeList.length)
-        notifications.push(
-          notif(
-            "ph-duotone ph-warning-circle",
-            "var(--danBg)",
-            "var(--dan)",
-            rejectedBeforeList.length +
-              " વિનંતી પહેલા નામંજૂર થયેલા નંબર પરથી છે",
-            rejectedBeforeList.length +
-              " application" +
-              (rejectedBeforeList.length === 1 ? "" : "s") +
-              " from a previously rejected number",
-            "આ નંબરો પહેલા નામંજૂર થયા હતા — ચકાસીને નિર્ણય કરો.",
-            "These numbers were rejected before — verify carefully before deciding.",
-            () => this.set("tab", "requests"),
-          ),
-        );
-      const villageWaiting = (s.reviewQueue || []).filter(
-        (r) => !r.verification,
-      ).length;
-      if (villageWaiting)
-        notifications.push(
-          notif(
-            "ph-duotone ph-hourglass",
-            "var(--danBg)",
-            "var(--dan)",
-            villageWaiting +
-              (villageWaiting === 1
-                ? " વિનંતી ગામ એડમિનની ચકાસણીની રાહમાં છે"
-                : " વિનંતીઓ ગામ એડમિનની ચકાસણીની રાહમાં છે"),
-            villageWaiting +
-              (villageWaiting === 1
-                ? " application is waiting for village verification"
-                : " applications are waiting for village verification"),
-            "ગામ એડમિન જોતા નહીં હોય તો તેમનો સંપર્ક કરો — All admins પેજમાં નંબર છે.",
-            "If the village administrator is not acting, contact them — their number is on the All admins page.",
-            () => this.set("tab", "requests"),
-          ),
-        );
-      if (s.alerts.length)
-        notifications.push(
-          notif(
-            "ph-duotone ph-shield-warning",
-            "var(--danBg)",
-            "var(--dan)",
-            s.alerts.length + " શંકાસ્પદ પ્રયાસ નોંધાયા છે",
-            s.alerts.length + " suspicious attempts logged",
-            "સુરક્ષા ટાઇલમાં વિગત જુઓ.",
-            "See the Security tile for details.",
-            () => this.set("tab", "security"),
-          ),
-        );
-    }
-    v.notifications = notifications;
-    v.notifCount = notifications.length;
-    v.openNotifications = () => this.set("tab", "notifications");
 
     v.setFs = (e) => this.set("fsPct", normalizeTextSize(e.target.value));
     v.resetFs = () => this.set("fsPct", 100);

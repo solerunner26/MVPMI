@@ -53,6 +53,7 @@ export const UI_COPY = {
   confirm: ["કાર્યની ખાતરી કરો", "Confirm action"],
   contact: ["સંપર્ક વિકલ્પ", "Contact action"],
   textSize: ["અક્ષરનું માપ", "Text size"],
+  appLock: ["એપ લોક", "App lock"],
   backDashboard: ["ડેશબોર્ડ પર પાછા જાઓ", "Back to dashboard"],
   backDirectory: ["યાદીમાં પાછા જાઓ", "Back to directory"],
   backLogin: ["લોગિન પર પાછા જાઓ", "Back to login"],

@@ -192,6 +192,73 @@ try {
       false,
     );
   }
+
+  // Device app lock: enable, lock on reload, wrong/right PIN, change, turn off.
+  await page.getByTestId("Reading settings").click();
+  const lockSettings = page.getByTestId("App lock settings");
+  await lockSettings.getByTestId("New PIN").fill("1357");
+  await lockSettings.getByTestId("Repeat PIN").fill("1357");
+  await lockSettings
+    .getByRole("button", { name: /Turn on app lock|એપ લોક ચાલુ કરો/ })
+    .click();
+  await lockSettings.getByRole("status").waitFor();
+  // The stored secret is a salted PBKDF2 hash, never the PIN itself.
+  const stored = await page.evaluate(() =>
+    localStorage.getItem("mvpmi.appLock"),
+  );
+  assert.match(stored, /"enabled":true/);
+  assert.match(stored, /"salt":"/);
+  assert.ok(!stored.includes("1357"));
+  await page.locator(".close-preferences").click();
+  await page.reload();
+  await page.getByRole("button", { name: "1", exact: true }).first().waitFor();
+  // No directory content is reachable while locked: the lock overlay covers
+  // the whole app and the screen state is the lock itself.
+  assert.equal(
+    await page.locator(".app").getAttribute("data-screen"),
+    "applock",
+  );
+  assert.equal(await page.getByTestId("My profile").count(), 0);
+  assert.equal(
+    (await page.locator("body").innerText()).includes("Test Community"),
+    false,
+    "member data must not render while locked",
+  );
+  // Wrong PIN shows an error; the correct PIN unlocks to the member list.
+  for (const digit of "9999")
+    await page
+      .getByRole("button", { name: digit, exact: true })
+      .first()
+      .click();
+  await page.getByRole("alert").waitFor();
+  for (const digit of "1357")
+    await page
+      .getByRole("button", { name: digit, exact: true })
+      .first()
+      .click();
+  await page.getByTestId("My profile").waitFor();
+  // Change the PIN, then turn the lock off with the new PIN.
+  await page.getByTestId("Reading settings").click();
+  await lockSettings.getByTestId("Current PIN").fill("1357");
+  await lockSettings.getByTestId("New PIN").fill("2468");
+  await lockSettings.getByTestId("Repeat PIN").fill("2468");
+  await lockSettings
+    .getByRole("button", { name: /Change PIN|પિન બદલો/ })
+    .click();
+  await lockSettings.getByRole("status").waitFor();
+  await lockSettings.getByTestId("Current PIN").fill("2468");
+  await lockSettings
+    .getByRole("button", { name: /Turn off app lock|એપ લોક બંધ કરો/ })
+    .click();
+  await page.locator(".close-preferences").click();
+  await page.reload();
+  await page.getByTestId("My profile").waitFor();
+  assert.equal(
+    await page.evaluate(() => localStorage.getItem("mvpmi.appLock")),
+    null,
+    "lock fully removed",
+  );
+
   assert.deepEqual(errors, []);
   console.log(
     "PASS: rendered modern design, submitted request, retained pending after reload, hidden admin login, approved in separate session, directory search, no browser errors or horizontal overflow.",

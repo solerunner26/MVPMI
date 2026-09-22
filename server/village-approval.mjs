@@ -296,27 +296,6 @@ const credential = (pass) => {
 };
 
 export function installVillageApproval(app, store, { admin, state, rate }) {
-  app.post("/api/admin/villages", admin, (req, res) => {
-    const gu = cleanText(req.body.gu, 2, 80, "village name");
-    const en = cleanText(req.body.en, 2, 80, "village name");
-    if (
-      store
-        .all("villages")
-        .some((v) => v.gu === gu || v.en.toLowerCase() === en.toLowerCase())
-    )
-      fail("Village already exists", 409);
-    store.tx(() => {
-      store.put("villages", {
-        id: gu,
-        gu,
-        en,
-        order: store.all("villages").length,
-      });
-      store.audit(req.session.owner, "village.add", gu);
-    });
-    res.json(state(req));
-  });
-
   // Enrolling the first administrators is a main-administrator trust decision:
   // the person is created as an approved member WITH credentials in one step.
   app.post("/api/admin/village-admins/:village", admin, (req, res) => {

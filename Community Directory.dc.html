@@ -613,6 +613,30 @@
             </div>
           </sc-if>
 
+          <sc-if value="{{ isAppLock }}">
+            <div style="position:absolute;inset:0;z-index:60;background:var(--page);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;gap:18px">
+              <div style="width:74px;height:74px;border-radius:24px;background:var(--g);border:1px solid var(--gbd);display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow)"><i class="ph-duotone ph-lock-key" style="font-size:38px;color:var(--ind)"></i></div>
+              <div class="bi" style="align-items:center;font-size:var(--f-md);font-weight:700;letter-spacing:.04em"><span class="gu">એપ લોક · પિન નાખો</span><span class="en">App lock · Enter PIN</span></div>
+              <div style="display:flex;gap:10px">
+                <sc-for list="{{ lockDots }}" as="d" hint-placeholder-count="4">
+                  <div style="width:16px;height:16px;border-radius:50%;background:{{ d.bg }};border:1px solid var(--gbd)"></div>
+                </sc-for>
+              </div>
+              <sc-if value="{{ lockError }}">
+                <div class="bi" role="alert" style="align-items:center;text-align:center;font-size:var(--f-sm);color:var(--dan);font-weight:600;text-wrap:pretty"><span class="gu">ખોટો પિન. ફરી પ્રયાસ કરો.</span><span class="en">Wrong PIN. Try again.</span></div>
+              </sc-if>
+              <sc-if value="{{ lockCooldown }}">
+                <div class="en" role="status" style="font-size:var(--f-sm);color:var(--ink2);font-weight:600">{{ lockCooldown }}</div>
+              </sc-if>
+              <div style="display:grid;grid-template-columns:repeat(3,72px);gap:12px;margin-top:4px">
+                <sc-for list="{{ lockKeyPad }}" as="k" hint-placeholder-count="12">
+                  <button onClick="{{ k.onClick }}" disabled="{{ k.disabled }}" style="height:64px;border-radius:22px;border:1px solid var(--gbd);background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);color:var(--ink);font:inherit;font-size:22px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center" style-active="background:var(--chip);transform:scale(.97)">{{ k.label }}</button>
+                </sc-for>
+              </div>
+              <button onClick="{{ lockForgot }}" class="en" style="border:0;background:none;color:var(--ink2);font:inherit;font-size:var(--f-sm);cursor:pointer;padding:10px"><span class="bi"><span class="gu">પિન ભૂલી ગયા?</span><span class="en">Forgot PIN?</span></span></button>
+            </div>
+          </sc-if>
+
           <sc-if value="{{ isAdminLogin }}">
             <div style="flex:1;display:flex;flex-direction:column;min-height:0">
               <div class="noscroll" style="flex:1;overflow:auto;padding:30px 22px 40px;display:flex;flex-direction:column;gap:18px;justify-content:center">
@@ -696,10 +720,7 @@
                   <div class="bi" style="font-size:var(--f-xs);letter-spacing:.1em;text-transform:uppercase;color:var(--ink2);font-weight:700"><span class="gu">એડમિન પેનલ</span><span class="en">Admin panel</span></div>
                   <div style="font-weight:700;font-size:var(--f-lg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ adminTitle }}</div>
                 </div>
-                <button onClick="{{ openNotifications }}" data-testid="Notifications" title="Notifications" style="width:42px;height:42px;border-radius:14px;border:1px solid var(--gbd);background:var(--g);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;flex:0 0 auto" style-hover="border-color:var(--dan);color:var(--dan)">
-                  <i class="ph-duotone ph-bell-ringing" style="font-size:21px"></i>
-                  <sc-if value="{{ notifCount }}"><span class="en" style="position:absolute;top:-5px;right:0;min-width:19px;height:19px;padding:0 5px;box-sizing:border-box;border-radius:10px;background:var(--badgeDan);color:var(--onTint);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center">{{ notifCount }}</span></sc-if>
-                </button>
+                
                 <button onClick="{{ logout }}" title="Sign out" style="width:42px;height:42px;border-radius:14px;border:1px solid var(--gbd);background:var(--g);color:var(--ink);display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto" style-hover="border-color:var(--ind);color:var(--ind)"><i class="ph-duotone ph-sign-out" style="font-size:21px"></i></button>
               </div>
 
@@ -876,25 +897,6 @@
                         </div>
                       </div>
                     </sc-for>
-                  </div>
-                </sc-if>
-
-                <sc-if value="{{ tabNotifications }}">
-                  <div style="display:flex;flex-direction:column;gap:12px">
-                    <div class="bi" style="font-size:var(--f-xs);color:var(--ink2);padding:0 4px;text-wrap:pretty"><span class="gu">બાકી કામ અને સૂચનાઓ અહીં રહેશે જ્યાં સુધી પૂરું ન થાય. એપ ખૂલે કે ડેટા અપડેટ થાય ત્યારે ફરી દેખાશે.</span><span class="en">Pending work and alerts stay listed here until it is finished. They return every time the app opens or data updates.</span></div>
-                    <sc-for list="{{ notifications }}" as="n" hint-placeholder-count="2">
-                      <div style="background:var(--g);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--gbd);border-radius:20px;padding:14px;display:flex;gap:12px;align-items:flex-start;box-shadow:var(--shadow)">
-                        <div style="width:38px;height:38px;flex:0 0 auto;border-radius:13px;background:{{ n.bg }};color:{{ n.fg }};display:flex;align-items:center;justify-content:center"><i class="{{ n.icon }}" style="font-size:20px"></i></div>
-                        <div style="flex:1;min-width:0">
-                          <div class="bi" style="font-size:var(--f-sm);font-weight:700"><span class="gu">{{ n.gu }}</span><span class="en">{{ n.en }}</span></div>
-                          <div class="bi" style="font-size:var(--f-xs);color:var(--ink2);margin-top:3px"><span class="gu">{{ n.detailGu }}</span><span class="en">{{ n.detailEn }}</span></div>
-                        </div>
-                        <sc-if value="{{ n.onOpen }}">
-                          <button onClick="{{ n.onOpen }}" class="en" style="border:1px solid var(--gbd);border-radius:12px;background:none;color:var(--ind);font:inherit;font-size:var(--f-xs);font-weight:800;padding:8px 11px;cursor:pointer;flex:0 0 auto" style-hover="background:var(--chip)"><span class="bi"><span class="gu">ખોલો</span><span class="en">Open</span></span></button>
-                        </sc-if>
-                      </div>
-                    </sc-for>
-                    <sc-if value="{{ !notifications.length }}"><div class="bi" style="padding:44px 10px;align-items:center;color:var(--ink2);font-size:var(--f-sm)"><span class="gu">કોઈ સૂચના નથી. બધું અપ ટુ ડેટ છે.</span><span class="en">No notifications. Everything is up to date.</span></div></sc-if>
                   </div>
                 </sc-if>
 
@@ -1317,8 +1319,8 @@ class Component extends DCLogic {
     const pwColors = ['var(--fieldBd)', '#9E2B1E', '#B86A1F', '#D39A2B', '#8A5A10', '#8A5A10'];
 
     const pendingTotal = s.newRequests.length + s.updateRequests.length + s.deleteRequests.length;
-    const titles = { home: 'ડેશબોર્ડ', stats: 'કુલ સભ્યો', requests: 'વિનંતીઓ', new: 'નવી રિક્વેસ્ટ', update: 'ફેરફાર રિક્વેસ્ટ', delete: 'ડિલીટ રિક્વેસ્ટ', reports: 'રિપોર્ટ', archive: 'આર્કાઇવ', security: 'સુરક્ષા', backup: 'બેકઅપ અને એક્સપોર્ટ', notifications: 'સૂચનાઓ' };
-    const titlesEn = { home: 'Dashboard', stats: 'Total members', requests: 'Requests', new: 'New requests', update: 'Update requests', delete: 'Delete requests', reports: 'Reports', archive: 'Archive', security: 'Security', backup: 'Backup & export', notifications: 'Notifications' };
+    const titles = { home: 'ડેશબોર્ડ', stats: 'કુલ સભ્યો', requests: 'વિનંતીઓ', new: 'નવી રિક્વેસ્ટ', update: 'ફેરફાર રિક્વેસ્ટ', delete: 'ડિલીટ રિક્વેસ્ટ', reports: 'રિપોર્ટ', archive: 'આર્કાઇવ', security: 'સુરક્ષા', backup: 'બેકઅપ અને એક્સપોર્ટ' };
+    const titlesEn = { home: 'Dashboard', stats: 'Total members', requests: 'Requests', new: 'New requests', update: 'Update requests', delete: 'Delete requests', reports: 'Reports', archive: 'Archive', security: 'Security', backup: 'Backup & export' };
 
     const tally = (key) => {
       const map = {};
@@ -1332,8 +1334,6 @@ class Component extends DCLogic {
     };
 
     const rejectedBeforeCount = s.newRequests.filter((r) => r.rejectedBefore).length;
-    const villageWaiting = (s.reviewQueue || []).filter((r) => !r.verification).length;
-    const notifCount = (pendingTotal ? 1 : 0) + (rejectedBeforeCount ? 1 : 0) + (s.alerts.length ? 1 : 0) + (villageWaiting ? 1 : 0);
     const archiveTotal = s.archive.length + (s.rejectedApplications ? s.rejectedApplications.length : 0);
     const tileDefs = [
       ['stats', 'કુલ સભ્યો', 'Total members', s.members.length, this.P('મંજૂર સભ્યો ગામ પ્રમાણે', 'approved members by village')],
@@ -1341,8 +1341,7 @@ class Component extends DCLogic {
       ['reports', 'રિપોર્ટ', 'Reports', 0, this.P('ડાઉનલોડ કરી શકાય એવા', 'downloadable PDF · CSV')],
       ['backup', 'બેકઅપ', 'Backup & export', 0, 'PDF · Excel · CSV · JSON'],
       ['archive', 'આર્કાઇવ', 'Archive', archiveTotal, this.P('કાઢેલા · નામંજૂર · કેન્સલ', 'removed · rejected · withdrawn')],
-      ['security', 'સુરક્ષા', 'Security alerts', s.alerts.length, this.P('શંકાસ્પદ પ્રયાસ', 'intrusion attempts')],
-      ['notifications', 'સૂચનાઓ', 'Notifications', notifCount, this.P('બાકી કામ અને એલર્ટ', 'pending work & alerts')]
+      ['security', 'સુરક્ષા', 'Security alerts', s.alerts.length, this.P('શંકાસ્પદ પ્રયાસ', 'intrusion attempts')]
     ];
 
     const screens = [
@@ -1634,7 +1633,7 @@ class Component extends DCLogic {
         gu, en, count, hint,
         onClick: () => this.set('tab', id)
       })),
-      tabHome: s.tab === 'home', tabRequests: s.tab === 'requests', tabReports: s.tab === 'reports', tabNotifications: s.tab === 'notifications',
+      tabHome: s.tab === 'home', tabRequests: s.tab === 'requests', tabReports: s.tab === 'reports',
       tabNew: s.tab === 'new' || s.tab === 'requests', tabUpdate: s.tab === 'update' || s.tab === 'requests',
       tabDelete: s.tab === 'delete' || s.tab === 'requests', tabArchive: s.tab === 'archive',
       tabSecurity: s.tab === 'security', tabBackup: s.tab === 'backup',
