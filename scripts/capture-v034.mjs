@@ -22,6 +22,7 @@ writeFileSync(
 );
 execFileSync("tar", ["xf", libs + "/libs.tar", "-C", libs]);
 const { app, store } = createApp({
+    requireAppLock: false,
   dbPath: ":memory:",
   adminPassword: "TestPreview@2026",
   gateCode: "5831",

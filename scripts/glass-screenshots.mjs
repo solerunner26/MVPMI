@@ -11,6 +11,7 @@ const OUT = "docs/modern-design/glass-refinement";
 mkdirSync(OUT, { recursive: true });
 
 const { app, store } = createApp({
+    requireAppLock: false,
   dbPath: ":memory:",
   development: true,
   adminPassword: "Preview@2026!",

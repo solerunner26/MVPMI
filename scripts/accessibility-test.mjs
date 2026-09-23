@@ -12,6 +12,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import assert from "node:assert/strict";
 mkdirSync("test-results", { recursive: true });
 const { app, store } = createApp({
+    requireAppLock: false,
   dbPath: ":memory:",
   adminPassword: "Accessible@2026",
   gateCode: "5831",

@@ -12,9 +12,18 @@ import {
 // Village administrators are delegated, village-scoped reviewers. Their
 // authority comes ONLY from an explicit phone+password sign-in, never from
 // merely being the approved member, and is re-checked live on every request.
+// Joining requests, village moves and mobile-number changes all pass through
+// the village administrator first. A village administrator's own record is
+// decided by the main administrator directly (nobody can verify themselves).
+export const numbersChanged = (r) =>
+  r.kind === "update" &&
+  (r.old.phone !== r.payload.phone ||
+    (r.old.phone2 || "") !== (r.payload.phone2 || ""));
 export const needsVerification = (r) =>
   r.kind === "new" ||
-  (r.kind === "update" && r.old.village !== r.payload.village);
+  (r.kind === "update" &&
+    !r.selfAdmin &&
+    (r.old.village !== r.payload.village || numbersChanged(r)));
 
 export function decisionReason(value) {
   if (
@@ -40,13 +49,21 @@ const cleanText = (value, min, max, label) => {
 
 // A sign-in stays valid for 12 hours; the live assignment is verified each use,
 // so replacing or removing the administrator revokes active sessions too.
+// The session also records the assignment version and password date at
+// sign-in: re-assignment, a password change or reset, and restore all end
+// existing village-administrator sessions immediately.
 export function activeAdminMember(store, req) {
   const v = req.session.villageAdmin;
   if (!v || v.until <= Date.now()) return null;
   const m = store.get("members", v.memberId);
   if (!m) return null;
   const a = store.get("villageAdmins", m.village);
-  return a && a.memberId === m.id ? m : null;
+  return a &&
+    a.memberId === m.id &&
+    a.version === v.version &&
+    a.passChangedAt === v.passChangedAt
+    ? m
+    : null;
 }
 
 export function villageState(store, req) {
@@ -295,7 +312,15 @@ const credential = (pass) => {
   return pass;
 };
 
-export function installVillageApproval(app, store, { admin, state, rate }) {
+export function installVillageApproval(
+  app,
+  store,
+  { admin, state, rate, notify = () => {}, clientKey, issuePinReset },
+) {
+  const villageLabel = (gu) => {
+    const v = store.get("villages", gu);
+    return { gu, en: v?.en || gu };
+  };
   // Enrolling the first administrators is a main-administrator trust decision:
   // the person is created as an approved member WITH credentials in one step.
   app.post("/api/admin/village-admins/:village", admin, (req, res) => {
@@ -348,6 +373,9 @@ export function installVillageApproval(app, store, { admin, state, rate }) {
           reason,
           actor: req.session.owner,
         });
+        // Requests forwarded by the previous administrator return to the
+        // village queue for the new administrator (never stuck).
+        resetStaged(store, village.gu);
       }
     });
     res.json(state(req));
@@ -382,8 +410,18 @@ export function installVillageApproval(app, store, { admin, state, rate }) {
     const phone = String(req.body.phone || "").replace(/\D/g, "");
     if (!/^[6-9]\d{9}$/.test(phone))
       fail("નંબર બરાબર લખો · Enter a valid 10-digit mobile number");
-    rate("village-login-phone:" + phone, 5);
-    const a = store.all("villageAdmins").find((x) => x.username === phone);
+    // Wrong passwords are limited per number AND per client, so a stranger
+    // cannot lock a real administrator out from another network.
+    const phoneKey = "village-login-phone:" + phone + ":" + clientKey(req);
+    const blocked = (key, max) => (store.get("limits", key)?.until > Date.now() && store.get("limits", key).count >= max);
+    if (blocked(phoneKey, 5) || blocked("village-login-phone:" + phone, 100))
+      fail("ઘણા પ્રયાસો થયા · Too many attempts. Please try again later.", 429);
+    // The administrator signs in with their CURRENT member number, so an
+    // approved number change moves the sign-in with it.
+    const a = store.all("villageAdmins").find((x) => {
+      const m = store.get("members", x.memberId);
+      return m ? m.phone === phone : x.username === phone;
+    });
     const attempt = String(req.body.pass ?? "");
     // Always burn a hash comparison so timing does not reveal enrollments.
     const matches = passwordMatches(
@@ -391,15 +429,31 @@ export function installVillageApproval(app, store, { admin, state, rate }) {
       a?.pass || "00000000000000000000000000000000:" + "0".repeat(128),
     );
     const m = a && matches ? store.get("members", a.memberId) : null;
-    if (!m || m.village !== a.id)
+    if (!m || m.village !== a.id) {
+      try {
+        rate(phoneKey, 1e9);
+        rate("village-login-phone:" + phone, 1e9, 3600000);
+      } catch {}
       fail(
         "ગામ એડમિન સાઇન ઇન નિષ્ફળ · Village administrator sign-in failed",
         401,
       );
+    }
+    req.rotateSession();
     store.tx(() => {
       req.session.villageAdmin = {
         memberId: m.id,
         until: Date.now() + 12 * 3600000,
+        version: a.version,
+        passChangedAt: a.passChangedAt,
+      };
+      // Notifications continue after the 12-hour sign-in ends, until the
+      // administrator signs out or the assignment/password changes.
+      req.session.villageNotify = {
+        village: a.id,
+        memberId: m.id,
+        version: a.version,
+        passChangedAt: a.passChangedAt,
       };
       store.put("sessions", req.session);
       store.audit(m.id, "village.login", a.id);
@@ -411,6 +465,7 @@ export function installVillageApproval(app, store, { admin, state, rate }) {
     if (req.session.villageAdmin) {
       store.tx(() => {
         delete req.session.villageAdmin;
+        delete req.session.villageNotify;
         store.put("sessions", req.session);
         store.audit(req.session.owner, "village.logout", req.session.owner);
       });
@@ -431,6 +486,12 @@ export function installVillageApproval(app, store, { admin, state, rate }) {
       a.pass = passwordHash(credential(req.body.next));
       a.passChangedAt = Date.now();
       store.put("villageAdmins", a);
+      // Other devices signed in with the old password are signed out; this
+      // device continues with the new password date.
+      req.session.villageAdmin.passChangedAt = a.passChangedAt;
+      if (req.session.villageNotify)
+        req.session.villageNotify.passChangedAt = a.passChangedAt;
+      store.put("sessions", req.session);
       store.audit(me.id, "village.password", a.id);
     });
     res.json(state(req));
@@ -502,14 +563,17 @@ export function installVillageApproval(app, store, { admin, state, rate }) {
         };
         store.put("requests", r);
       } else {
-        store.rejectRequest(
-          r,
-          action,
-          reason,
-          me.id,
-          "village",
-          req.body.category,
-        );
+        // Only joining applications enter the rejection ledger; a declined
+        // change request leaves the member's record exactly as it was.
+        if (r.kind === "new")
+          store.rejectRequest(
+            r,
+            action,
+            reason,
+            me.id,
+            "village",
+            req.body.category,
+          );
         store.del("requests", r.id);
       }
       store.audit(
@@ -518,6 +582,32 @@ export function installVillageApproval(app, store, { admin, state, rate }) {
         r.id,
       );
     });
+    const who = r.payload.nameGu || r.payload.name,
+      whoEn = r.payload.name || who,
+      place = villageLabel(r.payload.village);
+    if (action === "forward") {
+      notify("main", {
+        kind: "forwarded",
+        titleGu: r.kind === "new" ? "ગામ ચકાસણી પૂર્ણ · અંતિમ મંજૂરી બાકી" : "ફેરફાર ચકાસાયો · અંતિમ મંજૂરી બાકી",
+        titleEn: r.kind === "new" ? "Village verified · final approval needed" : "Change verified · final approval needed",
+        bodyGu: who + " · " + place.gu,
+        bodyEn: whoEn + " · " + place.en,
+      });
+      notify("owner:" + r.owner, {
+        kind: "stage",
+        titleGu: "ગામના એડમિને ચકાસણી કરી",
+        titleEn: "Your village administrator verified you",
+        bodyGu: "હવે મુખ્ય એડમિનની મંજૂરી બાકી છે.",
+        bodyEn: "Now waiting for the main administrator's approval.",
+      });
+    } else
+      notify("owner:" + r.owner, {
+        kind: "declined",
+        titleGu: r.kind === "new" ? "વિનંતી સ્વીકારાઈ નથી" : "ફેરફાર સ્વીકારાયો નથી",
+        titleEn: r.kind === "new" ? "Application not accepted" : "Change not accepted",
+        bodyGu: reason || "વધુ માહિતી માટે ગામના એડમિનનો સંપર્ક કરો.",
+        bodyEn: reason || "Contact your village administrator for details.",
+      });
     res.json(state(req));
   });
 
@@ -552,9 +642,9 @@ export function installVillageApproval(app, store, { admin, state, rate }) {
   app.post("/api/village/members/:id/update", (req, res) => {
     const { me, m, reason } = proposalGuards(req, req.params.id);
     const p = profile(req.body, store.all("villages"));
-    store.unique(p, m.owner);
     store.tx(() => {
-      store.put("requests", {
+      store.unique(p, m.owner);
+      const r = {
         id: randomUUID(),
         owner: m.owner,
         kind: "update",
@@ -564,8 +654,29 @@ export function installVillageApproval(app, store, { admin, state, rate }) {
         createdAt: Date.now(),
         proposedBy: me.id,
         reason,
-      });
+      };
+      // A number change proposed by this village's own administrator is
+      // already the village verification; it goes straight to the main
+      // administrator. A move to ANOTHER village still needs that village.
+      const a = store.get("villageAdmins", me.village);
+      if (needsVerification(r) && p.village === me.village && a)
+        r.verification = {
+          memberId: me.id,
+          name: me.nameGu || me.name,
+          ...(me.name && me.name !== me.nameGu ? { nameEn: me.name } : {}),
+          assignmentVersion: a.version,
+          at: Date.now(),
+          reason,
+        };
+      store.put("requests", r);
       store.audit(me.id, "village.member.update-proposed:" + reason, m.id);
+    });
+    notify("main", {
+      kind: "proposal",
+      titleGu: "માહિતી બદલવાની સૂચના આવી",
+      titleEn: "Change proposal received",
+      bodyGu: (m.nameGu || m.name) + " · " + villageLabel(m.village).gu,
+      bodyEn: m.name + " · " + villageLabel(m.village).en,
     });
     res.json(state(req));
   });
@@ -585,7 +696,31 @@ export function installVillageApproval(app, store, { admin, state, rate }) {
       });
       store.audit(me.id, "village.member.delete-proposed:" + reason, m.id);
     });
+    notify("main", {
+      kind: "proposal",
+      titleGu: "દૂર કરવાની સૂચના આવી",
+      titleEn: "Removal proposal received",
+      bodyGu: (m.nameGu || m.name) + " · " + villageLabel(m.village).gu,
+      bodyEn: m.name + " · " + villageLabel(m.village).en,
+    });
     res.json(state(req));
+  });
+
+  // Forgotten app PIN: after confirming the member by phone, the village
+  // administrator creates a one-time code and reads it to them.
+  app.post("/api/village/members/:id/pin-reset", (req, res) => {
+    const me = activeAdminMember(store, req);
+    if (!me) fail("Village administrator sign-in required", 403);
+    const m = store.get("members", req.params.id);
+    if (!m) fail("Member not found", 404);
+    if (m.village !== me.village)
+      fail("This member belongs to another village", 403);
+    if (m.id === me.id)
+      fail("Ask the main administrator for your own reset code", 409);
+    if (req.body.identityConfirmed !== true)
+      fail("Confirm you spoke with this member first");
+    rate("pin-reset-issue:" + me.id, 20, 3600000);
+    issuePinReset(req, res, m, me.id, "village");
   });
 
   // Old codes can no longer grant access, including codes issued before migration.

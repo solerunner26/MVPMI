@@ -7,6 +7,7 @@ import { launchBrowser } from "./browser.mjs";
 import { assertFits, setTextSize } from "./text-size-checks.mjs";
 import { createApp } from "../server/app.mjs";
 const { app, store } = createApp({
+    requireAppLock: false,
   dbPath: ":memory:",
   adminPassword: "MaterialTest@2026",
   gateCode: "5831",

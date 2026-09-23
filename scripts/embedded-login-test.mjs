@@ -31,6 +31,7 @@ try {
     { stdio: "ignore" },
   );
   const created = createApp({
+    requireAppLock: false,
     dbPath: ":memory:",
     adminPassword: "EmbeddedTest@2026",
     gateCode: "5831",

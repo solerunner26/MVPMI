@@ -198,6 +198,9 @@ const tables = new Set([
   "config",
   "audit",
   "limits",
+  "notifications",
+  "devices",
+  "pushSubs",
 ]);
 const table = (t) => {
   if (!tables.has(t)) throw new Error("Unknown database table");
@@ -428,7 +431,7 @@ export class Store {
       )
     )
       fail(
-        "આ નંબર પહેલેથી નોંધાયેલ છે · This phone already has a profile or request",
+        "આ નંબર પહેલેથી નોંધાયેલ છે. મદદ માટે તમારા ગામના એડમિનનો સંપર્ક કરો · This phone already has a profile or pending application. Contact your village administrator for help.",
         409,
       );
   }
@@ -573,6 +576,7 @@ export class Store {
         if (p[k] !== undefined) id(p[k]);
     };
     const ids = new Set(),
+      memberPhones = new Set(),
       phones = new Map(),
       owners = new Set(),
       byId = new Map();
@@ -586,6 +590,7 @@ export class Store {
       if (ids.has(m.id) || phones.has(m.phone) || owners.has(m.owner))
         fail("Duplicate member");
       ids.add(m.id);
+      memberPhones.add(m.phone);
       reserve(m.phone, m.owner);
       if (m.phone2) reserve(m.phone2, m.owner);
       owners.add(m.owner);
@@ -607,6 +612,10 @@ export class Store {
         "reason",
         "verification",
         "reviewHistory",
+        "proposedBy",
+        "rejectedBefore",
+        "corrections",
+        "selfAdmin",
       ]);
       id(r.id);
       id(r.owner);
@@ -625,6 +634,28 @@ export class Store {
         )
           fail("Invalid request timestamp");
       if (r.consentVersion !== undefined) id(r.consentVersion);
+      if (r.proposedBy !== undefined) id(r.proposedBy);
+      if (r.selfAdmin !== undefined && typeof r.selfAdmin !== "boolean")
+        fail("Invalid request flag");
+      if (r.rejectedBefore !== undefined && r.rejectedBefore !== null) {
+        keys(r.rejectedBefore, ["at", "reason", "actorName"]);
+        if (
+          (r.rejectedBefore.at !== null && !Number.isFinite(r.rejectedBefore.at)) ||
+          typeof r.rejectedBefore.reason !== "string" ||
+          typeof r.rejectedBefore.actorName !== "string"
+        )
+          fail("Invalid request history");
+      }
+      if (r.corrections !== undefined) {
+        if (!Array.isArray(r.corrections) || r.corrections.length > 1000)
+          fail("Invalid request corrections");
+        for (const c of r.corrections) {
+          keys(c, ["by", "at", "before"]);
+          id(c.by);
+          if (!Number.isFinite(c.at) || !isRecord(c.before))
+            fail("Invalid request corrections");
+        }
+      }
       if (r.kind === "new") {
         canonical(r.payload);
         if (
@@ -633,7 +664,10 @@ export class Store {
           r.memberId !== undefined
         )
           fail("Conflicting enrollment");
-        reserve(r.payload.phone, r.owner);
+        // A pending device-replacement application legitimately reuses an
+        // active member's own number (the main administrator decides it).
+        if (!memberPhones.has(r.payload.phone)) reserve(r.payload.phone, r.owner);
+        if (r.payload.phone2) reserve(r.payload.phone2, r.owner);
       } else {
         const m = byId.get(r.memberId);
         if (!m || m.owner !== r.owner) fail("Orphan request");
@@ -813,6 +847,12 @@ export class Store {
   }
   restore(b, actor, expectedDigest) {
     this.validateBackup(b);
+    // Password hashes are never exported. Keep each village administrator's
+    // current password when the same person is still assigned after restore;
+    // anyone else needs a password reset from the main administrator.
+    const passwords = new Map(
+      this.all("villageAdmins").map((a) => [a.id + "|" + a.memberId, a]),
+    );
     this.tx(() => {
       if (expectedDigest !== undefined && expectedDigest !== this.dataDigest())
         fail(
@@ -838,10 +878,54 @@ export class Store {
             delete x.verification;
             delete x.reviewHistory;
           }
+          if (t === "villageAdmins") {
+            const kept = passwords.get(x.id + "|" + x.memberId);
+            if (kept?.pass) {
+              x.pass = kept.pass;
+              x.passChangedAt = kept.passChangedAt;
+            }
+            x.version = randomUUID();
+          }
           this.put(t, x);
         }
       }
+      // Village-administrator sign-ins made before the restore end now.
+      for (const s of this.all("sessions"))
+        if (s.villageAdmin) {
+          delete s.villageAdmin;
+          this.put("sessions", s);
+        }
       this.audit(actor, "restore", b.exportedAt);
+    });
+  }
+  // Housekeeping: expired sessions, rate-limit windows, transports, device
+  // tokens and old notifications. Anonymous sessions that never applied
+  // are dropped after two days so crawlers cannot grow the database.
+  cleanup(now = Date.now()) {
+    const owners = new Set([
+      ...this.all("members").map((m) => m.owner),
+      ...this.all("requests").map((r) => r.owner),
+    ]);
+    this.tx(() => {
+      for (const s of this.all("sessions")) {
+        const idle =
+          !owners.has(s.owner) &&
+          !s.villageAdmin &&
+          !(s.adminUntil > now) &&
+          !s.lock &&
+          (s.createdAt || 0) < now - 2 * 86400000;
+        if (s.expires <= now || idle) this.del("sessions", s.id);
+      }
+      for (const l of this.all("limits"))
+        if (l.until < now) this.del("limits", l.id);
+      for (const t of this.all("transports"))
+        if (t.expiresAt <= now) this.del("transports", t.id);
+      const liveSessions = new Set(this.all("sessions").map((s) => s.id));
+      for (const t of ["devices", "pushSubs"])
+        for (const d of this.all(t))
+          if (!liveSessions.has(d.sessionId)) this.del(t, d.id);
+      for (const n of this.all("notifications"))
+        if (n.at < now - 60 * 86400000) this.del("notifications", n.id);
     });
   }
 }

@@ -15,6 +15,8 @@ export async function fixture(t, options = {}) {
     adminPassword: "Testing@2026!",
     gateCode: "5831",
     development: true,
+    // The server-side app lock has its own tests (tests/app-lock-server.test.mjs).
+    requireAppLock: false,
     ...options,
   });
   const server = app.listen(0, "127.0.0.1");

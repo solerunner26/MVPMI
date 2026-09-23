@@ -11,6 +11,7 @@ import { createApp } from "../server/app.mjs";
 import { assertFits, setTextSize } from "./text-size-checks.mjs";
 
 const { app, store } = createApp({
+    requireAppLock: false,
   dbPath: ":memory:",
   adminPassword: "LanguageTest@2026",
   gateCode: "5831",

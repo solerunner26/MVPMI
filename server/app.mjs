@@ -6,7 +6,14 @@ import {
   activeAdminMember,
 } from "./village-approval.mjs";
 import { isDeepStrictEqual } from "node:util";
-import { installSessions } from "./session.mjs";
+import { fileURLToPath } from "node:url";
+import { installSessions, clientKey } from "./session.mjs";
+import {
+  createNotifier,
+  installDevicePull,
+  installNotificationRoutes,
+} from "./notify.mjs";
+import { installAppLock, lockView } from "./app-lock.mjs";
 import express from "express";
 import ExcelJS from "exceljs";
 import { randomUUID, randomBytes } from "node:crypto";
@@ -23,15 +30,28 @@ import {
   publicProfile,
   isRecord,
 } from "./store.mjs";
+// Static files resolve from the project, not the process working directory,
+// so hosting panels that start Node from another folder still work.
+const DIST = fileURLToPath(new URL("../dist", import.meta.url));
 export function createApp({
   dbPath = "data/community.sqlite",
   adminPassword,
   gateCode,
   secure = false,
   development = false,
+  // Behind cPanel/Passenger, Apache or any reverse proxy set this (see
+  // server/index.mjs) so rate limits see each visitor's own address.
+  trustProxy = false,
+  // Extra public host names accepted by the same-origin check, e.g. when
+  // the proxy rewrites the Host header.
+  publicHosts = [],
+  requireAppLock = true,
+  vapidSubject,
+  staticDir = DIST,
 } = {}) {
   const store = new Store(dbPath),
     app = express();
+  if (trustProxy !== false) app.set("trust proxy", trustProxy);
   if (!store.get("config", "admin")) {
     if (!strong(adminPassword) || !/^\d{4}$/.test(gateCode || ""))
       throw new Error(
@@ -56,10 +76,28 @@ export function createApp({
     res.set("Cache-Control", "no-store");
     if (req.method !== "GET" && req.get("X-MVPMI-Client") !== "1")
       return res.status(403).json({ error: "Invalid request origin" });
+    // Admin downloads (backup, exports) are fetched by the app with the
+    // client header; a plain cross-site link cannot trigger them.
+    if (
+      req.method === "GET" &&
+      req.path.startsWith("/admin/") &&
+      req.get("X-MVPMI-Client") !== "1"
+    )
+      return res.status(403).json({ error: "Invalid request origin" });
     const origin = req.get("Origin");
     if (origin) {
+      const allowed = new Set(
+        [
+          req.get("host"),
+          trustProxy !== false ? req.get("x-forwarded-host") : null,
+          ...publicHosts,
+        ]
+          .filter(Boolean)
+          .flatMap((h) => String(h).split(","))
+          .map((h) => h.trim().toLowerCase()),
+      );
       try {
-        if (new URL(origin).host !== req.get("host"))
+        if (!allowed.has(new URL(origin).host.toLowerCase()))
           return res.status(403).json({ error: "Invalid request origin" });
       } catch {
         return res.status(403).json({ error: "Invalid request origin" });
@@ -88,7 +126,23 @@ export function createApp({
     if (r.count > max)
       fail("ઘણા પ્રયાસો થયા · Too many attempts. Please try again later.", 429);
   };
+  const notifier = createNotifier(store, { vapidSubject });
+  const notify = notifier.notify;
+  const villageName = (gu) => {
+    const v = store.get("villages", gu);
+    return { gu, en: v?.en || gu };
+  };
+  installDevicePull(app, store, notifier);
   installSessions(app, store, { development, secure, rate });
+  // Housekeeping on start and every hour (never keeps the process alive).
+  try {
+    store.cleanup();
+  } catch {}
+  setInterval(() => {
+    try {
+      store.cleanup();
+    } catch {}
+  }, 3600000).unref();
   const admin = (req, res, next) =>
     req.isAdmin
       ? next()
@@ -98,7 +152,7 @@ export function createApp({
     if (!m) fail("Admin approval required", 403);
     return m;
   };
-  const alert = (req, title) =>
+  const alert = (req, title) => {
     store.put("alerts", {
       id: randomUUID(),
       title,
@@ -110,11 +164,51 @@ export function createApp({
       when: new Date().toISOString(),
       blocked: false,
     });
+    // At most one security notification per 10 minutes, so a burst of
+    // wrong attempts does not flood the administrator's phone.
+    const last = store.get("config", "alert-notified");
+    if (!last || last.at < Date.now() - 600000) {
+      store.put("config", { id: "alert-notified", at: Date.now() });
+      const [gu, en] = String(title).split(" · ");
+      notify("main", {
+        kind: "security",
+        titleGu: "સુરક્ષા ચેતવણી",
+        titleEn: "Security alert",
+        bodyGu: gu || title,
+        bodyEn: en || title,
+      });
+    }
+  };
+  // Sessions that would receive directory records: approved members and
+  // signed-in village administrators (the main administrator is exempt —
+  // they already pass the hidden gate and password every 30 minutes).
+  const sessionSees = (req) =>
+    !req.isAdmin &&
+    (store.all("members").some((m) => m.owner === req.session.owner) ||
+      !!activeAdminMember(store, req));
+  const lockFor = (req) => lockView(req, sessionSees(req), requireAppLock);
+  const lockClosed = (req) => {
+    const l = lockFor(req);
+    return l.lockSetup || l.locked;
+  };
+  // Member and village-administrator actions are refused while locked.
+  app.use(
+    ["/api/profile", "/api/village/requests", "/api/village/members", "/api/village/password"],
+    (req, res, next) => {
+      if (req.method === "POST" && lockClosed(req))
+        return res
+          .status(423)
+          .json({ error: "એપ લોક છે · The app is locked. Enter your PIN." });
+      next();
+    },
+  );
   const state = (req) => {
     const me =
         store.all("members").find((m) => m.owner === req.session.owner) ||
         activeAdminMember(store, req),
       requests = store.all("requests");
+    const lock = lockFor(req);
+    const hidden = lock.lockSetup || lock.locked;
     const mine = requests.find(
       (r) => r.owner === req.session.owner && r.kind === "new",
     );
@@ -127,7 +221,12 @@ export function createApp({
       meId: me?.id || null,
       myRequest: mine ? { ...mine.payload, id: mine.id } : null,
       requestAt: mine?.createdAt || null,
-      members: req.isAdmin || me ? store.all("members").map(publicProfile) : [],
+      members:
+        (req.isAdmin || me) && !hidden
+          ? store.all("members").map(publicProfile)
+          : [],
+      ...lock,
+      latestNotificationAt: notifier.latestAt(req.session),
       newRequests: req.isAdmin
         ? visible
             .filter((r) => r.kind === "new")
@@ -182,17 +281,41 @@ export function createApp({
       development,
     };
   };
-  installVillageApproval(app, store, { admin, state, rate });
-  app.get("/api/state", (req, res) => res.json(state(req)));
+  const hideWhenLocked = (req, data) => {
+    if (!(data.locked || data.lockSetup)) return data;
+    // Nothing that lists community members leaves the server while locked.
+    return {
+      ...data,
+      reviewQueue: [],
+      villageProposals: [],
+      updateRequests: [],
+      deleteRequests: [],
+    };
+  };
+  const baseState = state;
+  const lockedState = (req) => hideWhenLocked(req, baseState(req));
+  const { issue: issuePinReset } = installAppLock(app, store, {
+    rate,
+    sessionSees,
+    required: requireAppLock,
+    notify,
+  });
+  installNotificationRoutes(app, store, notifier, { rate });
+  installVillageApproval(app, store, {
+    admin,
+    state: lockedState,
+    rate,
+    notify,
+    clientKey,
+    issuePinReset,
+  });
+  app.get("/api/state", (req, res) => res.json(lockedState(req)));
   app.post("/api/enrollment", (req, res) => {
     rate("enroll:" + req.session.id, 30, 3600000);
     if (store.all("members").some((m) => m.owner === req.session.owner))
       fail("Already approved", 409);
-    if (
-      !development &&
-      req.session.verifiedPhone !== String(req.body.phone).replace(/\D/g, "")
-    )
-      fail("Phone verification required", 403);
+    // Identity is verified in person by the village administrator (who knows
+    // the family) before the main administrator approves; there is no SMS.
     if (req.body.consent !== true) fail("Consent is required");
     const p = profile(req.body, store.all("villages"));
     if (!store.get("villageAdmins", p.village))
@@ -200,13 +323,19 @@ export function createApp({
         "આ ગામ માટે ગામ એડમિન હજુ નિયુક્ત નથી · This village has no administrator yet. Enrollment opens after the main administrator appoints one.",
         409,
       );
-    store.unique(p, req.session.owner, undefined, true);
-    // Item: a phone that was rejected before shows a warning to both
-    // administrator levels while the new request is being decided.
+    // A phone that was REJECTED before (not merely withdrawn or replaced by
+    // the applicant) shows a warning to both administrator levels.
+    const rejectEvent = (a) =>
+      (a.events || []).filter((e) => e.action === "reject").at(-1);
+    const priorLedger = store
+      .all("rejections")
+      .find(
+        (a) =>
+          (a.phone === p.phone || (a.phone2 && a.phone2 === p.phone)) &&
+          rejectEvent(a),
+      );
     const priorRejection =
-      store.all("rejections").find(
-        (a) => a.phone === p.phone || (a.phone2 && a.phone2 === p.phone),
-      ) ||
+      priorLedger ||
       store
         .all("archive")
         .find(
@@ -218,9 +347,9 @@ export function createApp({
               a.history?.[a.history.length - 1]?.reason || a.status || "",
             ),
         );
-    const lastEvent =
-      priorRejection?.events?.[priorRejection.events.length - 1];
+    const lastEvent = priorLedger ? rejectEvent(priorLedger) : null;
     store.tx(() => {
+      store.unique(p, req.session.owner, undefined, true);
       for (const r of store
         .all("requests")
         .filter((r) => r.owner === req.session.owner && r.kind === "new")) {
@@ -246,7 +375,14 @@ export function createApp({
           : {}),
       });
     });
-    res.json(state(req));
+    notify("village:" + p.village, {
+      kind: "new-request",
+      titleGu: "નવી નોંધણી વિનંતી આવી",
+      titleEn: "New joining application",
+      bodyGu: p.nameGu + " · ચકાસીને આગળ મોકલો",
+      bodyEn: p.name + " · please verify and forward",
+    });
+    res.json(lockedState(req));
   });
   app.post("/api/enrollment/withdraw", (req, res) => {
     store.tx(() => {
@@ -257,34 +393,57 @@ export function createApp({
         store.del("requests", r.id);
       }
     });
-    res.json(state(req));
+    res.json(lockedState(req));
   });
   app.post("/api/profile/update", (req, res) => {
     const m = member(req),
       p = profile(req.body, store.all("villages"));
-    store.unique(p, m.owner);
-    if (
-      !development &&
-      p.phone !== m.phone &&
-      req.session.verifiedPhone !== p.phone
-    )
-      fail("Verify the new phone number first", 403);
+    const assignment = store.get("villageAdmins", m.village);
+    const r = {
+      id: randomUUID(),
+      owner: m.owner,
+      kind: "update",
+      memberId: m.id,
+      old: m,
+      payload: p,
+      createdAt: Date.now(),
+      // A village administrator's own number change cannot be verified by
+      // themselves; the main administrator decides it directly.
+      ...(assignment?.memberId === m.id ? { selfAdmin: true } : {}),
+    };
     store.tx(() => {
-      for (const r of store
+      store.unique(p, m.owner);
+      for (const old of store
         .all("requests")
-        .filter((r) => r.owner === m.owner && r.kind === "update"))
-        store.del("requests", r.id);
-      store.put("requests", {
-        id: randomUUID(),
-        owner: m.owner,
-        kind: "update",
-        memberId: m.id,
-        old: m,
-        payload: p,
-        createdAt: Date.now(),
-      });
+        .filter((x) => x.owner === m.owner && x.kind === "update"))
+        store.del("requests", old.id);
+      store.put("requests", r);
     });
-    res.json(state(req));
+    const who = { gu: m.nameGu || m.name, en: m.name };
+    if (needsVerification(r)) {
+      const place = villageName(p.village);
+      notify("village:" + p.village, {
+        kind: "change-request",
+        titleGu:
+          m.village !== p.village
+            ? "ગામ બદલવાની વિનંતી · ચકાસણી કરો"
+            : "મોબાઇલ નંબર બદલવાની વિનંતી · ચકાસણી કરો",
+        titleEn:
+          m.village !== p.village
+            ? "Village change request · please verify"
+            : "Mobile number change · please verify",
+        bodyGu: who.gu + " · " + place.gu,
+        bodyEn: who.en + " · " + place.en,
+      });
+    } else
+      notify("main", {
+        kind: "change-request",
+        titleGu: "માહિતી બદલવાની વિનંતી આવી",
+        titleEn: "Profile change request",
+        bodyGu: who.gu,
+        bodyEn: who.en,
+      });
+    res.json(lockedState(req));
   });
   app.post("/api/profile/delete", (req, res) => {
     const m = member(req);
@@ -302,11 +461,18 @@ export function createApp({
         reason: "સભ્યની વિનંતી · Requested by member",
         createdAt: Date.now(),
       });
-    res.json(state(req));
+    notify(["main", "village:" + m.village], {
+      kind: "removal-request",
+      titleGu: "સભ્યએ યાદીમાંથી દૂર થવાની વિનંતી કરી",
+      titleEn: "Member asked to be removed",
+      bodyGu: m.nameGu || m.name,
+      bodyEn: m.name,
+    });
+    res.json(lockedState(req));
   });
   app.post("/api/admin/gate", (req, res) => {
     rate("gate:" + req.session.id);
-    rate("gate-ip:" + req.socket.remoteAddress, 30);
+    rate("gate-ip:" + clientKey(req), 30);
     const a = store.get("config", "admin");
     if (!passwordMatches(String(req.body.code || ""), a.gate)) {
       alert(req, "ખોટો કોડ · Incorrect access code");
@@ -317,23 +483,34 @@ export function createApp({
     res.json({ ok: true });
   });
   app.post("/api/admin/login", (req, res) => {
-    rate("login:" + req.session.id);
-    rate("login-global", 30);
+    // The hidden gate is checked BEFORE any shared counter, so strangers
+    // without the access code cannot lock the administrator out.
     if (!(req.session.gateUntil > Date.now()))
       fail("Access code required", 403);
+    rate("login:" + req.session.id);
+    const global = store.get("limits", "login-global-failures");
+    if (global?.until > Date.now() && global.count >= 30)
+      fail("ઘણા પ્રયાસો થયા · Too many attempts. Please try again later.", 429);
     const a = store.get("config", "admin");
     if (
       req.body.user !== a.username ||
       !passwordMatches(String(req.body.pass || ""), a.password)
     ) {
+      try {
+        rate("login-global-failures", 1e9);
+      } catch {}
       alert(req, "લોગિન નિષ્ફળ · Failed admin login");
       fail("Wrong username or password", 401);
     }
+    req.rotateSession();
     req.session.adminUntil = Date.now() + 30 * 60000;
+    // Administrator notifications stay on for this device until it signs
+    // out completely or the password changes.
+    req.session.mainNotify = { changedAt: a.changedAt };
     store.put("sessions", req.session);
     req.isAdmin = true;
     store.audit(req.session.owner, "admin.login", a.id);
-    const payload = state(req);
+    const payload = lockedState(req);
     // First sign-in on a fresh account issues the offline recovery code
     // exactly once; the client must make the administrator save it. Later
     // sign-ins never resend it — a lost code is replaced from the security
@@ -348,16 +525,21 @@ export function createApp({
   app.post("/api/logout", (req, res) => {
     const id = req.session.id;
     store.audit(req.session.owner, "device.logout", id);
-    store.del("sessions", id);
+    store.tx(() => {
+      store.del("sessions", id);
+      for (const t of ["devices", "pushSubs"])
+        for (const d of store.all(t)) if (d.sessionId === id) store.del(t, d.id);
+    });
     res.clearCookie("mvpm_session", { path: "/" });
     res.json({ signedOut: true });
   });
   app.post("/api/admin/logout", (req, res) => {
     delete req.session.adminUntil;
     delete req.session.gateUntil;
+    if (req.body.stopNotifications === true) delete req.session.mainNotify;
     store.put("sessions", req.session);
     req.isAdmin = false;
-    res.json(state(req));
+    res.json(lockedState(req));
   });
   // Password recovery without SMS or OTP: the administrator saves a long
   // offline recovery code (issued once at first sign-in, rotated on every
@@ -464,7 +646,7 @@ export function createApp({
       store.put("requests", r);
       store.audit(req.session.owner, "admin.request.correct", r.id);
     });
-    res.json(state(req));
+    res.json(lockedState(req));
   });
 
   // Contactable identity for the "All admins" page (name + phone shown to
@@ -490,7 +672,7 @@ export function createApp({
       });
       store.audit(req.session.owner, "main-admin-contact.set", phone);
     });
-    res.json(state(req));
+    res.json(lockedState(req));
   });
 
   app.post("/api/admin/requests/:id/:action", admin, (req, res) => {
@@ -514,12 +696,25 @@ export function createApp({
                 "Confirm the existing member before replacing device access",
                 409,
               );
+            // Device replacement keeps the person's record (second number,
+            // label, location) and moves it to the new phone's session.
+            // Requests raised from the old device are closed.
+            for (const old of store
+              .all("requests")
+              .filter((x) => x.memberId === existing.id))
+              store.del("requests", old.id);
             store.del("members", existing.id);
             store.audit(
               req.session.owner,
               "member.device-replacement",
               existing.id,
             );
+            if (!r.payload.phone2 && existing.phone2) {
+              r.payload.phone2 = existing.phone2;
+              r.payload.label2 = existing.label2 || "work";
+            }
+            if (r.payload.currentLocation === undefined && existing.currentLocation)
+              r.payload.currentLocation = existing.currentLocation;
           }
           const archived = store
             .all("archive")
@@ -562,9 +757,10 @@ export function createApp({
             store.unique(r.payload, m.owner, r.id);
             if (m.village !== r.payload.village) store.dropAssignments(m.id);
             store.put("members", { ...m, ...r.payload });
+            syncAdminUsername(m.id, r.payload.phone);
           } else store.remove(m, "દૂર કરી · Removed on request");
         }
-      } else if (needsVerification(r)) {
+      } else if (r.kind === "new") {
         store.rejectRequest(
           r,
           "reject",
@@ -577,20 +773,67 @@ export function createApp({
       store.del("requests", r.id);
       store.audit(req.session.owner, "request." + req.params.action, r.id);
     });
-    res.json(state(req));
+    const who = r.payload || r.old;
+    const place = villageName((r.payload || r.old).village);
+    if (req.params.action === "approve") {
+      if (r.kind === "new") {
+        notify("owner:" + r.owner, {
+          kind: "approved",
+          titleGu: "સ્વાગત છે! તમારી નોંધણી મંજૂર થઈ",
+          titleEn: "Welcome! Your application is approved",
+          bodyGu: "સમાજની સંપર્ક યાદી હવે ખુલ્લી છે. પિન સેટ કરીને શરૂ કરો.",
+          bodyEn: "The community directory is now open. Set your PIN to begin.",
+        });
+        notify("village:" + r.payload.village, {
+          kind: "member-added",
+          titleGu: "નવો સભ્ય ઉમેરાયો · " + place.gu,
+          titleEn: "New member added · " + place.en,
+          bodyGu: who.nameGu || who.name,
+          bodyEn: who.name,
+        });
+      } else
+        notify("owner:" + r.owner, {
+          kind: r.kind === "delete" ? "removed" : "change-approved",
+          titleGu:
+            r.kind === "delete"
+              ? "તમને યાદીમાંથી દૂર કરવામાં આવ્યા"
+              : "તમારો ફેરફાર મંજૂર થયો",
+          titleEn:
+            r.kind === "delete"
+              ? "You were removed from the directory"
+              : "Your change was approved",
+          bodyGu: r.kind === "delete" ? "પ્રશ્ન હોય તો ગામના એડમિનનો સંપર્ક કરો." : "નવી માહિતી યાદીમાં દેખાય છે.",
+          bodyEn: r.kind === "delete" ? "Contact your village administrator with any questions." : "Your new details now show in the directory.",
+        });
+    } else
+      notify("owner:" + r.owner, {
+        kind: "declined",
+        titleGu: r.kind === "new" ? "નોંધણી વિનંતી નામંજૂર થઈ" : "વિનંતી નામંજૂર થઈ",
+        titleEn: r.kind === "new" ? "Application rejected" : "Request not approved",
+        bodyGu: req.body.reason?.trim().slice(0, 200) || "વધુ માહિતી માટે ગામના એડમિનનો સંપર્ક કરો.",
+        bodyEn: req.body.reason?.trim().slice(0, 200) || "Contact your village administrator for details.",
+      });
+    res.json(lockedState(req));
   });
+  // A village administrator signs in with their current member number.
+  const syncAdminUsername = (memberId, phone) => {
+    for (const a of store.all("villageAdmins"))
+      if (a.memberId === memberId && a.username !== phone)
+        store.put("villageAdmins", { ...a, username: phone });
+  };
   app.post("/api/admin/members/:id", admin, (req, res) => {
     const m = store.get("members", req.params.id);
     if (!m) fail("Member not found", 404);
     const p = profile(req.body, store.all("villages"));
     if (p.village !== m.village)
       fail("Village changes require the destination village review", 409);
-    store.unique(p, m.owner);
     store.tx(() => {
+      store.unique(p, m.owner);
       store.put("members", { ...m, ...p });
+      syncAdminUsername(m.id, p.phone);
       store.audit(req.session.owner, "member.edit", m.id);
     });
-    res.json(state(req));
+    res.json(lockedState(req));
   });
   app.post("/api/admin/members/:id/delete", admin, (req, res) => {
     const m = store.get("members", req.params.id);
@@ -599,7 +842,22 @@ export function createApp({
       store.remove(m, "એડમિને દૂર કરી · Deleted by admin");
       store.audit(req.session.owner, "member.delete", m.id);
     });
-    res.json(state(req));
+    notify("owner:" + m.owner, {
+      kind: "removed",
+      titleGu: "તમને યાદીમાંથી દૂર કરવામાં આવ્યા",
+      titleEn: "You were removed from the directory",
+      bodyGu: "પ્રશ્ન હોય તો ગામના એડમિનનો સંપર્ક કરો.",
+      bodyEn: "Contact your village administrator with any questions.",
+    });
+    res.json(lockedState(req));
+  });
+  // Forgotten member PIN: the main administrator can issue a code for anyone.
+  app.post("/api/admin/members/:id/pin-reset", admin, (req, res) => {
+    const m = store.get("members", req.params.id);
+    if (!m) fail("Member not found", 404);
+    if (req.body.identityConfirmed !== true)
+      fail("Confirm you spoke with this member first");
+    issuePinReset(req, res, m, req.session.owner, "admin");
   });
   app.post("/api/admin/alerts/:id/block", admin, (req, res) => {
     const a = store.get("alerts", req.params.id);
@@ -615,7 +873,7 @@ export function createApp({
     a.blocked = true;
     store.put("alerts", a);
     store.audit(req.session.owner, "session.block", a.id);
-    res.json(state(req));
+    res.json(lockedState(req));
   });
   app.get("/api/admin/backup", admin, (req, res) => {
     store.put("config", { id: "backup", when: new Date().toISOString() });
@@ -623,13 +881,16 @@ export function createApp({
     res.attachment("mvpmi-backup.json").json(store.snapshot());
   });
   app.post("/api/admin/restore/validate", admin, (req, res) => {
-    const b = store.validateBackup(req.body);
+    // The confirmation digest covers the file exactly as uploaded; the
+    // validator may upgrade older backups (village renames, name parts).
+    const digest = hash(JSON.stringify(req.body));
+    const b = store.validateBackup(structuredClone(req.body));
     res.json({
       members: b.members.length,
       requests: b.requests.length,
       archive: b.archive.length,
       currentMembers: store.all("members").length,
-      digest: hash(JSON.stringify(b)),
+      digest,
       currentDigest: store.dataDigest(),
     });
   });
@@ -642,7 +903,7 @@ export function createApp({
     )
       fail("Backup confirmation does not match");
     store.restore(req.body.backup, req.session.owner, req.body.currentDigest);
-    res.json(state(req));
+    res.json(lockedState(req));
   });
   app.get("/api/admin/export.xlsx", admin, async (req, res) => {
     const book = new ExcelJS.Workbook(),
@@ -933,7 +1194,13 @@ export function createApp({
     res.send("\uFEFF" + lines.map((r) => r.map(csvCell).join(",")).join("\r\n"));
   });
   app.use("/api", (req, res) => res.status(404).json({ error: "Not found" }));
-  app.use(express.static("dist", { index: "index.html" }));
+  // The service worker must be able to control the whole site.
+  app.get("/sw.js", (req, res, next) => {
+    res.set("Service-Worker-Allowed", "/");
+    res.set("Cache-Control", "no-cache");
+    next();
+  });
+  app.use(express.static(staticDir, { index: "index.html" }));
   app.use((err, req, res, next) => {
     if (!err.status)
       console.error(

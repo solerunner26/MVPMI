@@ -8,6 +8,7 @@ import { assertFits, setTextSize } from "./text-size-checks.mjs";
 import { verifyOpaqueModalContrast } from "./modal-contrast-checks.mjs";
 
 const { app, store } = createApp({
+    requireAppLock: false,
   dbPath: ":memory:",
   development: true,
   adminPassword: "WorkflowTest@2026!",

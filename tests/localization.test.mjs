@@ -82,6 +82,7 @@ test("Excel headers follow the requested language and remain admin-only", async 
   const { createApp } = await import("../server/app.mjs");
   const { default: ExcelJS } = await import("exceljs");
   const { app, store } = createApp({
+    requireAppLock: false,
     dbPath: ":memory:",
     adminPassword: "LanguageTest@2026",
     gateCode: "5831",

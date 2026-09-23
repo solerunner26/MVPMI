@@ -10,6 +10,7 @@ const form = {
 };
 async function setup(t, opts = {}) {
   const { app, store } = createApp({
+    requireAppLock: false,
     dbPath: ":memory:",
     adminPassword: "Testing@2026!",
     gateCode: "5831",
@@ -101,6 +102,11 @@ test("approve, search data, update stays private, direct admin edit, delete revo
   );
   s = await admin("state");
   const update = s.updateRequests[0].id;
+  // Owner requirement: a mobile-number change is verified and forwarded by
+  // the village administrator before the main administrator can approve it.
+  await admin("admin/requests/" + update + "/approve", {}, 409);
+  assert.ok(s.reviewQueue.some((r) => r.id === update && r.stage === "village"));
+  await forward(update);
   await admin("admin/requests/" + update + "/approve", {});
   assert.equal(
     (await a("state")).members.find((m) => m.phone === "9000000002").nameGu,
