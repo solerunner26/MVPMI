@@ -71,9 +71,9 @@ purpose (an animated backdrop would re-blur every surface each frame).
   pixels (WCAG AA 4.5:1, 3:1 for large text).
 - New `npm run test:glass` (slow, ~1 hour in software rendering; run before
   a release): every main screen in full glass mode, light and dark, with axe +
-  pixel contrast; also saves the screenshot gallery. This build: 21 screens ×
-  2 themes passed with 0 violations; the last two screens (village-admin
-  members tab, PIN setup) reuse already-checked components.
+  pixel contrast; also saves the screenshot gallery. This build: 41 screen ×
+  theme states verified with 0 violations (the remaining village-admin
+  members tab and PIN-setup states reuse already-checked components).
 - Primary brand colours were darkened slightly so white text on buttons
   meets AA (≥ 4.5:1).
 
