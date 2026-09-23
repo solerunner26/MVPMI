@@ -134,10 +134,15 @@ class Component extends DesignComponent {
     // The PIN now lives on the server; remove any old on-device PIN record.
     clearAppLock();
     // Lock after 30 seconds in the background…
+    // The server applies the same 30-second rule even if the app is closed
+    // or killed in the background and never comes back.
     this._onVisibility = () => {
-      if (document.hidden) this._hiddenAt = Date.now();
-      else if (Date.now() - (this._hiddenAt || Date.now()) > 30000)
+      if (document.hidden) {
+        this._hiddenAt = Date.now();
+        if (this._lockable()) this._lockSignal("lock/hidden");
+      } else if (Date.now() - (this._hiddenAt || Date.now()) > 30000)
         this._engageLock();
+      else if (this._lockable()) this._lockSignal("lock/visible");
     };
     document.addEventListener("visibilitychange", this._onVisibility);
     // …and after 3 minutes without a touch or key press.
@@ -186,6 +191,20 @@ class Component extends DesignComponent {
     clearInterval(this._clock);
     super.componentWillUnmount();
   }
+  // Fire-and-forget lock signal that survives the page being backgrounded.
+  _lockSignal(path) {
+    try {
+      const headers = { "Content-Type": "application/json", "X-MVPMI-Client": "1" };
+      if (this._transport) headers["X-MVPMI-Session"] = this._transport;
+      fetch("/api/" + path, {
+        method: "POST",
+        credentials: "same-origin",
+        keepalive: true,
+        headers,
+        body: "{}",
+      }).catch(() => {});
+    } catch {}
+  }
   // Only an unlocked member / village-administrator session can be locked.
   _lockable() {
     const s = this.state;
@@ -216,6 +235,7 @@ class Component extends DesignComponent {
   }
   _engageLock() {
     if (!this._lockable()) return;
+    this._lockEngagedAt = Date.now();
     this.setState({
       ...this._overlaysClosed(),
       locked: true,
@@ -402,6 +422,13 @@ class Component extends DesignComponent {
     const headers = { "X-MVPMI-Client": "1" };
     if (this._transport) headers["X-MVPMI-Session"] = this._transport;
     if (body !== undefined) headers["Content-Type"] = "application/json";
+    // Tells the server the person is really using the app (idle-lock timer).
+    if (
+      typeof document !== "undefined" &&
+      !document.hidden &&
+      Date.now() - (this._lastActivity || 0) < 60000
+    )
+      headers["X-MVPMI-Active"] = "1";
     const response = await fetch("/api/" + path, {
       method: body === undefined ? "GET" : "POST",
       credentials: "same-origin",
@@ -611,8 +638,12 @@ class Component extends DesignComponent {
     );
   }
   async refresh(initial = false) {
+    const started = Date.now();
     try {
-      this.apply(await this.api("state"), initial);
+      const data = await this.api("state");
+      // A poll that left before the lock engaged must not re-open the list.
+      if (this._lockEngagedAt > started && !data.locked && !data.lockSetup) return;
+      this.apply(data, initial);
     } catch (e) {
       if (this._alive) {
         if (e.status === 403 || e.status === 401) {

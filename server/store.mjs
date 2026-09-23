@@ -911,10 +911,14 @@ export class Store {
         const idle =
           !owners.has(s.owner) &&
           !s.villageAdmin &&
+          !s.mainNotify &&
+          !s.villageNotify &&
           !(s.adminUntil > now) &&
           !s.lock &&
+          !s.aliasOf &&
           (s.createdAt || 0) < now - 2 * 86400000;
-        if (s.expires <= now || idle) this.del("sessions", s.id);
+        if (s.expires <= now || idle || (s.aliasOf && s.aliasUntil < now))
+          this.del("sessions", s.id);
       }
       for (const l of this.all("limits"))
         if (l.until < now) this.del("limits", l.id);

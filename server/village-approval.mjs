@@ -22,8 +22,12 @@ export const numbersChanged = (r) =>
 export const needsVerification = (r) =>
   r.kind === "new" ||
   (r.kind === "update" &&
-    !r.selfAdmin &&
-    (r.old.village !== r.payload.village || numbersChanged(r)));
+    (r.old.village !== r.payload.village ||
+      (!r.selfAdmin && numbersChanged(r))));
+// A change request for a village that has no administrator (yet) is decided
+// by the main administrator directly instead of waiting forever.
+const mainDecides = (store, r) =>
+  r.kind === "update" && !store.get("villageAdmins", r.payload.village);
 
 export function decisionReason(value) {
   if (
@@ -72,11 +76,11 @@ export function villageState(store, req) {
     .all("members")
     .find((m) => m.owner === req.session.owner);
   const queue = store.all("requests").filter(needsVerification);
-  const describe = (r) => ({
+  const describe = ({ owner, ...r }) => ({
     ...r,
     payload: publicProfile(r.payload),
     old: r.old ? publicProfile(r.old) : undefined,
-    stage: r.verification ? "main" : "village",
+    stage: r.verification || mainDecides(store, r) ? "main" : "village",
     hasVillageAdmin: !!store.get("villageAdmins", r.payload.village),
     existingMember: req.isAdmin
       ? store.all("members").find((m) => m.phone === r.payload.phone)?.id
@@ -92,7 +96,7 @@ export function villageState(store, req) {
           .map((a) => ({ id: a.id, name: a.name, phone: a.phone }))
       : undefined,
   });
-  const own = queue.find((r) => r.owner === req.session.owner);
+  const own = queue.find((r) => r.owner === req.session.owner && r.kind === "new");
   const closed = store
     .all("rejections")
     .flatMap((r) => r.events || [])
@@ -170,7 +174,7 @@ export function villageState(store, req) {
 }
 
 export function assertVerified(store, r) {
-  if (!needsVerification(r)) return;
+  if (!needsVerification(r) || mainDecides(store, r)) return;
   const a = store.get("villageAdmins", r.payload.village);
   if (
     !r.verification ||

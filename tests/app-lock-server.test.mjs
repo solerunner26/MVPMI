@@ -135,3 +135,102 @@ test("administrator notifications stop after the password changes; web push subs
     subscription: { endpoint: "https://push.example.org/abc", keys: { p256dh: "x", auth: "y" } },
   });
 });
+
+test("the server locks by itself after 30 s in the background or 3 idle minutes", async (t) => {
+  const f = await fixture(t, { requireAppLock: true });
+  const m = await approved(f);
+  await m("lock/setup", { pin: "2580" });
+  const session = () => f.store.all("sessions").find((x) => x.lock?.hash && x.owner === f.store.all("members").find((y) => y.phone === "9000000011").owner);
+  // Background: the app reported "hidden" and never came back.
+  await m("lock/hidden", {});
+  let s = session();
+  s.lock.hiddenAt = Date.now() - 31000;
+  f.store.put("sessions", s);
+  assert.equal((await m("state")).locked, true);
+  await m("lock/unlock", { pin: "2580" });
+  assert.equal((await m("state")).locked, false);
+  // Idle: no activity for more than three minutes.
+  s = session();
+  s.lock.activeAt = Date.now() - 181000;
+  f.store.put("sessions", s);
+  const idle = await m("state");
+  assert.equal(idle.locked, true);
+  assert.deepEqual(idle.members, []);
+});
+
+test("notifications are delivered oldest first without skipping; admin device sessions survive cleanup", async (t) => {
+  const f = await fixture(t);
+  await f.ensureAdmin("Thorala");
+  const { token } = await f.va(G)("notifications/device", {});
+  for (let i = 0; i < 25; i++)
+    await f.client()("enrollment", form("90000001" + String(i).padStart(2, "0")));
+  const pull = async () =>
+    (await (await fetch(f.url + "/api/notifications/pull", { headers: { "X-MVPMI-Device": token } })).json()).items;
+  assert.equal((await pull()).length, 20);
+  assert.equal((await pull()).length, 5);
+  // A main-admin device whose 30-minute sign-in ended keeps notifications.
+  await f.admin("notifications/device", {});
+  const adminSession = f.store.all("sessions").find((x) => x.mainNotify);
+  adminSession.createdAt = 0;
+  adminSession.adminUntil = 0;
+  f.store.put("sessions", adminSession);
+  f.store.cleanup();
+  assert.ok(f.store.get("sessions", adminSession.id));
+});
+
+test("a request sent with the old cookie just after sign-in keeps the same person", async (t) => {
+  const f = await fixture(t);
+  await f.ensureAdmin("Thorala");
+  const phone = f.store.get("members", f.store.get("villageAdmins", G).memberId).phone;
+  const first = await fetch(f.url + "/api/state");
+  const oldCookie = first.headers.get("set-cookie").split(";")[0];
+  const login = await fetch(f.url + "/api/village/login", {
+    method: "POST",
+    headers: { Cookie: oldCookie, "Content-Type": "application/json", "X-MVPMI-Client": "1" },
+    body: JSON.stringify({ phone, pass: "Village@2026!" }),
+  });
+  assert.equal(login.status, 200);
+  assert.notEqual(login.headers.get("set-cookie").split(";")[0], oldCookie);
+  const stale = await fetch(f.url + "/api/state", { headers: { Cookie: oldCookie } });
+  assert.equal((await stale.json()).villageAdmin, true);
+  assert.equal(stale.headers.get("set-cookie"), null);
+});
+
+test("a village administrator moving village still needs the destination village; number changes without a village administrator go to the main administrator", async (t) => {
+  const f = await fixture(t);
+  await f.ensureAdmin("Thorala");
+  await f.ensureAdmin("Sathra");
+  const vaMember = f.store.get("members", f.store.get("villageAdmins", G).memberId);
+  // Give the Thorala village administrator's member record to a fresh device.
+  const self = f.client();
+  const applied = await self("enrollment", form("9000000097"));
+  const owner = f.store.get("requests", applied.myRequest.id).owner;
+  f.store.del("requests", applied.myRequest.id);
+  f.store.put("members", { ...vaMember, owner });
+  const moved = await self("profile/update", {
+    firstName: "Administrator",
+    middleName: "Moving",
+    surname: "Thorala",
+    phone: vaMember.phone,
+    village: "Sathra",
+  });
+  const move = moved.updateRequests[0].id;
+  await f.admin("admin/requests/" + move + "/approve", {}, 409);
+  // No administrator in the member's village: the main administrator decides.
+  const m = await approvedIn(f, "Sathra", "9000000099");
+  await f.admin("admin/village-admins/" + encodeURIComponent("સથરા"), {
+    memberId: null,
+    reason: "Administrator stepped down",
+    identityConfirmed: true,
+  });
+  const change = await m("profile/update", { ...form("9000000098"), village: "Sathra" });
+  await f.admin("admin/requests/" + change.updateRequests[0].id + "/approve", {});
+});
+async function approvedIn(f, village, phone) {
+  const m = f.client();
+  const r = await m("enrollment", { ...form(phone), village });
+  const gu = f.store.all("villages").find((v) => v.en === village).gu;
+  await f.va(gu)("village/requests/" + r.myRequest.id + "/forward", { identityConfirmed: true });
+  await f.admin("admin/requests/" + r.myRequest.id + "/approve", {});
+  return m;
+}

@@ -13,7 +13,7 @@ import {
   installDevicePull,
   installNotificationRoutes,
 } from "./notify.mjs";
-import { installAppLock, lockView } from "./app-lock.mjs";
+import { installAppLock, lockView, touchLock } from "./app-lock.mjs";
 import express from "express";
 import ExcelJS from "exceljs";
 import { randomUUID, randomBytes } from "node:crypto";
@@ -134,6 +134,12 @@ export function createApp({
   };
   installDevicePull(app, store, notifier);
   installSessions(app, store, { development, secure, rate });
+  app.use("/api", (req, res, next) => {
+    try {
+      touchLock(store, req);
+    } catch {}
+    next();
+  });
   // Housekeeping on start and every hour (never keeps the process alive).
   try {
     store.cleanup();

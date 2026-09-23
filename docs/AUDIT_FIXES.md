@@ -86,9 +86,23 @@ Android, Edge, Firefox; iPhone only when added to the Home Screen).
 Turn on from Settings → Phone notifications, or when offered after applying
 or signing in.
 
+## F. Second review round (independent re-check of this branch)
+
+| Found | Fix |
+|---|---|
+| Choosing a replacement village administrator crashed the admin screen (React hook inside a condition — present since v0.3.x) | Password field is now its own component |
+| The lock relied on the phone to engage; killing the app left the session unlocked on the server | Server locks by itself: 30 s after the app reported going to the background, or 3 minutes without real activity (polls do not count) |
+| Main-admin notification devices were removed by the cleanup after 2 days | Sessions with notifications on are kept |
+| More than 20 waiting notifications: the oldest were skipped | Delivered oldest first, 20 at a time, none skipped |
+| A request sent with the old cookie during sign-in could lose the member's identity | Old session id stays as a one-minute alias after rotation |
+| A village administrator's own village move skipped the destination village | Only their own number change skips the village step |
+| Number change stuck when the village has no administrator | Main administrator decides it directly |
+| Internal request owner ids reached village administrators | Removed from their queue |
+| Tag publish failed when no release key was configured | Fixed; debug APK still attached |
+
 ## Test evidence (this build, Linux sandbox)
 
-- `npm test` — **121 passed** (server, security, workflow, lock, notifications, backups, Android static checks)
+- `npm test` — **125 passed** (server, security, workflow, lock, notifications, backups, Android static checks)
 - Browser suites passed: `test:ui`, `test:lock` (new), `test:embedded` (3 modes), `test:accessibility` (29 screens, 0 violations), `test:language`, `test:village`, `test:materials`
 - `npm audit` — 0 vulnerabilities
 

@@ -158,5 +158,6 @@ jobs:
               --title "MVPMI $TAG" \
               --notes-file .github/release-notes-debug.md
           fi
-          files=$(find apk/mvpmi-release-apk apk/mvpmi-debug-apk -type f 2>/dev/null)
+          files=$(find apk -type f \( -path 'apk/mvpmi-release-apk/*' -o -path 'apk/mvpmi-debug-apk/*' \) || true)
+          [ -n "$files" ] || { echo "No APKs were built"; exit 1; }
           gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" $files --clobber

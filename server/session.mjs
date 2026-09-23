@@ -56,6 +56,13 @@ export function installSessions(app, store, { development, secure, rate }) {
           fail("Preview session expired. Refresh to reconnect.", 401);
       } else if (cookie && /^[a-f0-9]{64}$/.test(cookie)) {
         session = store.get("sessions", hash(cookie));
+        // A request that left the browser just before sign-in rotated the
+        // cookie still reaches the same session for one minute.
+        if (session?.aliasOf)
+          session =
+            session.aliasUntil > Date.now()
+              ? store.get("sessions", session.aliasOf)
+              : null;
       }
       let fresh = false;
       if (!session || session.expires <= Date.now()) {
@@ -86,7 +93,12 @@ export function installSessions(app, store, { development, secure, rate }) {
         const previous = req.session.id;
         const nextId = issue(res);
         store.tx(() => {
-          store.del("sessions", previous);
+          store.put("sessions", {
+            id: previous,
+            aliasOf: nextId,
+            aliasUntil: Date.now() + 60000,
+            expires: Date.now() + 60000,
+          });
           req.session.id = nextId;
           store.put("sessions", req.session);
           for (const row of store.all("transports"))

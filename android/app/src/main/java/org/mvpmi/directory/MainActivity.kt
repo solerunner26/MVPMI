@@ -327,8 +327,14 @@ class MainActivity : Activity() {
     override fun onBackPressed() { navigateBack() }
     override fun onResume() {
         super.onResume()
+        web.onResume()
         // Deliver anything that arrived while the app was closed.
         pullSoon()
+    }
+    // Lets the page know it is in the background (starts the 30-second lock).
+    override fun onPause() {
+        web.onPause()
+        super.onPause()
     }
     override fun onDestroy() { unregisterBack?.invoke(); upload?.onReceiveValue(null); web.destroy(); super.onDestroy() }
 }

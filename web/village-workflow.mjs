@@ -594,48 +594,10 @@ function workflowTools(lang, busy) {
     h("button", { type: "button", disabled: busy, onClick, ...props }, label);
   const field = (label, props) =>
     h("label", { className: "workflow-field" }, label, h("input", props));
-  // Password field with the show/hide "eye" control, so an entered password
-  // can be read back in English characters before saving.
-  const secretField = (label, value, setValue, props = {}) => {
-    const [shown, setShown] = React.useState(false);
-    return h(
-      "label",
-      { className: "workflow-field" },
-      label,
-      h(
-        "div",
-        { className: "workflow-secret" },
-        h("input", {
-          type: shown ? "text" : "password",
-          value,
-          autoComplete: "off",
-          ...props,
-          onChange: (e) => setValue(e.target.value),
-        }),
-        h(
-          "button",
-          {
-            type: "button",
-            className: "workflow-eye",
-            title: shown
-              ? B("પાસવર્ડ છુપાવો", "Hide password")
-              : B("પાસવર્ડ બતાવો", "Show password"),
-            "aria-label": shown
-              ? B("પાસવર્ડ છુપાવો", "Hide password")
-              : B("પાસવર્ડ બતાવો", "Show password"),
-            "aria-pressed": shown,
-            onClick: () => setShown(!shown),
-          },
-          h("i", {
-            className: shown
-              ? "ph-duotone ph-eye-slash"
-              : "ph-duotone ph-eye",
-            "aria-hidden": true,
-          }),
-        ),
-      ),
-    );
-  };
+  // Password field with the show/hide "eye" control. Rendered as its own
+  // component so it may appear conditionally (hooks stay per-component).
+  const secretField = (label, value, setValue, props = {}) =>
+    h(WorkflowSecret, { label, value, setValue, props, lang });
   return { h, B, field, button, secretField };
 }
 function WorkflowDecision({ request: r, data, lang, act, busy }) {
@@ -1558,6 +1520,47 @@ function WorkflowPinHelp({ data, lang, onAction }) {
               setBusy(false);
             }
           },
+        }),
+      ),
+    ),
+  );
+}
+
+function WorkflowSecret({ label, value, setValue, props, lang }) {
+  const h = React.createElement,
+    B = (gu, en) => bilingual(gu, en, lang);
+  const [shown, setShown] = React.useState(false);
+  return h(
+    "label",
+    { className: "workflow-field" },
+    label,
+    h(
+      "div",
+      { className: "workflow-secret" },
+      h("input", {
+        type: shown ? "text" : "password",
+        value,
+        autoComplete: "off",
+        ...props,
+        onChange: (e) => setValue(e.target.value),
+      }),
+      h(
+        "button",
+        {
+          type: "button",
+          className: "workflow-eye",
+          title: shown
+            ? B("પાસવર્ડ છુપાવો", "Hide password")
+            : B("પાસવર્ડ બતાવો", "Show password"),
+          "aria-label": shown
+            ? B("પાસવર્ડ છુપાવો", "Hide password")
+            : B("પાસવર્ડ બતાવો", "Show password"),
+          "aria-pressed": shown,
+          onClick: () => setShown(!shown),
+        },
+        h("i", {
+          className: shown ? "ph-duotone ph-eye-slash" : "ph-duotone ph-eye",
+          "aria-hidden": true,
         }),
       ),
     ),

@@ -17,6 +17,30 @@ import { fail, passwordHash, passwordMatches } from "./store.mjs";
 
 const WEAK = new Set(["0000", "1111", "2222", "3333", "4444", "5555", "6666", "7777", "8888", "9999", "1234", "4321", "0123", "9876"]);
 const RESET_MINUTES = 15;
+// Server-side timeouts, so a lock also happens when the app is closed or
+// killed without ever coming back to the foreground.
+export const IDLE_LOCK_MS = 3 * 60000;
+export const BACKGROUND_LOCK_MS = 30000;
+
+// Called for every API request: applies the timeouts and records activity.
+export function touchLock(store, req) {
+  const l = req.session.lock;
+  if (!l?.hash || l.locked !== false) return;
+  const now = Date.now();
+  const idle = now - (l.activeAt || l.setAt || 0) > IDLE_LOCK_MS;
+  const background = l.hiddenAt && now - l.hiddenAt > BACKGROUND_LOCK_MS;
+  if (idle || background) {
+    l.locked = true;
+    delete l.hiddenAt;
+    store.put("sessions", req.session);
+    return;
+  }
+  // The app marks requests made while the person is actually using it.
+  if (req.get("X-MVPMI-Active") === "1" && now - (l.activeAt || 0) > 15000) {
+    l.activeAt = now;
+    store.put("sessions", req.session);
+  }
+}
 
 export const lockApplies = (req, seesDirectory, required) =>
   required && !req.isAdmin && seesDirectory;
@@ -54,8 +78,26 @@ export function installAppLock(app, store, { rate, sessionSees, required, notify
     const pin = pinValue(req.body.pin);
     if (WEAK.has(pin))
       fail("આ પિન સહેલાઈથી અંદાજી શકાય છે, બીજો પસંદ કરો · This PIN is too easy to guess. Choose another.");
-    req.session.lock = { hash: passwordHash(pin), locked: false, fails: 0, strikes: 0, setAt: Date.now() };
+    req.session.lock = { hash: passwordHash(pin), locked: false, fails: 0, strikes: 0, setAt: Date.now(), activeAt: Date.now() };
     save(req);
+    res.json({ ok: true });
+  });
+  // The app went to the background: lock after 30 seconds unless it returns.
+  app.post("/api/lock/hidden", (req, res) => {
+    const l = req.session.lock;
+    if (l?.hash && l.locked === false) {
+      l.hiddenAt = Date.now();
+      save(req);
+    }
+    res.json({ ok: true });
+  });
+  app.post("/api/lock/visible", (req, res) => {
+    const l = req.session.lock;
+    if (l?.hash && l.locked === false && l.hiddenAt) {
+      delete l.hiddenAt;
+      l.activeAt = Date.now();
+      save(req);
+    }
     res.json({ ok: true });
   });
   app.post("/api/lock/engage", (req, res) => {
@@ -84,7 +126,8 @@ export function installAppLock(app, store, { rate, sessionSees, required, notify
       save(req);
       fail("ખોટો પિન · Wrong PIN", 401);
     }
-    Object.assign(l, { locked: false, fails: 0, strikes: 0, until: 0 });
+    Object.assign(l, { locked: false, fails: 0, strikes: 0, until: 0, activeAt: Date.now() });
+    delete l.hiddenAt;
     save(req);
     res.json({ ok: true });
   });

@@ -116,8 +116,9 @@ export function createNotifier(store, { vapidSubject } = {}) {
     return store
       .all("notifications")
       .filter((n) => keys.has(n.to) && n.at > after)
-      .sort((a, b) => a.at - b.at)
-      .slice(-limit);
+      .sort((a, b) => a.at - b.at || (a.id < b.id ? -1 : 1))
+      // Oldest first: the cursor then moves forward without skipping any.
+      .slice(0, limit);
   };
   const latestAt = (session) => {
     const keys = new Set(recipientKeys(store, session));

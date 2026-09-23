@@ -130,8 +130,9 @@ try {
     console.log("PASS embedded authentication, export and logout: " + mode);
     await context.close();
   }
+  // Sign-in rotates the session id; the old id stays as a one-minute alias.
   assert.equal(
-    store.all("sessions").length,
+    store.all("sessions").filter((s) => !s.aliasOf).length,
     3,
     "Exactly one server session per browser context",
   );
