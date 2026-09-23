@@ -82,6 +82,13 @@ export function auditTemplate(template) {
 
 // Applied after the other design adapters (their markup is final by then).
 export function auditTemplateLate(template) {
+  // Liquid Glass design layer (web/liquid-ios.css) is scoped to .app.lq.
+  template = once(template, 'class="app"', 'class="app lq"', "app root class");
+  // Both keypads (hidden gate and app lock) share the passcode key design.
+  template = template.replaceAll(
+    '<div style="display:grid;grid-template-columns:repeat(3,72px);',
+    '<div class="access-keypad" style="display:grid;grid-template-columns:repeat(3,72px);',
+  );
   // Reading settings: the PIN section only for signed-in members/village
   // administrators; a notifications section for everyone.
   template = once(

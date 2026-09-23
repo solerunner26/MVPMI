@@ -133,7 +133,17 @@ export function AllAdminDirectory({ data, lang, onClose }) {
         "header",
         { className: "workflow-heading" },
         h("h2", null, B("બધા એડમિન", "All admins")),
-        h("button", { type: "button", onClick: onClose }, B("પાછા જાઓ", "Back")),
+        h(
+          "button",
+          {
+            type: "button",
+            className: "workflow-chip workflow-back",
+            title: B("પાછા જાઓ", "Back"),
+            "aria-label": B("પાછા જાઓ", "Back"),
+            onClick: onClose,
+          },
+          h("i", { className: "ph-duotone ph-arrow-left", "aria-hidden": true }),
+        ),
       ),
       h(
         "p",
@@ -299,7 +309,7 @@ export function VillageAdminLogin({ lang, onAction, onClose, onMainAdmin }) {
         ),
         h(
           "button",
-          { type: "submit", disabled: busy },
+          { type: "submit", disabled: busy, className: "lq-primary" },
           B("સાઇન ઇન", "Sign in"),
         ),
       ),
@@ -318,6 +328,16 @@ export function VillageAdminLogin({ lang, onAction, onClose, onMainAdmin }) {
     ),
   );
 }
+// Every section tab carries an icon (Swiggy-style tabs).
+const WORKFLOW_TAB_ICONS = {
+  requests: "ph-tray",
+  villages: "ph-key",
+  pins: "ph-lock-key",
+  rejections: "ph-x-circle",
+  removed: "ph-user-minus",
+  members: "ph-users-three",
+  account: "ph-user-gear",
+};
 export function VillageWorkflow({
   data,
   lang,
@@ -416,6 +436,10 @@ export function VillageWorkflow({
                   setError("");
                 },
               },
+              h("i", {
+                className: "ph-duotone " + (WORKFLOW_TAB_ICONS[id] || "ph-circle"),
+                "aria-hidden": true,
+              }),
               B(gu, en),
             ),
           ),
@@ -592,16 +616,21 @@ function workflowTools(lang, busy) {
     B = (gu, en) => bilingual(gu, en, lang);
   const button = (label, onClick, props = {}) =>
     h("button", { type: "button", disabled: busy, onClick, ...props }, label);
+  // Uniform Liquid Glass capsule variants (presentation only).
+  const primary = (label, onClick, props = {}) =>
+    button(label, onClick, { ...props, className: "lq-primary" });
+  const danger = (label, onClick, props = {}) =>
+    button(label, onClick, { ...props, className: "lq-danger" });
   const field = (label, props) =>
     h("label", { className: "workflow-field" }, label, h("input", props));
   // Password field with the show/hide "eye" control. Rendered as its own
   // component so it may appear conditionally (hooks stay per-component).
   const secretField = (label, value, setValue, props = {}) =>
     h(WorkflowSecret, { label, value, setValue, props, lang });
-  return { h, B, field, button, secretField };
+  return { h, B, field, button, primary, danger, secretField };
 }
 function WorkflowDecision({ request: r, data, lang, act, busy }) {
-  const { h, B, field, button } = workflowTools(lang, busy);
+  const { h, B, field, button, primary, danger } = workflowTools(lang, busy);
   const main = data.role === "admin";
   const [confirmed, setConfirmed] = React.useState(false),
     [correcting, setCorrecting] = React.useState(false),
@@ -837,7 +866,7 @@ function WorkflowDecision({ request: r, data, lang, act, busy }) {
         h(
           "div",
           { className: "workflow-actions" },
-          button(
+          primary(
             B("સુધારો સાચવો", "Save correction"),
             () =>
               act(
@@ -869,19 +898,19 @@ function WorkflowDecision({ request: r, data, lang, act, busy }) {
       "div",
       { className: "workflow-actions" },
       main
-        ? button(
+        ? primary(
             B("અંતિમ મંજૂરી", "Final approval"),
             () => act("admin/requests/" + r.id + "/approve", body),
             {
               disabled: busy || !ready || !confirmed,
             },
           )
-        : button(
+        : primary(
             B("ચકાસીને આગળ મોકલો", "Verify & forward"),
             () => act("village/requests/" + r.id + "/forward", body),
             { disabled: busy || !confirmed },
           ),
-      button(
+      danger(
         B("નામંજૂર કરો", "Reject"),
         () =>
           act(
@@ -902,7 +931,7 @@ function WorkflowDecision({ request: r, data, lang, act, busy }) {
 // Village-administrator view of their own community members. Every proposal is
 // sent to the main administrator for the final decision.
 function WorkflowMembers({ data, lang, act, busy }) {
-  const { h, B, field, button } = workflowTools(lang, busy);
+  const { h, B, field, button, primary, danger } = workflowTools(lang, busy);
   const village = data.villageAdminVillage;
   const members = data.members
     .filter((m) => m.village === village)
@@ -935,7 +964,7 @@ function WorkflowMembers({ data, lang, act, busy }) {
   );
 }
 function WorkflowMemberCard({ member: m, data, lang, act, busy, pending }) {
-  const { h, B, field, button } = workflowTools(lang, busy);
+  const { h, B, field, button, primary, danger } = workflowTools(lang, busy);
   const pin = h(PinCodeIssuer, {
     lang,
     busy,
@@ -1043,7 +1072,7 @@ function WorkflowMemberCard({ member: m, data, lang, act, busy, pending }) {
         h(
           "div",
           { className: "workflow-actions" },
-          button(
+          primary(
             B("મુખ્ય એડમિનને મોકલો", "Send to main administrator"),
             async () => {
               await act("village/members/" + m.id + "/update", {
@@ -1073,7 +1102,7 @@ function WorkflowMemberCard({ member: m, data, lang, act, busy, pending }) {
         h(
           "div",
           { className: "workflow-actions" },
-          button(
+          danger(
             B("દૂર કરવાની સૂચના મોકલો", "Send removal proposal"),
             async () => {
               await act("village/members/" + m.id + "/delete", {
@@ -1091,7 +1120,7 @@ function WorkflowMemberCard({ member: m, data, lang, act, busy, pending }) {
   );
 }
 function WorkflowAccount({ data, lang, act, busy }) {
-  const { h, B, field, button } = workflowTools(lang, busy);
+  const { h, B, field, button, primary, danger } = workflowTools(lang, busy);
   const [current, setCurrent] = React.useState(""),
     [next, setNext] = React.useState("");
   return h(
@@ -1124,7 +1153,7 @@ function WorkflowAccount({ data, lang, act, busy }) {
       h(
         "div",
         { className: "workflow-actions" },
-        button(
+        primary(
           B("પાસવર્ડ બદલો", "Change password"),
           () => act("village/password", { current, next }),
           { disabled: busy || !current || !next },
@@ -1146,7 +1175,7 @@ function WorkflowAccount({ data, lang, act, busy }) {
 // controls. The village list itself is fixed (seven villages) — there is no
 // add-village feature any more.
 function WorkflowVillageManager({ data, lang, act, busy }) {
-  const { h, B, field, button } = workflowTools(lang, busy);
+  const { h, B, field, button, primary, danger } = workflowTools(lang, busy);
   const [villageId, setVillageId] = React.useState("");
   const villages = data.villages || [];
   const selected = villages.find((x) => x.id === villageId) || villages[0];
@@ -1190,7 +1219,7 @@ function WorkflowVillageManager({ data, lang, act, busy }) {
   );
 }
 function WorkflowAssignment({ village: v, data, lang, act, busy }) {
-  const { h, B, field, button, secretField } = workflowTools(lang, busy);
+  const { h, B, field, button, primary, danger, secretField } = workflowTools(lang, busy);
   const a = data.villageAssignments.find((a) => a.id === v.id);
   const admin = a && data.members.find((m) => m.id === a.memberId);
   const members = data.members
@@ -1354,7 +1383,7 @@ function WorkflowAssignment({ village: v, data, lang, act, busy }) {
         h(
           "div",
           { className: "workflow-actions" },
-          button(
+          primary(
             B("નિયુક્તિ સાચવો", "Save assignment"),
             () =>
               act("admin/village-admins/" + encodeURIComponent(v.id), {
@@ -1379,7 +1408,7 @@ function WorkflowAssignment({ village: v, data, lang, act, busy }) {
           { className: "workflow-reset" },
           h("summary", null, B("પાસવર્ડ રીસેટ કરો", "Reset password")),
           secretField(B("નવો પાસવર્ડ", "New password"), resetPass, setResetPass),
-          button(
+          primary(
             B("પાસવર્ડ રીસેટ કરો", "Reset password"),
             () =>
               act(
@@ -1449,6 +1478,7 @@ function PinCodeIssuer({ lang, busy, issue, self }) {
               "button",
               {
                 type: "button",
+                className: "lq-primary",
                 disabled: busy || !confirmed,
                 onClick: async () => {
                   setError("");

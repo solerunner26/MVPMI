@@ -1,0 +1,1463 @@
+/* ==========================================================================
+   MVPMI · iOS-style Liquid Glass design layer (v0.5)
+   --------------------------------------------------------------------------
+   Loaded LAST. Presentation only: no handler, text or data changes.
+   One material system for BOTH themes:
+     • Ambient "aurora" page so glass has colour to refract.
+     • Glass = translucent tint + backdrop blur/saturation + specular sheen
+       (follows the finger) + gradient light rim + inner glow + soft drop.
+     • Capsule controls, concentric radii, spring motion, jelly tab lens.
+   Fallbacks: data-material="translucent" (no backdrop-filter) uses denser
+   tints; "opaque" (low-end phones, reduced transparency, effects off) uses
+   solid surfaces with the same shapes. Reduced motion removes animation.
+   ========================================================================== */
+
+/* ---------- 1. Tokens ---------------------------------------------------- */
+.app.lq {
+  /* Brand */
+  --lq-brand: #c4492f;
+  --lq-brand-2: #e9973b;
+  --lq-brand-deep: #9c3421;
+  --lq-on-brand: #ffffff;
+  --ind: #a93b25;
+  --ok: #1f7a4d;
+  --okBg: rgba(31, 122, 77, 0.12);
+  --dan: #b3261e;
+  --danBg: rgba(179, 38, 30, 0.1);
+
+  /* Ink */
+  --ink: #2b1a14;
+  --ink2: #64514a;
+  --ink2sec: #64514a;
+
+  /* Page: warm aurora (opaque, so full-screen overlays always hide content) */
+  --lq-base: #f7eee5;
+  --page: radial-gradient(85% 50% at 0% 0%, rgba(255, 168, 92, 0.78) 0%, rgba(255, 168, 92, 0) 72%),
+    radial-gradient(70% 45% at 100% 18%, rgba(240, 104, 88, 0.5) 0%, rgba(240, 104, 88, 0) 72%),
+    radial-gradient(80% 50% at 100% 100%, rgba(170, 140, 245, 0.6) 0%, rgba(170, 140, 245, 0) 72%),
+    radial-gradient(70% 45% at 0% 78%, rgba(255, 196, 130, 0.62) 0%, rgba(255, 196, 130, 0) 72%),
+    radial-gradient(50% 35% at 50% 50%, rgba(255, 150, 170, 0.28) 0%, rgba(255, 150, 170, 0) 72%),
+    #f6e8dc;
+
+  /* Glass */
+  --lq-fill: rgba(255, 255, 255, 0.56);
+  --lq-fill-strong: rgba(255, 252, 248, 0.78);
+  --lq-fill-soft: rgba(255, 255, 255, 0.38);
+  --lq-well: rgba(255, 255, 255, 0.5);
+  --lq-well-focus: rgba(255, 255, 255, 0.82);
+  --lq-rim: linear-gradient(145deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.35) 32%, rgba(255, 255, 255, 0.12) 58%, rgba(255, 255, 255, 0.75) 100%);
+  --lq-rim-soft: linear-gradient(145deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.18) 45%, rgba(255, 255, 255, 0.55));
+  --lq-sheen-color: rgba(255, 255, 255, 0.75);
+  --lq-rim-t: rgba(255, 255, 255, 0.95);
+  --lq-rim-l: rgba(255, 255, 255, 0.75);
+  --lq-rim-r: rgba(255, 255, 255, 0.45);
+  --lq-rim-b: rgba(255, 255, 255, 0.3);
+  --lq-inner: inset 0 1px 1px rgba(255, 255, 255, 0.95), inset 0 -1px 1px rgba(255, 255, 255, 0.35), inset 0 0 18px rgba(255, 255, 255, 0.22);
+  --lq-drop: 0 14px 34px -14px rgba(120, 58, 28, 0.32), 0 2px 8px -2px rgba(120, 58, 28, 0.1);
+  --lq-drop-lg: 0 30px 70px -20px rgba(110, 50, 24, 0.45), 0 6px 18px -6px rgba(110, 50, 24, 0.18);
+  --lq-hairline: rgba(84, 46, 30, 0.1);
+  --lq-blur: blur(22px) saturate(185%) brightness(1.04);
+  --lq-blur-strong: blur(34px) saturate(200%) brightness(1.05);
+  --lq-thumb: rgba(255, 255, 255, 0.9);
+  --lq-thumb-glow: 0 6px 18px -6px rgba(196, 73, 47, 0.45);
+  --lq-track: rgba(120, 80, 60, 0.1);
+  --lq-scrim: rgba(60, 30, 20, 0.28);
+
+  /* Legacy tokens mapped onto the glass system */
+  --g: var(--lq-fill);
+  --g2: var(--lq-fill-soft);
+  --gbd: rgba(255, 255, 255, 0.7);
+  --sheet: var(--lq-fill-strong);
+  --field: var(--lq-well);
+  --fieldBd: rgba(84, 46, 30, 0.18);
+  --chip: rgba(120, 80, 60, 0.08);
+  --grad: linear-gradient(160deg, #c8502f 0%, #b2402c 55%, #9c3421 100%);
+  --scrim: var(--lq-scrim);
+
+  /* Shape & motion */
+  --lq-r-card: 26px;
+  --lq-r-inner: 18px;
+  --lq-r-field: 16px;
+  --lq-spring: cubic-bezier(0.34, 1.45, 0.52, 1);
+  --lq-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --lq-press: 160ms;
+  --lx: 22%;
+  --ly: 0%;
+  background: var(--page) !important;
+  color: var(--ink);
+}
+.app.lq[data-theme="dark"] {
+  --lq-brand: #e0664a;
+  --lq-brand-2: #f0a54a;
+  --lq-brand-deep: #b2402c;
+  --ind: #ff9d74;
+  --ok: #6bd49a;
+  --okBg: rgba(107, 212, 154, 0.14);
+  --dan: #ff8a80;
+  --danBg: rgba(255, 138, 128, 0.14);
+  --ink: #fbf2ea;
+  --ink2: #d2c0b5;
+  --ink2sec: #d2c0b5;
+  --lq-base: #120b0a;
+  --page: radial-gradient(85% 50% at 0% 0%, rgba(196, 70, 40, 0.78) 0%, rgba(196, 70, 40, 0) 72%),
+    radial-gradient(70% 45% at 100% 16%, rgba(233, 140, 50, 0.38) 0%, rgba(233, 140, 50, 0) 72%),
+    radial-gradient(80% 50% at 100% 100%, rgba(110, 60, 190, 0.62) 0%, rgba(110, 60, 190, 0) 72%),
+    radial-gradient(70% 45% at 0% 82%, rgba(40, 80, 170, 0.55) 0%, rgba(40, 80, 170, 0) 72%),
+    radial-gradient(50% 35% at 50% 50%, rgba(170, 50, 90, 0.25) 0%, rgba(170, 50, 90, 0) 72%),
+    #140c0b;
+  --lq-fill: rgba(44, 30, 27, 0.5);
+  --lq-fill-strong: rgba(34, 23, 21, 0.8);
+  --lq-fill-soft: rgba(255, 255, 255, 0.05);
+  --lq-well: rgba(255, 255, 255, 0.06);
+  --lq-well-focus: rgba(255, 255, 255, 0.11);
+  --lq-rim: linear-gradient(145deg, rgba(255, 240, 225, 0.55) 0%, rgba(255, 240, 225, 0.12) 32%, rgba(255, 240, 225, 0.04) 58%, rgba(255, 240, 225, 0.3) 100%);
+  --lq-rim-soft: linear-gradient(145deg, rgba(255, 240, 225, 0.35), rgba(255, 240, 225, 0.05) 45%, rgba(255, 240, 225, 0.2));
+  --lq-sheen-color: rgba(255, 236, 220, 0.16);
+  --lq-rim-t: rgba(255, 240, 225, 0.34);
+  --lq-rim-l: rgba(255, 240, 225, 0.2);
+  --lq-rim-r: rgba(255, 240, 225, 0.1);
+  --lq-rim-b: rgba(255, 240, 225, 0.06);
+  --lq-inner: inset 0 1px 0 rgba(255, 240, 225, 0.22), inset 0 -1px 0 rgba(255, 240, 225, 0.06), inset 0 0 20px rgba(255, 240, 225, 0.04);
+  --lq-drop: 0 16px 36px -14px rgba(0, 0, 0, 0.75), 0 2px 8px -2px rgba(0, 0, 0, 0.4);
+  --lq-drop-lg: 0 30px 80px -20px rgba(0, 0, 0, 0.85), 0 6px 18px -6px rgba(0, 0, 0, 0.5);
+  --lq-hairline: rgba(255, 240, 225, 0.1);
+  --lq-blur: blur(22px) saturate(170%) brightness(0.92);
+  --lq-blur-strong: blur(34px) saturate(180%) brightness(0.88);
+  --lq-thumb: rgba(255, 245, 238, 0.16);
+  --lq-thumb-glow: 0 6px 20px -6px rgba(255, 140, 100, 0.55);
+  --lq-track: rgba(255, 255, 255, 0.07);
+  --lq-scrim: rgba(0, 0, 0, 0.5);
+  --gbd: rgba(255, 240, 225, 0.16);
+  --fieldBd: rgba(255, 240, 225, 0.2);
+  --chip: rgba(255, 255, 255, 0.07);
+  --grad: linear-gradient(160deg, #c8502f 0%, #b2402c 55%, #9c3421 100%);
+}
+/* No backdrop-filter support: denser tints keep text crisp. */
+.app.lq[data-material="translucent"] {
+  --lq-fill: rgba(255, 252, 248, 0.84);
+  --lq-fill-strong: rgba(255, 252, 248, 0.95);
+  --lq-well: rgba(255, 255, 255, 0.8);
+}
+.app.lq[data-material="translucent"][data-theme="dark"] {
+  --lq-fill: rgba(40, 27, 24, 0.9);
+  --lq-fill-strong: rgba(32, 21, 19, 0.96);
+  --lq-well: rgba(255, 255, 255, 0.08);
+}
+/* Effects off / low-end phone / reduced transparency: solid, same shapes. */
+.app.lq[data-material="opaque"] {
+  --lq-fill: #fffaf5;
+  --lq-fill-strong: #fffaf5;
+  --lq-fill-soft: #f4ebe2;
+  --lq-well: #ffffff;
+  --lq-well-focus: #ffffff;
+  --lq-rim: linear-gradient(#e6d5c8, #e6d5c8);
+  --lq-rim-soft: linear-gradient(#e6d5c8, #e6d5c8);
+  --lq-sheen-color: transparent;
+  --lq-rim-t: #e6d5c8;
+  --lq-rim-l: #e6d5c8;
+  --lq-rim-r: #e6d5c8;
+  --lq-rim-b: #e6d5c8;
+  --lq-inner: 0 0 0 transparent;
+  --lq-blur: none;
+  --lq-blur-strong: none;
+  --lq-thumb: #ffffff;
+}
+.app.lq[data-material="opaque"][data-theme="dark"] {
+  --lq-fill: #241a17;
+  --lq-fill-strong: #241a17;
+  --lq-fill-soft: #1c1412;
+  --lq-well: #1c1412;
+  --lq-well-focus: #2a1f1b;
+  --lq-rim: linear-gradient(#4a3830, #4a3830);
+  --lq-rim-soft: linear-gradient(#4a3830, #4a3830);
+  --lq-thumb: #3a2b26;
+  --lq-rim-t: #4a3830;
+  --lq-rim-l: #4a3830;
+  --lq-rim-r: #4a3830;
+  --lq-rim-b: #4a3830;
+}
+
+/* ---------- 2. Canvas ---------------------------------------------------- */
+body:has(.app.lq) {
+  background: #1a100d;
+}
+.app.lq .screen-frame {
+  background: var(--page) !important;
+  background-attachment: local;
+}
+/* Soft light blobs behind everything (the "liquid" in the glass). */
+.app.lq .screen-frame::before {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(28% 22% at 22% 30%, rgba(255, 190, 120, 0.35), transparent 70%),
+    radial-gradient(24% 20% at 78% 62%, rgba(236, 120, 150, 0.22), transparent 70%),
+    radial-gradient(26% 20% at 55% 88%, rgba(150, 130, 240, 0.22), transparent 70%);
+  /* Static on purpose: an animated backdrop would force every blurred
+     surface to re-render each frame (battery and low-end phones). */
+}
+.app.lq[data-theme="dark"] .screen-frame::before {
+  background:
+    radial-gradient(28% 22% at 22% 30%, rgba(210, 90, 50, 0.28), transparent 70%),
+    radial-gradient(24% 20% at 78% 62%, rgba(150, 60, 140, 0.22), transparent 70%),
+    radial-gradient(26% 20% at 55% 88%, rgba(60, 80, 190, 0.22), transparent 70%);
+}
+.app.lq .screen-frame > * {
+  position: relative;
+  z-index: 1;
+}
+/* The main screen container is clear so the drifting light shows through. */
+.app.lq .screen-frame > div[style*="height: 100%"],
+.app.lq .screen-frame > div > div[style*="height: 100%"][style*="var(--page)"] {
+  background: transparent !important;
+}
+/* Tool regions and title rows float on the page (no flat slabs). */
+.app.lq .directory-tools,
+.app.lq .context-header {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+@keyframes lq-drift {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(3%, -2%, 0) scale(1.06); }
+  100% { transform: translate3d(-3%, 2%, 0) scale(1.02); }
+}
+.app.lq[data-material="opaque"] .screen-frame::before,
+.app.lq[data-motion="off"] .screen-frame::before {
+  animation: none;
+}
+.app.lq[data-material="opaque"] .screen-frame::before {
+  display: none;
+}
+
+/* ---------- 3. The glass recipe ----------------------------------------- */
+/* Sheen follows the finger via --lx/--ly (set by web/liquid-ios.mjs).       */
+.app.lq .lq-glass,
+.app.lq [data-glass="1"],
+.app.lq [data-glass="2"],
+.app.lq [data-glass="4"],
+.app.lq .main-header,
+.app.lq .directory-search,
+.app.lq .directory-segments,
+.app.lq .workflow-tabs,
+.app.lq .mvpmi-tile,
+.app.lq .member-card,
+.app.lq .workflow-card,
+.app.lq .preferences-panel,
+.app.lq .workflow-launch,
+.app.lq .admin-row,
+.app.lq .application-feedback,
+.app.lq .reading-control,
+.app.lq .access-keypad button,
+.app.lq .context-header {
+  border: 1px solid var(--lq-rim-b) !important;
+  border-color: var(--lq-rim-t) var(--lq-rim-r) var(--lq-rim-b) var(--lq-rim-l) !important;
+  background:
+    radial-gradient(120% 90% at var(--lx) var(--ly), var(--lq-sheen-color) 0%, transparent 46%) padding-box,
+    linear-gradient(var(--lq-fill), var(--lq-fill)) padding-box !important;
+  box-shadow: var(--lq-inner), var(--lq-drop) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  
+}
+/* Performance budget (Apple: glass is for the navigation layer): real
+   backdrop blur only on the floating chrome — header, tab bars, search,
+   sheets and dialogs. Cards and buttons in scrolling lists keep the tint,
+   rim and sheen without the GPU cost, so low-end phones stay smooth. */
+.app.lq .main-header,
+.app.lq .directory-search,
+.app.lq .directory-segments,
+.app.lq .workflow-tabs,
+.app.lq .workflow-launch,
+.app.lq .preferences-panel,
+.app.lq [data-glass="4"] {
+  -webkit-backdrop-filter: var(--lq-blur) !important;
+  backdrop-filter: var(--lq-blur) !important;
+}
+/* Old single-line reflections are replaced by the sheen + rim. */
+.app.lq [data-glass]::before {
+  display: none !important;
+}
+/* Content cards stay calmer than controls (Apple: glass is for navigation). */
+.app.lq .member-card,
+.app.lq .workflow-card,
+.app.lq [data-glass="1"],
+.app.lq .admin-row {
+  --lq-sheen-color: rgba(255, 255, 255, 0.4);
+  border-radius: var(--lq-r-card) !important;
+}
+.app.lq[data-theme="dark"] .member-card,
+.app.lq[data-theme="dark"] .workflow-card,
+.app.lq[data-theme="dark"] [data-glass="1"],
+.app.lq[data-theme="dark"] .admin-row {
+  --lq-sheen-color: rgba(255, 236, 220, 0.08);
+}
+
+/* ---------- 4. Typography ------------------------------------------------ */
+.app.lq h1,
+.app.lq .directory-heading h1,
+.app.lq .entry-intro h1 {
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+.app.lq .entry-intro h1 {
+  /* Gradient ink; "color" stays the solid fallback (and what checkers read). */
+  background: linear-gradient(120deg, var(--ink) 30%, var(--lq-brand-deep) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: var(--ink);
+  -webkit-text-fill-color: transparent;
+}
+.app.lq[data-theme="dark"] .entry-intro h1 {
+  background: linear-gradient(120deg, #fff6ef 30%, #ffb08a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+.app.lq .eyebrow,
+.app.lq .settings-label {
+  color: var(--ind) !important;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 800 !important;
+}
+
+/* ---------- 5. Header (floating glass bar) ------------------------------ */
+.app.lq .main-header {
+  margin: 8px 10px 4px !important;
+  padding: 6px 8px !important;
+  border-radius: 999px !important;
+  position: sticky !important;
+  top: 8px;
+  z-index: 30 !important;
+  -webkit-backdrop-filter: var(--lq-blur-strong) !important;
+  backdrop-filter: var(--lq-blur-strong) !important;
+}
+.app.lq .main-header .brand-sun {
+  width: 48px !important;
+  height: 48px !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  filter: drop-shadow(0 4px 10px rgba(233, 151, 59, 0.45));
+}
+
+/* ---------- 6. Icon buttons (circular glass lenses) --------------------- */
+.app.lq .main-header .preferences-trigger,
+.app.lq .main-header .language-trigger,
+.app.lq .main-header .theme-trigger,
+.app.lq .profile-trigger,
+.app.lq .dashboard-trigger,
+.app.lq .sheet-close,
+.app.lq .workflow-chip,
+.app.lq .reorder-trigger,
+.app.lq .admin-icon-action,
+.app.lq .workflow-eye,
+.app.lq .context-header > button,
+.app.lq .context-header sc-if > button {
+  width: 48px !important;
+  height: 48px !important;
+  min-width: 48px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--lq-rim-b) !important;
+  border-color: var(--lq-rim-t) var(--lq-rim-r) var(--lq-rim-b) var(--lq-rim-l) !important;
+  background:
+    radial-gradient(100% 100% at var(--lx) var(--ly), var(--lq-sheen-color) 0%, transparent 55%) padding-box,
+    linear-gradient(var(--lq-fill-soft), var(--lq-fill-soft)) padding-box !important;
+  box-shadow: var(--lq-inner), 0 6px 16px -8px rgba(80, 40, 20, 0.35) !important;
+  transition: transform var(--lq-press) var(--lq-spring), box-shadow 220ms ease, background 220ms ease !important;
+}
+.app.lq[data-theme="dark"] .main-header .preferences-trigger,
+.app.lq[data-theme="dark"] .main-header .language-trigger,
+.app.lq[data-theme="dark"] .main-header .theme-trigger,
+.app.lq[data-theme="dark"] .profile-trigger,
+.app.lq[data-theme="dark"] .dashboard-trigger,
+.app.lq[data-theme="dark"] .sheet-close,
+.app.lq[data-theme="dark"] .workflow-chip,
+.app.lq[data-theme="dark"] .reorder-trigger,
+.app.lq[data-theme="dark"] .admin-icon-action,
+.app.lq[data-theme="dark"] .context-header > button,
+.app.lq[data-theme="dark"] .context-header sc-if > button {
+  box-shadow: var(--lq-inner), 0 6px 16px -8px rgba(0, 0, 0, 0.7) !important;
+}
+.app.lq .main-header .header-actions {
+  gap: 6px !important;
+}
+.app.lq .main-header i,
+.app.lq .profile-trigger i,
+.app.lq .dashboard-trigger i,
+.app.lq .workflow-chip i,
+.app.lq .sheet-close i {
+  font-size: 22px !important;
+}
+.app.lq .language-trigger .lang-target {
+  font-weight: 800;
+  font-size: 15px;
+}
+.app.lq .dash-badge {
+  background: var(--grad) !important;
+  color: #fff !important;
+  border: 2px solid var(--lq-base) !important;
+  box-shadow: 0 4px 10px -2px rgba(196, 73, 47, 0.6);
+}
+
+/* ---------- 7. Buttons: one capsule family ------------------------------ */
+/* Base (secondary): clear glass capsule. */
+.app.lq button[data-glass="2"],
+.app.lq a[role="button"][data-glass="2"],
+.app.lq .workflow-panel button,
+.app.lq .applock-settings button,
+.app.lq .returning-member,
+.app.lq .settings-help,
+.app.lq .close-preferences,
+.app.lq .reorder-controls button,
+.app.lq .lq-btn {
+  min-height: 50px !important;
+  border-radius: 999px !important;
+  padding: 0 20px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.01em;
+  color: var(--ink) !important;
+  border: 1px solid var(--lq-rim-b) !important;
+  border-color: var(--lq-rim-t) var(--lq-rim-r) var(--lq-rim-b) var(--lq-rim-l) !important;
+  background:
+    radial-gradient(120% 120% at var(--lx) var(--ly), var(--lq-sheen-color) 0%, transparent 50%) padding-box,
+    linear-gradient(var(--lq-fill), var(--lq-fill)) padding-box !important;
+  box-shadow: var(--lq-inner), 0 8px 20px -12px rgba(90, 44, 22, 0.4) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  transition: transform var(--lq-press) var(--lq-spring), box-shadow 220ms ease, filter 220ms ease !important;
+}
+/* Primary: brand-tinted glass with a glossy upper half. */
+.app.lq button[data-glass="3"],
+.app.lq a[role="button"][data-glass="3"],
+.app.lq button[style*="var(--grad)"],
+.app.lq .lq-primary,
+.app.lq .workflow-panel .lq-primary,
+.app.lq .applock-settings .lq-primary,
+.app.lq .close-preferences {
+  color: var(--lq-on-brand) !important;
+  border: 1px solid var(--lq-rim-b) !important;
+  border-color: var(--lq-rim-t) var(--lq-rim-r) var(--lq-rim-b) var(--lq-rim-l) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.05) 30%, rgba(255, 255, 255, 0) 36%) padding-box,
+    radial-gradient(120% 140% at var(--lx) var(--ly), rgba(255, 255, 255, 0.18) 0%, transparent 40%) padding-box,
+    var(--grad) padding-box !important;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.6),
+    inset 0 -2px 6px rgba(90, 20, 10, 0.3),
+    0 12px 26px -10px rgba(196, 73, 47, 0.65),
+    0 2px 6px -2px rgba(196, 73, 47, 0.35) !important;
+  text-shadow: 0 1px 1px rgba(90, 20, 10, 0.3);
+}
+.app.lq button[data-glass="3"] i,
+.app.lq button[style*="var(--grad)"] i,
+.app.lq .lq-primary i {
+  color: #fff !important;
+}
+/* Destructive: red-tinted glass. */
+.app.lq .lq-danger,
+.app.lq .applock-danger,
+.app.lq .workflow-panel .lq-danger {
+  color: var(--dan) !important;
+  background:
+    radial-gradient(120% 120% at var(--lx) var(--ly), var(--lq-sheen-color) 0%, transparent 50%) padding-box,
+    linear-gradient(var(--danBg), var(--danBg)) padding-box,
+    linear-gradient(var(--lq-fill), var(--lq-fill)) padding-box !important;
+}
+/* Quiet text actions still meet the 48 px target. */
+.app.lq .lq-text,
+.app.lq button.lq-text {
+  background: transparent !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  color: var(--ind) !important;
+}
+/* Press: squash toward the finger, spring back (Apple's "interactive glass"). */
+.app.lq button:not(:disabled):active,
+.app.lq a[role="button"]:active,
+.app.lq .lq-pressable:active {
+  transform: scale(0.955) !important;
+  filter: brightness(1.06) saturate(1.1);
+  transition-duration: 90ms !important;
+}
+.app.lq button:disabled {
+  opacity: 0.5 !important;
+  filter: saturate(0.4) !important;
+  box-shadow: var(--lq-inner) !important;
+}
+.app.lq button:focus-visible,
+.app.lq a:focus-visible,
+.app.lq input:focus-visible,
+.app.lq select:focus-visible,
+.app.lq textarea:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--lq-brand) 70%, transparent) !important;
+  outline-offset: 3px !important;
+}
+/* Neutralise the old "selected = brown border" rule; selection is the lens. */
+.app.lq button[aria-pressed="true"] {
+  border-color: transparent !important;
+}
+
+/* ---------- 8. Liquid tabs (segmented, Swiggy-style lens) --------------- */
+.app.lq .lq-tabs,
+.app.lq .directory-segments,
+.app.lq .workflow-tabs {
+  position: relative !important;
+  display: flex !important;
+  gap: 4px !important;
+  padding: 5px !important;
+  border-radius: 999px !important;
+  isolation: isolate;
+  overflow: visible;
+  --thumb-x: 0px;
+  --thumb-w: 0px;
+  --thumb-o: 0;
+}
+.app.lq .workflow-tabs {
+  overflow-x: auto !important;
+  scrollbar-width: none;
+  flex-wrap: nowrap !important;
+}
+.app.lq .workflow-tabs::-webkit-scrollbar {
+  display: none;
+}
+/* The lens: a bright glass bubble that slides with a jelly stretch. */
+.app.lq .lq-tabs::after,
+.app.lq .directory-segments::after,
+.app.lq .workflow-tabs::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 5px;
+  bottom: 5px;
+  left: 0;
+  width: var(--thumb-w);
+  transform: translateX(var(--thumb-x));
+  opacity: var(--thumb-o);
+  border-radius: 999px;
+  border: 1px solid var(--lq-rim-b);
+  border-color: var(--lq-rim-t) var(--lq-rim-r) var(--lq-rim-b) var(--lq-rim-l);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 55%) padding-box;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.9),
+    inset 0 -1px 2px rgba(196, 73, 47, 0.12),
+    var(--lq-thumb-glow);
+  transition:
+    transform 520ms var(--lq-spring),
+    width 380ms var(--lq-ease),
+    opacity 200ms ease;
+  pointer-events: none;
+}
+.app.lq[data-theme="dark"] .lq-tabs::after,
+.app.lq[data-theme="dark"] .directory-segments::after,
+.app.lq[data-theme="dark"] .workflow-tabs::after {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0) 55%) padding-box;
+  box-shadow: inset 0 1px 0 rgba(255, 240, 225, 0.35), var(--lq-thumb-glow);
+}
+.app.lq .lq-instant::after {
+  transition: none !important;
+}
+.app.lq .lq-tabs.lq-moving::after,
+.app.lq .directory-segments.lq-moving::after,
+.app.lq .workflow-tabs.lq-moving::after {
+  /* Squash-and-stretch while travelling. */
+  transform: translateX(var(--thumb-x)) scaleY(0.86);
+}
+.app.lq .lq-tabs > button,
+.app.lq .lq-tabs > * > button,
+.app.lq .directory-segments > button,
+.app.lq .workflow-tabs > button {
+  flex: 1 1 0 !important;
+  min-height: 48px !important;
+  border-radius: 999px !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  color: var(--ink2) !important;
+  font-weight: 700 !important;
+  white-space: nowrap;
+  padding: 0 14px !important;
+  gap: 8px;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  transition: color 260ms ease, transform var(--lq-press) var(--lq-spring) !important;
+}
+.app.lq .workflow-tabs > button {
+  flex: 0 0 auto !important;
+}
+.app.lq .lq-tabs > button[aria-pressed="true"],
+.app.lq .directory-segments > button[aria-pressed="true"],
+.app.lq .workflow-tabs > button[aria-pressed="true"] {
+  color: var(--ind) !important;
+}
+.app.lq .lq-tabs > button[aria-pressed="true"] i,
+.app.lq .directory-segments > button[aria-pressed="true"] i,
+.app.lq .directory-segments > button[aria-pressed="true"] .segment-sun,
+.app.lq .workflow-tabs > button[aria-pressed="true"] i {
+  animation: lq-pop 520ms var(--lq-spring);
+}
+@keyframes lq-pop {
+  0% { transform: scale(0.7) rotate(-8deg); }
+  60% { transform: scale(1.18) rotate(4deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+.app.lq .directory-segments .segment-count {
+  background: var(--grad) !important;
+  color: #fff !important;
+  border-radius: 999px !important;
+  padding: 0 8px !important;
+  font-size: 13px !important;
+  line-height: 22px !important;
+  height: 22px;
+  min-width: 24px;
+  display: inline-block !important;
+  text-align: center;
+  box-shadow: 0 3px 8px -2px rgba(196, 73, 47, 0.5);
+}
+.app.lq .workflow-tabs i {
+  font-size: 19px;
+}
+/* No JavaScript lens yet (first paint): a static tinted pill. */
+.app.lq .lq-tabs:not(.lq-ready) > button[aria-pressed="true"],
+.app.lq .directory-segments:not(.lq-ready) > button[aria-pressed="true"],
+.app.lq .workflow-tabs:not(.lq-ready) > button[aria-pressed="true"] {
+  background: var(--lq-thumb) !important;
+}
+
+/* ---------- 9. Fields ---------------------------------------------------- */
+.app.lq input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.app.lq select,
+.app.lq textarea {
+  min-height: 52px;
+  border-radius: var(--lq-r-field) !important;
+  border: 1px solid var(--lq-rim-b) !important;
+  border-color: var(--lq-rim-t) var(--lq-rim-r) var(--lq-rim-b) var(--lq-rim-l) !important;
+  background:
+    linear-gradient(var(--lq-well), var(--lq-well)) padding-box !important;
+  box-shadow: inset 0 2px 6px rgba(90, 44, 22, 0.1), inset 0 1px 1px rgba(90, 44, 22, 0.06) !important;
+  color: var(--ink) !important;
+  font-size: max(16px, var(--f-md)) !important;
+  transition: box-shadow 200ms ease, background 200ms ease !important;
+}
+.app.lq[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.app.lq[data-theme="dark"] select,
+.app.lq[data-theme="dark"] textarea {
+  background:
+    linear-gradient(var(--lq-well), var(--lq-well)) padding-box !important;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.45) !important;
+}
+.app.lq input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+.app.lq select:focus,
+.app.lq textarea:focus {
+  background:
+    linear-gradient(var(--lq-well-focus), var(--lq-well-focus)) padding-box !important;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--lq-brand) 18%, transparent), inset 0 1px 3px rgba(90, 44, 22, 0.08) !important;
+}
+.app.lq input::placeholder,
+.app.lq textarea::placeholder {
+  color: color-mix(in srgb, var(--ink2) 80%, transparent) !important;
+}
+/* Inputs that live inside a styled wrapper (phone +91, password eye, search)
+   keep the wrapper as the well. */
+.app.lq .directory-search input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.app.lq .workflow-secret input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.app.lq div[style*="var(--field)"] > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.app.lq .directory-search input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+.app.lq .workflow-secret input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+.app.lq div[style*="var(--field)"] > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  outline: none !important;
+  min-height: 46px;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+.app.lq .directory-search:focus-within {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--lq-brand) 20%, transparent), var(--lq-inner), var(--lq-drop) !important;
+}
+.app.lq div[style*="var(--field)"] {
+  border-radius: var(--lq-r-field) !important;
+  border: 1px solid var(--lq-rim-b) !important;
+  border-color: var(--lq-rim-t) var(--lq-rim-r) var(--lq-rim-b) var(--lq-rim-l) !important;
+  background:
+    linear-gradient(var(--lq-well), var(--lq-well)) padding-box !important;
+  box-shadow: inset 0 2px 6px rgba(90, 44, 22, 0.1) !important;
+}
+.app.lq[data-theme="dark"] div[style*="var(--field)"] {
+  background:
+    linear-gradient(var(--lq-well), var(--lq-well)) padding-box !important;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.45) !important;
+}
+.app.lq div[style*="var(--field)"]:focus-within {
+  background:
+    linear-gradient(var(--lq-well-focus), var(--lq-well-focus)) padding-box !important;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--lq-brand) 18%, transparent) !important;
+}
+.app.lq .directory-search {
+  border-radius: 999px !important;
+  min-height: 54px;
+  padding-left: 18px !important;
+}
+.app.lq .workflow-secret {
+  border-radius: var(--lq-r-field);
+  background:
+    linear-gradient(var(--lq-well), var(--lq-well)) padding-box;
+  border: 1px solid var(--lq-rim-b);
+  border-color: var(--lq-rim-t) var(--lq-rim-r) var(--lq-rim-b) var(--lq-rim-l);
+  box-shadow: inset 0 2px 6px rgba(90, 44, 22, 0.1);
+  padding-right: 4px;
+}
+.app.lq[data-theme="dark"] .workflow-secret {
+  background:
+    linear-gradient(var(--lq-well), var(--lq-well)) padding-box;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+.app.lq select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 44px !important;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23a93b25' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 18px center / 14px padding-box !important;
+}
+.app.lq[data-theme="dark"] select {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23ff9d74' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 18px center / 14px padding-box !important;
+}
+.app.lq select option {
+  background: var(--lq-base);
+  color: var(--ink);
+}
+
+/* ---------- 10. Checkbox, switch, slider -------------------------------- */
+.app.lq input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 26px !important;
+  height: 26px !important;
+  min-width: 26px !important;
+  min-height: 26px !important;
+  max-height: 26px !important;
+  flex: 0 0 26px !important;
+  padding: 0 !important;
+  border-radius: 9px !important;
+  margin: 0 4px 0 0;
+  border: 1px solid var(--lq-rim-b) !important;
+  border-color: var(--lq-rim-t) var(--lq-rim-r) var(--lq-rim-b) var(--lq-rim-l) !important;
+  background:
+    linear-gradient(var(--lq-well), var(--lq-well)) padding-box !important;
+  box-shadow: inset 0 2px 5px rgba(90, 44, 22, 0.15), 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+  display: inline-grid;
+  place-content: center;
+  transition: background 200ms ease, transform var(--lq-press) var(--lq-spring);
+  cursor: pointer;
+}
+.app.lq input[type="checkbox"]::after {
+  content: "";
+  width: 12px;
+  height: 7px;
+  border-left: 3px solid #fff;
+  border-bottom: 3px solid #fff;
+  transform: rotate(-45deg) scale(0);
+  margin-top: -3px;
+  transition: transform 260ms var(--lq-spring);
+}
+.app.lq input[type="checkbox"]:checked {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0) 55%) padding-box,
+    var(--grad) padding-box !important;
+  box-shadow: 0 6px 14px -6px rgba(196, 73, 47, 0.7) !important;
+}
+.app.lq input[type="checkbox"]:checked::after {
+  transform: rotate(-45deg) scale(1);
+}
+.app.lq .workflow-check {
+  display: flex !important;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 10px 14px;
+  border-radius: 18px;
+  background: var(--lq-fill-soft);
+  border: 1px solid var(--lq-hairline);
+}
+/* iOS switch */
+.app.lq button[role="switch"] {
+  background:
+    radial-gradient(120% 120% at var(--lx) var(--ly), var(--lq-sheen-color) 0%, transparent 50%) padding-box,
+    linear-gradient(var(--lq-fill), var(--lq-fill)) padding-box !important;
+  border: 1px solid var(--lq-rim-b) !important;
+  border-color: var(--lq-rim-t) var(--lq-rim-r) var(--lq-rim-b) var(--lq-rim-l) !important;
+  border-radius: 22px !important;
+  padding: 10px 16px !important;
+  box-shadow: var(--lq-inner) !important;
+}
+.app.lq .switch-track {
+  width: 56px !important;
+  height: 32px !important;
+  border-radius: 999px !important;
+  background: var(--lq-track) !important;
+  border: 0 !important;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.18) !important;
+  position: relative;
+  transition: background 260ms ease !important;
+  flex: 0 0 auto;
+}
+.app.lq button[role="switch"][aria-checked="true"] .switch-track {
+  background: linear-gradient(135deg, #34c773, #1f9e57) !important;
+}
+.app.lq .switch-track > span {
+  position: absolute !important;
+  top: 2px !important;
+  left: 2px !important;
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 999px !important;
+  background: linear-gradient(180deg, #ffffff, #f1ece8) !important;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25), inset 0 1px 0 #fff !important;
+  transform: translateX(0) !important;
+  transition: transform 420ms var(--lq-spring), width 200ms ease !important;
+}
+.app.lq button[role="switch"][aria-checked="true"] .switch-track > span {
+  transform: translateX(24px) !important;
+}
+.app.lq button[role="switch"]:active .switch-track > span {
+  width: 34px !important;
+}
+.app.lq button[role="switch"][aria-checked="true"]:active .switch-track > span {
+  transform: translateX(18px) !important;
+}
+/* Slider: glass track with a lens knob. */
+.app.lq input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 34px;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+}
+.app.lq input[type="range"]::-webkit-slider-runnable-track {
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--lq-brand-2), var(--lq-brand)) 0 / var(--lq-range, 20%) 100% no-repeat, var(--lq-track);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+.app.lq input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 30px;
+  height: 30px;
+  margin-top: -11px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  background: radial-gradient(60% 60% at 35% 30%, #ffffff 0%, rgba(255, 255, 255, 0.85) 40%, rgba(245, 235, 228, 0.9) 100%);
+  box-shadow: 0 4px 12px rgba(80, 30, 10, 0.3), inset 0 -2px 4px rgba(0, 0, 0, 0.06);
+  transition: transform 300ms var(--lq-spring);
+}
+.app.lq input[type="range"]:active::-webkit-slider-thumb {
+  transform: scale(1.25);
+}
+.app.lq input[type="range"]::-moz-range-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--lq-track);
+}
+.app.lq input[type="range"]::-moz-range-progress {
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--lq-brand-2), var(--lq-brand));
+}
+.app.lq input[type="range"]::-moz-range-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(80, 30, 10, 0.3);
+}
+
+/* ---------- 11. Directory ------------------------------------------------ */
+.app.lq .directory-heading h1 {
+  font-size: var(--f-xl) !important;
+}
+.app.lq .directory-summary,
+.app.lq .collection-heading h2 {
+  color: var(--ink2) !important;
+}
+.app.lq .mvpmi-tile {
+  border-radius: 24px !important;
+  transition: transform var(--lq-press) var(--lq-spring), box-shadow 240ms ease !important;
+  overflow: hidden;
+}
+.app.lq .mvpmi-tile .tile-stripe {
+  background: linear-gradient(90deg, var(--lq-brand-2), var(--lq-brand)) !important;
+  opacity: 0.9;
+  height: 4px !important;
+  border-radius: 0 0 6px 6px;
+}
+.app.lq .mvpmi-tile .tile-count {
+  background: var(--grad) !important;
+  color: #fff !important;
+  border-radius: 999px !important;
+  box-shadow: 0 4px 10px -3px rgba(196, 73, 47, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.45) !important;
+}
+.app.lq .mvpmi-tile .tile-sun {
+  filter: drop-shadow(0 3px 8px rgba(233, 151, 59, 0.55));
+}
+.app.lq .member-card {
+  padding: 16px !important;
+}
+.app.lq .member-name {
+  font-weight: 800 !important;
+  letter-spacing: -0.01em;
+}
+.app.lq .member-card div[style*="border-radius:50%"],
+.app.lq .member-card div[style*="border-radius: 50%"] {
+  background: var(--grad) !important;
+  color: #fff !important;
+  box-shadow: 0 6px 14px -6px rgba(196, 73, 47, 0.7), inset 0 1px 1px rgba(255, 255, 255, 0.5) !important;
+}
+.app.lq .contact-number-row {
+  border-radius: 20px !important;
+  background: var(--lq-fill-soft) !important;
+  border: 1px solid var(--lq-hairline) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
+}
+/* Call = primary capsule, WhatsApp = green-tinted glass capsule. */
+.app.lq .contact-action {
+  min-height: 48px !important;
+  border-radius: 999px !important;
+  padding: 0 18px !important;
+  font-weight: 800 !important;
+  gap: 8px;
+}
+.app.lq .contact-call {
+  color: #fff !important;
+  border: 1px solid var(--lq-rim-b) !important;
+  border-color: var(--lq-rim-t) var(--lq-rim-r) var(--lq-rim-b) var(--lq-rim-l) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0.05) 30%, rgba(255, 255, 255, 0) 36%) padding-box,
+    var(--grad) padding-box !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.55), 0 10px 22px -10px rgba(196, 73, 47, 0.7) !important;
+}
+.app.lq .contact-call i {
+  color: #fff !important;
+}
+.app.lq .contact-whatsapp {
+  color: #0e6b3a !important;
+  border: 1px solid var(--lq-rim-b) !important;
+  border-color: var(--lq-rim-t) var(--lq-rim-r) var(--lq-rim-b) var(--lq-rim-l) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0) 55%) padding-box !important;
+  box-shadow: var(--lq-inner), 0 8px 18px -10px rgba(20, 120, 60, 0.55) !important;
+}
+.app.lq[data-theme="dark"] .contact-whatsapp {
+  color: #7ff0a8 !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0) 55%) padding-box !important;
+}
+.app.lq .contact-whatsapp i {
+  color: inherit !important;
+}
+
+/* ---------- 12. Sheets & dialogs ---------------------------------------- */
+.app.lq .preferences-scrim {
+  background: var(--lq-scrim) !important;
+  -webkit-backdrop-filter: blur(6px) saturate(120%);
+  backdrop-filter: blur(6px) saturate(120%);
+  animation: lq-fade 220ms ease both;
+}
+.app.lq .preferences-panel,
+.app.lq [role="dialog"][data-glass="4"] {
+  border-radius: 34px 34px 0 0 !important;
+  --lq-fill: var(--lq-fill-strong);
+  -webkit-backdrop-filter: var(--lq-blur-strong) !important;
+  backdrop-filter: var(--lq-blur-strong) !important;
+  box-shadow: var(--lq-inner), var(--lq-drop-lg) !important;
+  animation: lq-rise 460ms var(--lq-spring) both;
+  padding-top: 26px !important;
+}
+.app.lq [role="dialog"][data-glass="4"] {
+  border-radius: 32px !important;
+}
+/* Grabber, like an iOS sheet. */
+.app.lq .preferences-panel::before {
+  content: "";
+  position: absolute;
+  top: 9px;
+  left: 50%;
+  width: 40px;
+  height: 5px;
+  margin-left: -20px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink2) 45%, transparent);
+  display: block !important;
+}
+@keyframes lq-rise {
+  from { transform: translateY(40px) scale(0.98); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes lq-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.app.lq .workflow-heading,
+.app.lq .sheet-heading {
+  align-items: center !important;
+}
+.app.lq .workflow-title,
+.app.lq .sheet-heading h2 {
+  font-weight: 800 !important;
+  letter-spacing: -0.01em;
+}
+.app.lq .workflow-card {
+  padding: 18px !important;
+}
+.app.lq .workflow-card h3 {
+  font-weight: 800;
+}
+.app.lq .workflow-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px !important;
+}
+.app.lq .workflow-actions > button {
+  flex: 1 1 140px;
+}
+.app.lq .workflow-status,
+.app.lq .workflow-forwarded {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px !important;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--lq-brand) 12%, transparent);
+  color: var(--ind) !important;
+  font-weight: 700;
+}
+.app.lq .workflow-forwarded {
+  background: var(--okBg);
+  color: var(--ok) !important;
+}
+.app.lq .rejected-before {
+  border-radius: 16px !important;
+  background: var(--danBg) !important;
+  color: var(--dan) !important;
+  padding: 10px 14px !important;
+}
+.app.lq .workflow-panel details {
+  border-radius: 18px;
+  background: var(--lq-fill-soft);
+  border: 1px solid var(--lq-hairline);
+  padding: 4px 14px;
+}
+.app.lq .workflow-panel summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-weight: 700;
+  cursor: pointer;
+}
+.app.lq .contact-sheet-icon {
+  background: var(--grad) !important;
+  color: #fff !important;
+  border-radius: 20px !important;
+  box-shadow: 0 10px 22px -10px rgba(196, 73, 47, 0.7), inset 0 1px 1px rgba(255, 255, 255, 0.5);
+}
+.app.lq .pin-code {
+  background: var(--lq-fill-soft);
+  border-radius: 20px;
+  padding: 12px 0;
+  border: 1px dashed color-mix(in srgb, var(--lq-brand) 45%, transparent);
+}
+
+/* ---------- 13. Admin directory rows ------------------------------------ */
+.app.lq .admin-row {
+  padding: 12px 14px !important;
+}
+.app.lq .admin-avatar {
+  background: var(--grad) !important;
+  color: #fff !important;
+  box-shadow: 0 6px 14px -6px rgba(196, 73, 47, 0.7), inset 0 1px 1px rgba(255, 255, 255, 0.5) !important;
+}
+.app.lq .admin-row-empty .admin-avatar {
+  background: var(--lq-fill-soft) !important;
+  color: var(--ink2) !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.3) !important;
+}
+.app.lq .admin-row.main-admin {
+  --lq-fill: color-mix(in srgb, var(--lq-brand) 12%, var(--lq-fill-strong));
+}
+
+/* ---------- 14. Keypads (gate & app lock): iOS passcode keys ------------ */
+.app.lq .access-keypad {
+  gap: 16px 22px !important;
+  grid-template-columns: repeat(3, 76px) !important;
+}
+.app.lq .access-keypad button {
+  width: 76px !important;
+  height: 76px !important;
+  min-height: 76px !important;
+  border-radius: 50% !important;
+  font-size: 30px !important;
+  font-weight: 500 !important;
+  color: var(--ink) !important;
+  transition: transform 120ms var(--lq-spring), filter 160ms ease !important;
+}
+.app.lq .access-keypad button:disabled {
+  opacity: 0 !important;
+}
+.app.lq .access-keypad button:not(:disabled):active {
+  filter: brightness(1.25);
+  transform: scale(0.9) !important;
+}
+.app.lq div[style*="border-radius:50%"][style*="width:16px"],
+.app.lq div[style*="width: 16px"][style*="border-radius: 50%"] {
+  width: 14px !important;
+  height: 14px !important;
+  border: 1.5px solid color-mix(in srgb, var(--ink) 40%, transparent) !important;
+  transition: background 200ms ease, transform 300ms var(--lq-spring);
+}
+.app.lq div[style*="width: 16px"][style*="var(--ind)"] {
+  background: var(--grad) !important;
+  border-color: transparent !important;
+  transform: scale(1.15);
+  box-shadow: 0 3px 8px rgba(196, 73, 47, 0.55);
+}
+/* Lock & gate screens always paint the aurora (never a flat panel). */
+.app.lq div[style*="z-index: 60"],
+.app.lq div[style*="z-index:60"] {
+  background: var(--page) !important;
+}
+
+/* ---------- 15. Toasts, banners, badges --------------------------------- */
+.app.lq .connection-banner {
+  border-radius: 999px !important;
+}
+.app.lq .busy-state {
+  background: color-mix(in srgb, var(--lq-base) 35%, transparent) !important;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.app.lq .application-feedback {
+  border-radius: 20px !important;
+  padding: 12px 16px !important;
+  color: var(--ind) !important;
+  font-weight: 700;
+}
+.app.lq .workflow-launch {
+  border-radius: 999px !important;
+  min-height: 52px;
+  margin: 6px 12px 4px !important;
+  color: var(--ind) !important;
+  font-weight: 800 !important;
+}
+
+/* ---------- 16. Opaque & reduced-motion safety -------------------------- */
+.app.lq[data-material="opaque"] *,
+.app.lq[data-material="opaque"] *::after {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .app.lq *,
+  .app.lq *::before,
+  .app.lq *::after {
+    animation: none !important;
+    transition-duration: 1ms !important;
+  }
+}
+.app.lq[data-motion="off"] *,
+.app.lq[data-motion="off"] *::after {
+  animation: none !important;
+}
+/* Windows/Android high-contrast (forced colours): the system palette wins;
+   remove every decorative layer so nothing competes with it. */
+@media (forced-colors: active) {
+  .app.lq[data-theme][data-material] {
+    --ink: CanvasText;
+    --ink2: CanvasText;
+    --ink2sec: CanvasText;
+    --ind: LinkText;
+    --dan: CanvasText;
+    --ok: CanvasText;
+    --page: Canvas;
+    --lq-base: Canvas;
+    --lq-fill: Canvas;
+    --lq-fill-strong: Canvas;
+    --lq-fill-soft: Canvas;
+    --lq-well: Field;
+    --lq-well-focus: Field;
+    --lq-thumb: Canvas;
+    --lq-brand-solid: ButtonFace;
+    --lq-wa-solid: Canvas;
+    --grad: ButtonFace;
+    --lq-on-brand: ButtonText;
+  }
+  .app.lq input,
+  .app.lq select,
+  .app.lq textarea {
+    color: FieldText !important;
+  }
+  .app.lq *,
+  .app.lq *::before,
+  .app.lq *::after {
+    background-image: none !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    -webkit-text-fill-color: currentColor !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  .app.lq .lq-tabs::after,
+  .app.lq .directory-segments::after,
+  .app.lq .workflow-tabs::after,
+  .app.lq .preferences-panel::before {
+    display: none !important;
+  }
+  .app.lq button[aria-pressed="true"] {
+    outline: 2px solid Highlight !important;
+  }
+  .app.lq button:disabled {
+    opacity: 1 !important;
+    filter: none !important;
+  }
+}
+
+/* ---------- 17. Wells: inset rims (darker top edge = pressed-in glass) --- */
+.app.lq {
+  --lq-well-rim: rgba(84, 46, 30, 0.24) rgba(84, 46, 30, 0.12) rgba(255, 255, 255, 0.95) rgba(84, 46, 30, 0.12);
+}
+.app.lq[data-theme="dark"] {
+  --lq-well-rim: rgba(0, 0, 0, 0.6) rgba(0, 0, 0, 0.35) rgba(255, 240, 225, 0.2) rgba(0, 0, 0, 0.35);
+}
+.app.lq[data-material="opaque"] {
+  --lq-well-rim: #d9c7ba #d9c7ba #d9c7ba #d9c7ba;
+}
+.app.lq[data-material="opaque"][data-theme="dark"] {
+  --lq-well-rim: #4a3830 #4a3830 #4a3830 #4a3830;
+}
+.app.lq input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.app.lq select,
+.app.lq textarea,
+.app.lq div[style*="var(--field)"],
+.app.lq .workflow-secret,
+.app.lq input[type="checkbox"] {
+  border: 1px solid !important;
+  border-color: var(--lq-well-rim) !important;
+}
+.app.lq input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+.app.lq select:focus,
+.app.lq textarea:focus,
+.app.lq div[style*="var(--field)"]:focus-within,
+.app.lq .workflow-secret:focus-within,
+.app.lq .directory-search:focus-within {
+  border-color: var(--lq-brand) !important;
+}
+.app.lq input[type="checkbox"]:checked {
+  border-color: var(--lq-brand-deep) !important;
+}
+.app.lq .directory-search input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.app.lq .workflow-secret input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.app.lq div[style*="var(--field)"] > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
+  border: 0 !important;
+}
+
+/* ---------- 18. Icon glyph integrity ------------------------------------ */
+/* Phosphor duotone icons overlap two glyph layers inline (margin -1em);
+   they must never become flex/grid containers. */
+.app.lq i[class*="ph-duotone"] {
+  display: inline-block !important;
+  flex-direction: row !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+}
+/* Admin sign-in emblem card keeps light text on its dark bronze panel. */
+.app.lq .admin-signin-heading h1,
+.app.lq .admin-signin-heading p {
+  color: #fff7ef !important;
+  -webkit-text-fill-color: #fff7ef;
+}
+.app.lq .mvpmi-tile .tile-hint,
+.app.lq .mvpmi-tile .tile-label {
+  overflow: visible !important;
+  padding-left: 1px;
+}
+/* Directory tabs may wrap at very large text sizes instead of overflowing. */
+.app.lq .directory-segments > button {
+  white-space: normal !important;
+  text-align: center;
+  line-height: 1.2 !important;
+}
+
+/* ---------- 19. Opaque mode = maximum legibility ------------------------ */
+/* Low-end phones, "Visual effects" off, reduced transparency: every surface
+   is a single solid colour (no gradients, no blur), same shapes and layout.
+   This is also the state the automated WCAG contrast checks measure. */
+.app.lq[data-material="opaque"] {
+  --page: #f7eee5;
+  --lq-brand-solid: #a93b25;
+  --lq-wa-solid: #e3f4e8;
+}
+.app.lq[data-material="opaque"][data-theme="dark"] {
+  --page: #151010;
+  --lq-brand-solid: #a93b25;
+  --lq-wa-solid: #1d2a20;
+}
+.app.lq[data-material="opaque"] .screen-frame::before {
+  display: none !important;
+}
+.app.lq[data-material="opaque"] .lq-glass,
+.app.lq[data-material="opaque"] [data-glass="1"],
+.app.lq[data-material="opaque"] [data-glass="2"],
+.app.lq[data-material="opaque"] [data-glass="4"],
+.app.lq[data-material="opaque"] .main-header,
+.app.lq[data-material="opaque"] .directory-search,
+.app.lq[data-material="opaque"] .directory-segments,
+.app.lq[data-material="opaque"] .workflow-tabs,
+.app.lq[data-material="opaque"] .mvpmi-tile,
+.app.lq[data-material="opaque"] .member-card,
+.app.lq[data-material="opaque"] .workflow-card,
+.app.lq[data-material="opaque"] .preferences-panel,
+.app.lq[data-material="opaque"] .workflow-launch,
+.app.lq[data-material="opaque"] .admin-row,
+.app.lq[data-material="opaque"] .application-feedback,
+.app.lq[data-material="opaque"] .reading-control,
+.app.lq[data-material="opaque"] .access-keypad button,
+.app.lq[data-material="opaque"] .main-header .preferences-trigger,
+.app.lq[data-material="opaque"] .main-header .language-trigger,
+.app.lq[data-material="opaque"] .main-header .theme-trigger,
+.app.lq[data-material="opaque"] .profile-trigger,
+.app.lq[data-material="opaque"] .dashboard-trigger,
+.app.lq[data-material="opaque"] .sheet-close,
+.app.lq[data-material="opaque"] .workflow-chip,
+.app.lq[data-material="opaque"] .reorder-trigger,
+.app.lq[data-material="opaque"] .admin-icon-action,
+.app.lq[data-material="opaque"] .workflow-eye,
+.app.lq[data-material="opaque"] .context-header > button,
+.app.lq[data-material="opaque"] .context-header sc-if > button,
+.app.lq[data-material="opaque"] button[data-glass="2"],
+.app.lq[data-material="opaque"] a[role="button"][data-glass="2"],
+.app.lq[data-material="opaque"] .workflow-panel button,
+.app.lq[data-material="opaque"] .applock-settings button,
+.app.lq[data-material="opaque"] .returning-member,
+.app.lq[data-material="opaque"] .settings-help,
+.app.lq[data-material="opaque"] .reorder-controls button,
+.app.lq[data-material="opaque"] button[role="switch"],
+.app.lq[data-material="opaque"] .lq-btn {
+  background: var(--lq-fill) !important;
+}
+.app.lq[data-material="opaque"] .preferences-panel,
+.app.lq[data-material="opaque"] [data-glass="4"] {
+  background: var(--lq-fill-strong) !important;
+}
+.app.lq[data-material="opaque"] button[data-glass="3"],
+.app.lq[data-material="opaque"] a[role="button"][data-glass="3"],
+.app.lq[data-material="opaque"] button[style*="var(--grad)"],
+.app.lq[data-material="opaque"] .lq-primary,
+.app.lq[data-material="opaque"] .workflow-panel .lq-primary,
+.app.lq[data-material="opaque"] .applock-settings .lq-primary,
+.app.lq[data-material="opaque"] .close-preferences,
+.app.lq[data-material="opaque"] .contact-call,
+.app.lq[data-material="opaque"] input[type="checkbox"]:checked,
+.app.lq[data-material="opaque"] .dash-badge,
+.app.lq[data-material="opaque"] .mvpmi-tile .tile-count,
+.app.lq[data-material="opaque"] .directory-segments .segment-count,
+.app.lq[data-material="opaque"] .member-card div[style*="border-radius:50%"],
+.app.lq[data-material="opaque"] .member-card div[style*="border-radius: 50%"],
+.app.lq[data-material="opaque"] .admin-avatar,
+.app.lq[data-material="opaque"] .contact-sheet-icon {
+  background: var(--lq-brand-solid) !important;
+}
+.app.lq[data-material="opaque"] .lq-danger,
+.app.lq[data-material="opaque"] .applock-danger,
+.app.lq[data-material="opaque"] .workflow-panel .lq-danger {
+  background: var(--lq-fill) !important;
+}
+.app.lq[data-material="opaque"] .contact-whatsapp {
+  background: var(--lq-wa-solid) !important;
+}
+.app.lq[data-material="opaque"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.app.lq[data-material="opaque"] select,
+.app.lq[data-material="opaque"] textarea,
+.app.lq[data-material="opaque"] div[style*="var(--field)"],
+.app.lq[data-material="opaque"] .workflow-secret,
+.app.lq[data-material="opaque"] input[type="checkbox"]:not(:checked) {
+  background-color: var(--lq-well) !important;
+  background-image: none !important;
+}
+/* Opaque: native dropdown arrow (no background image over the text). */
+.app.lq[data-material="opaque"] select {
+  appearance: auto !important;
+  -webkit-appearance: menulist !important;
+  background-image: none !important;
+  padding-right: 14px !important;
+}
+.app.lq[data-material="opaque"] .directory-search input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.app.lq[data-material="opaque"] .workflow-secret input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.app.lq[data-material="opaque"] div[style*="var(--field)"] > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
+  background: transparent !important;
+}
+.app.lq[data-material="opaque"] .lq-tabs::after,
+.app.lq[data-material="opaque"] .directory-segments::after,
+.app.lq[data-material="opaque"] .workflow-tabs::after {
+  background: var(--lq-thumb) !important;
+}
+.app.lq[data-material="opaque"] .entry-intro h1 {
+  background: none !important;
+  color: var(--ink) !important;
+  -webkit-text-fill-color: var(--ink);
+}
+.app.lq[data-material="opaque"] .mvpmi-tile .tile-stripe {
+  background: var(--lq-brand-solid) !important;
+}
+/* Opaque mode draws no decorative pseudo-elements over text (sheet grabber,
+   sliding lens); the selected tab is a solid pill instead. */
+.app.lq[data-material="opaque"] .preferences-panel::before,
+.app.lq[data-material="opaque"] .lq-tabs::after,
+.app.lq[data-material="opaque"] .directory-segments::after,
+.app.lq[data-material="opaque"] .workflow-tabs::after {
+  display: none !important;
+  content: none !important;
+}
+.app.lq[data-material="opaque"] .lq-tabs > button[aria-pressed="true"],
+.app.lq[data-material="opaque"] .directory-segments > button[aria-pressed="true"],
+.app.lq[data-material="opaque"] .workflow-tabs > button[aria-pressed="true"] {
+  background: var(--lq-thumb) !important;
+  box-shadow: 0 0 0 1px var(--lq-rim-t) !important;
+}
+.app.lq[data-material="opaque"] .directory-segments .segment-count,
+.app.lq[data-material="opaque"] .dash-badge,
+.app.lq[data-material="opaque"] .mvpmi-tile .tile-count {
+  box-shadow: none !important;
+  color: #ffffff !important;
+}
+/* Opaque: the brand fill is one solid colour everywhere it is used inline. */
+.app.lq[data-material="opaque"] {
+  --grad: #a93b25;
+}
+/* Avatars, icon badges and other brand-filled shapes share one treatment. */
+.app.lq div[style*="var(--grad)"] {
+  box-shadow: 0 8px 18px -8px rgba(169, 59, 37, 0.7), inset 0 1px 1px rgba(255, 255, 255, 0.45), inset 0 -2px 5px rgba(90, 20, 10, 0.25) !important;
+}
+.app.lq[data-material="opaque"] div[style*="var(--grad)"] {
+  box-shadow: none !important;
+}

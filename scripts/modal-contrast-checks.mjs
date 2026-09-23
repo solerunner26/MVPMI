@@ -15,7 +15,7 @@ export async function verifyOpaqueModalContrast(page, incomplete, name) {
       assert(
         node.any.length &&
           node.any.every((c) => c.data?.messageKey === "elmPartiallyObscuring"),
-        `${name}: unhandled contrast uncertainty`,
+        `${name}: unhandled contrast uncertainty ${node.target} ${JSON.stringify(node.any.map((c) => c.data))}`,
       );
       assert.equal(
         node.target.length,

@@ -1,4 +1,4 @@
-import { verifyOpaqueModalContrast } from "./modal-contrast-checks.mjs";
+import { verifyGlassContrast } from "./glass-contrast-checks.mjs";
 import { toggleTheme } from "./preferences-checks.mjs";
 import assert from "node:assert/strict";
 import AxeBuilder from "@axe-core/playwright";
@@ -49,7 +49,9 @@ try {
         "test-results/material-incomplete.json",
         JSON.stringify({ name, incomplete: result.incomplete }, null, 2),
       );
-    const verifiedContrast = await verifyOpaqueModalContrast(
+    // Opaque mode must be fully determinate for axe; glass modes are
+    // additionally measured on the rendered pixels (see glass-contrast-checks).
+    const verifiedContrast = await verifyGlassContrast(
       page,
       result.incomplete,
       name,
@@ -63,7 +65,13 @@ try {
     assert.deepEqual(
       result.violations.map((x) => x.id),
       [],
-      name,
+      name +
+        " " +
+        JSON.stringify(
+          result.violations.map((v) =>
+            v.nodes.map((n) => [n.target, n.any[0]?.data]),
+          ),
+        ).slice(0, 800),
     );
     await page.screenshot({
       path: "test-results/modern-design/" + name + ".png",

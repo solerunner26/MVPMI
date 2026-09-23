@@ -130,6 +130,8 @@ class Component extends DesignComponent {
       }
     };
     document.addEventListener("keydown", this._onKey);
+    // Liquid Glass presentation layer (tab lens, finger-following sheen).
+    this._lqCleanup = liquidInstall(document.querySelector(".app"));
     window.mvpmiBack = () => this.handleBack();
     // The PIN now lives on the server; remove any old on-device PIN record.
     clearAppLock();
@@ -185,6 +187,7 @@ class Component extends DesignComponent {
     for (const type of ["pointerdown", "keydown", "touchstart", "wheel"])
       document.removeEventListener(type, this._activity, { capture: true });
     delete window.mvpmiBack;
+    this._lqCleanup?.();
     this._alive = false;
     clearInterval(this._poll);
     clearInterval(this._idle);
@@ -260,6 +263,10 @@ class Component extends DesignComponent {
     }
     if (this.state.villageLoginOpen) {
       this.set("villageLoginOpen", false);
+      return true;
+    }
+    if (this.state.allAdminsOpen) {
+      this.set("allAdminsOpen", false);
       return true;
     }
     if (this._busy) return true;

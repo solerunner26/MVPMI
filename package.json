@@ -17,7 +17,8 @@
   "test:language": "npm run build && node scripts/language-test.mjs",
   "test:materials": "npm run build && node scripts/material-test.mjs",
   "test:village": "npm run build && node scripts/village-workflow-test.mjs",
-  "test:lock": "npm run build && node scripts/app-lock-test.mjs"
+  "test:lock": "npm run build && node scripts/app-lock-test.mjs",
+  "test:glass": "npm run build && GLASS_A11Y=1 node scripts/ui-gallery.mjs test-results/glass 390"
  },
  "dependencies": {
   "@fontsource/manrope": "^5.2.6",

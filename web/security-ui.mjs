@@ -86,7 +86,7 @@ export function PinResetPanel({ lang, frozen, onReset, onSignOut, onClose }) {
         { className: "workflow-actions" },
         h(
           "button",
-          { type: "button", disabled: busy || code.length !== 6, onClick: submit },
+          { type: "button", className: "lq-primary", disabled: busy || code.length !== 6, onClick: submit },
           B("કોડ ચકાસો", "Check code"),
         ),
         h("button", { type: "button", disabled: busy, onClick: onClose }, B("પાછા જાઓ", "Back")),
@@ -174,7 +174,7 @@ export function PinSettings({ lang, api }) {
       { className: "workflow-actions" },
       h(
         "button",
-        { type: "button", disabled: busy || !current || !next || !again, onClick: change },
+        { type: "button", className: "lq-primary", disabled: busy || !current || !next || !again, onClick: change },
         B("પિન બદલો", "Change PIN"),
       ),
     ),
@@ -274,7 +274,7 @@ export function NotificationSettings({ lang, api }) {
         { className: "workflow-actions" },
         h(
           "button",
-          { type: "button", disabled: busy, onClick: turnOn },
+          { type: "button", className: "lq-primary", disabled: busy, onClick: turnOn },
           state === "granted"
             ? B("સૂચનાઓ ફરી જોડો", "Reconnect notifications")
             : B("સૂચનાઓ ચાલુ કરો", "Turn on notifications"),

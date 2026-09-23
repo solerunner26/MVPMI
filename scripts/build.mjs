@@ -229,6 +229,7 @@ logic +=
 logic += "\n" + read("web/save-file.mjs", "utf8").replaceAll("export ", "");
 logic += "\n" + read("web/app-lock.mjs", "utf8").replaceAll("export ", "");
 logic += "\n" + read("web/security-ui.mjs", "utf8").replaceAll("export ", "");
+logic += "\n" + read("web/liquid-ios.mjs", "utf8").replaceAll("export ", "");
 for (const file of ["bilingual.mjs", "material-capability.mjs"])
   logic += "\n" + read("web/" + file, "utf8").replaceAll("export ", "");
 logic +=
@@ -239,7 +240,8 @@ const extra = `<style>html,body{height:100%}body{background:#17100E}.app{margin:
 write(
   "dist/index.html",
   `<!doctype html><html lang="gu"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#B2402C"><link rel="icon" type="image/png" sizes="32x32" href="/brand/favicon-32.png"><link rel="apple-touch-icon" sizes="180x180" href="/brand/apple-touch-icon.png"><link rel="manifest" href="/manifest.webmanifest"><title>મહુવા ક્ષત્રિય રાજપૂત સમાજ · Community Directory</title><script src="/vendor/react.js"></script><script src="/vendor/react-dom.js"></script><script src="/support.js"></script></head><body><x-dc><helmet><link rel="stylesheet" href="/vendor/icons/style.css">${["manrope", "noto-sans-gujarati"].flatMap((f) => [400, 500, 600, 700, 800].map((w) => `<link rel="stylesheet" href="/vendor/${f}/${w}.css">`)).join("")}${helmet}${extra}<style>${read("web/text-size.css", "utf8")}\n${read("web/usability.css", "utf8")}\n${read("web/liquid-glass.css", "utf8")}\n${read("web/modern-design.css", "utf8")}
-${read("web/village-workflow.css", "utf8")}</style></helmet>${template}</x-dc><script type="text/x-dc" data-dc-script>${logic}</script></body></html>`,
+${read("web/village-workflow.css", "utf8")}
+${read("web/liquid-ios.css", "utf8")}</style></helmet>${template}</x-dc><script type="text/x-dc" data-dc-script>${logic}</script></body></html>`,
 );
 cpSync("support.js", "dist/support.js");
 // Installable home-screen app and Web Push service worker.
