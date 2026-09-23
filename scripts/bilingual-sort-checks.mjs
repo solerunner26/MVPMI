@@ -7,6 +7,7 @@ export async function checkBilingualSorting(browser, store, url) {
   await page.goto(url);
   await page.getByTestId("Language").waitFor();
   await page.getByPlaceholder(/અશોકભાઈ|Ashokbhai/).fill("Alpha");
+  await page.getByPlaceholder(/પિતાનું નામ|Father’s name/).fill("Middle");
   await page.getByPlaceholder(/ચૌધરી|Chaudhary/).fill("Test");
   await page.locator('input[inputmode="numeric"]').first().fill("9000000061");
   await page.getByRole("combobox",{name:/Village|ગામ/}).selectOption("થોરાળા");
@@ -20,6 +21,7 @@ export async function checkBilingualSorting(browser, store, url) {
     ...request.payload,
     id: "sort-alpha",
     owner: request.owner,
+    name: "Alpha Test",
     nameGu: "કસોટી અ",
     approvedAt: Date.now(),
   });

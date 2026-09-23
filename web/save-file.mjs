@@ -87,3 +87,31 @@ export function androidNotify(title, text) {
     /* notifications are best-effort */
   }
 }
+
+// Background notifications in the Android app: the page hands the native
+// side a device token; a system job then checks for new notifications
+// (every ~15 minutes, and immediately when the app asks with pullNow()).
+export function androidRegisterDevice(token) {
+  try {
+    const bridge = androidBridge();
+    if (bridge && typeof bridge.registerDevice === "function") {
+      bridge.registerDevice(token);
+      return true;
+    }
+  } catch {
+    /* older app builds have no background notifications */
+  }
+  return false;
+}
+export function androidPullNow() {
+  try {
+    const bridge = androidBridge();
+    if (bridge && typeof bridge.pullNow === "function") bridge.pullNow();
+  } catch {
+    /* best-effort */
+  }
+}
+export function androidSupportsDevice() {
+  const bridge = androidBridge();
+  return !!bridge && typeof bridge.registerDevice === "function";
+}

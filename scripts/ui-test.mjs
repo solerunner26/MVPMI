@@ -69,6 +69,7 @@ try {
   await page.getByRole("button", { name: /Send request|રિક્વેસ્ટ મોકલો/ }).waitFor();
   await checkModernPreferences(page);
   await page.getByPlaceholder(/અશોકભાઈ|Ashokbhai/).fill("Test");
+  await page.getByPlaceholder(/પિતાનું નામ|Father’s name/).fill("Middle");
   await page.getByPlaceholder(/ચૌધરી|Chaudhary/).fill("Community Member");
   await page.locator('input[inputmode="numeric"]').first().fill("9000000001");
   await page
@@ -85,7 +86,7 @@ try {
   await page.reload();
   await page.getByRole("button", { name: /Withdraw|કેન્સલ કરો/ }).waitFor();
   assert(
-    (await page.locator("body").innerText()).includes("Test Community Member"),
+    (await page.locator("body").innerText()).includes("Test Middle Community Member"),
   );
   await page.screenshot({ path: "test-results/pending.png" });
   // Independent admin cookie jar, same browser origin.
@@ -140,7 +141,7 @@ try {
   await checkModernDirectory(page);
   await checkContactActions(browser, context, url);
   await checkTextSizes(context, url);
-  await page.getByPlaceholder("Search name or number").fill("Test Community");
+  await page.getByPlaceholder("Search name or number").fill("Middle Community");
   assert.equal(await page.getByTestId("Call").count(), 1);
   await page.reload();
   await page.getByRole("button", { name: /All Members|બધા સભ્યો/ }).waitFor();
@@ -155,7 +156,7 @@ try {
   );
   assert.equal(
     stateBefore.members.find((m) => m.phone === "9000000001").name,
-    "Test Community Member",
+    "Test Middle Community Member",
   );
   assert.equal(stateBefore.updateRequests.length, 1);
   await panel.reload();
@@ -164,7 +165,7 @@ try {
   await page.reload();
   await page.getByTestId("My profile").click();
   assert(
-    (await page.locator("body").innerText()).includes("Updated Community Member"),
+    (await page.locator("body").innerText()).includes("Updated Middle Community Member"),
   );
   if ((await page.locator(".app").getAttribute("data-lang")) !== "en")
     await page.getByTestId("Language").click();
@@ -188,7 +189,7 @@ try {
   await panel.locator(".stats-village-grid .mvpmi-tile").first().click();
   // Several members exist; edit the enrolled test member specifically.
   await panel
-    .locator("div", { hasText: "Updated Community Member" })
+    .locator("div", { hasText: "Updated Middle Community Member" })
     .filter({ has: panel.getByTestId("Edit") })
     .getByTestId("Edit")
     .first()
@@ -216,71 +217,7 @@ try {
     );
   }
 
-  // Device app lock: enable, lock on reload, wrong/right PIN, change, turn off.
-  await page.getByTestId("Reading settings").click();
-  const lockSettings = page.getByTestId("App lock settings");
-  await lockSettings.getByTestId("New PIN").fill("1357");
-  await lockSettings.getByTestId("Repeat PIN").fill("1357");
-  await lockSettings
-    .getByRole("button", { name: /Turn on app lock|એપ લોક ચાલુ કરો/ })
-    .click();
-  await lockSettings.getByRole("status").waitFor();
-  // The stored secret is a salted PBKDF2 hash, never the PIN itself.
-  const stored = await page.evaluate(() =>
-    localStorage.getItem("mvpmi.appLock"),
-  );
-  assert.match(stored, /"enabled":true/);
-  assert.match(stored, /"salt":"/);
-  assert.ok(!stored.includes("1357"));
-  await page.locator(".close-preferences").click();
-  await page.reload();
-  await page.getByRole("button", { name: "1", exact: true }).first().waitFor();
-  // No directory content is reachable while locked: the lock overlay covers
-  // the whole app and the screen state is the lock itself.
-  assert.equal(
-    await page.locator(".app").getAttribute("data-screen"),
-    "applock",
-  );
-  assert.equal(await page.getByTestId("My profile").count(), 0);
-  assert.equal(
-    (await page.locator("body").innerText()).includes("Test Community"),
-    false,
-    "member data must not render while locked",
-  );
-  // Wrong PIN shows an error; the correct PIN unlocks to the member list.
-  for (const digit of "9999")
-    await page
-      .getByRole("button", { name: digit, exact: true })
-      .first()
-      .click();
-  await page.getByRole("alert").waitFor();
-  for (const digit of "1357")
-    await page
-      .getByRole("button", { name: digit, exact: true })
-      .first()
-      .click();
-  await page.getByTestId("My profile").waitFor();
-  // Change the PIN, then turn the lock off with the new PIN.
-  await page.getByTestId("Reading settings").click();
-  await lockSettings.getByTestId("Current PIN").fill("1357");
-  await lockSettings.getByTestId("New PIN").fill("2468");
-  await lockSettings.getByTestId("Repeat PIN").fill("2468");
-  await lockSettings
-    .getByRole("button", { name: /Change PIN|પિન બદલો/ })
-    .click();
-  await lockSettings.getByRole("status").waitFor();
-  await lockSettings.getByTestId("Current PIN").fill("2468");
-  await lockSettings
-    .getByRole("button", { name: /Turn off app lock|એપ લોક બંધ કરો/ })
-    .click();
-  await page.locator(".close-preferences").click();
-  await page.reload();
-  await page.getByTestId("My profile").waitFor();
-  assert.equal(
-    await page.evaluate(() => localStorage.getItem("mvpmi.appLock")),
-    null,
-    "lock fully removed",
-  );
+  // The server-enforced app lock has its own browser suite: scripts/app-lock-test.mjs.
 
   // Recovery-code password reset from the login page — the SMS/OTP-free
   // flow. Generate a fresh code in the Security tab, then use it while

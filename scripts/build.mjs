@@ -2,6 +2,7 @@ import { villageWorkflow } from "./village-workflow.mjs";
 import { modernDesign } from "./modern-design.mjs";
 import { liquidGlass } from "./liquid-glass.mjs";
 import { refineDesign } from "./refine-design.mjs";
+import { auditTemplate, auditTemplateLate, auditLogic } from "./audit-design.mjs";
 import {
   readFileSync as read,
   writeFileSync as write,
@@ -35,6 +36,7 @@ template =
   template
     .replace(/<x-import[^>]*>/, '<div class="screen-frame">')
     .replace("</x-import>", "</div>") + "</div>";
+template = auditTemplate(template);
 // Remove the editor's screen-jump sidebar, credentials and device mock chrome, not the app design.
 template = template
   .replace("Try admin / Samaj@2026", "Please check your credentials.")
@@ -174,7 +176,9 @@ template =
   template.slice(0, insertAt) +
   `<sc-if value="{{ connectionError }}"><button onClick="{{ retry }}" role="alert" style="z-index:40;position:absolute;top:8px;left:8px;right:8px;padding:12px;border-radius:16px;background:var(--sheet);color:var(--dan);border:1px solid var(--dan);font:inherit">કનેક્શન તપાસો · Connection lost — tap to retry</button></sc-if><sc-if value="{{ busy }}"><div role="status" style="position:absolute;inset:0;z-index:50;background:var(--scrim);display:flex;align-items:center;justify-content:center;color:white">રાહ જુઓ · Please wait…</div></sc-if>` +
   template.slice(insertAt);
-template = villageWorkflow(modernDesign(liquidGlass(refineDesign(template))));
+template = auditTemplateLate(
+  villageWorkflow(modernDesign(liquidGlass(refineDesign(template)))),
+);
 let logic = source.match(
   /<script type="text\/x-dc"[^>]*>([\s\S]*?)<\/script>/,
 )[1];
@@ -211,6 +215,7 @@ logic = logic.replace(
   '\'<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Gujarati:wght@400;700&display=swap">\'',
   '\'<link rel="stylesheet" href="/vendor/noto-sans-gujarati/400.css">\'',
 );
+logic = auditLogic(logic);
 logic +=
   "\n" +
   read("web/contact-actions.mjs", "utf8").replace(
@@ -223,6 +228,7 @@ logic +=
   "\n" + read("web/print-document.mjs", "utf8").replaceAll("export ", "");
 logic += "\n" + read("web/save-file.mjs", "utf8").replaceAll("export ", "");
 logic += "\n" + read("web/app-lock.mjs", "utf8").replaceAll("export ", "");
+logic += "\n" + read("web/security-ui.mjs", "utf8").replaceAll("export ", "");
 for (const file of ["bilingual.mjs", "material-capability.mjs"])
   logic += "\n" + read("web/" + file, "utf8").replaceAll("export ", "");
 logic +=
@@ -232,10 +238,13 @@ new Function(logic); // Syntax-check generated browser logic without executing i
 const extra = `<style>html,body{height:100%}body{background:#17100E}.app{margin:0 auto;width:100%;max-width:412px}.screen-frame{height:100vh;height:100dvh;min-height:480px;overflow:hidden;position:relative;background:var(--page)}@media(min-width:600px){.app{padding:24px 0}.screen-frame{height:892px;max-height:calc(100dvh - 48px);border-radius:18px;box-shadow:0 30px 80px #0004}}a[role="button"]:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(--ind);outline-offset:3px}@media(prefers-reduced-motion:reduce){.app *{animation:none!important;scroll-behavior:auto!important}}.app button{touch-action:manipulation}.noscroll>div,.noscroll>button{flex-shrink:0}</style>`;
 write(
   "dist/index.html",
-  `<!doctype html><html lang="gu"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#B2402C"><link rel="icon" type="image/png" sizes="32x32" href="/brand/favicon-32.png"><link rel="apple-touch-icon" sizes="180x180" href="/brand/apple-touch-icon.png"><title>મહુવા ક્ષત્રિય રાજપૂત સમાજ · Community Directory</title><script src="/vendor/react.js"></script><script src="/vendor/react-dom.js"></script><script src="/support.js"></script></head><body><x-dc><helmet><link rel="stylesheet" href="/vendor/icons/style.css">${["manrope", "noto-sans-gujarati"].flatMap((f) => [400, 500, 600, 700, 800].map((w) => `<link rel="stylesheet" href="/vendor/${f}/${w}.css">`)).join("")}${helmet}${extra}<style>${read("web/text-size.css", "utf8")}\n${read("web/usability.css", "utf8")}\n${read("web/liquid-glass.css", "utf8")}\n${read("web/modern-design.css", "utf8")}
+  `<!doctype html><html lang="gu"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#B2402C"><link rel="icon" type="image/png" sizes="32x32" href="/brand/favicon-32.png"><link rel="apple-touch-icon" sizes="180x180" href="/brand/apple-touch-icon.png"><link rel="manifest" href="/manifest.webmanifest"><title>મહુવા ક્ષત્રિય રાજપૂત સમાજ · Community Directory</title><script src="/vendor/react.js"></script><script src="/vendor/react-dom.js"></script><script src="/support.js"></script></head><body><x-dc><helmet><link rel="stylesheet" href="/vendor/icons/style.css">${["manrope", "noto-sans-gujarati"].flatMap((f) => [400, 500, 600, 700, 800].map((w) => `<link rel="stylesheet" href="/vendor/${f}/${w}.css">`)).join("")}${helmet}${extra}<style>${read("web/text-size.css", "utf8")}\n${read("web/usability.css", "utf8")}\n${read("web/liquid-glass.css", "utf8")}\n${read("web/modern-design.css", "utf8")}
 ${read("web/village-workflow.css", "utf8")}</style></helmet>${template}</x-dc><script type="text/x-dc" data-dc-script>${logic}</script></body></html>`,
 );
 cpSync("support.js", "dist/support.js");
+// Installable home-screen app and Web Push service worker.
+cpSync("web/sw.js", "dist/sw.js");
+cpSync("web/manifest.webmanifest", "dist/manifest.webmanifest");
 cpSync("web/brand", "dist/brand", { recursive: true });
 for (const file of ["SunMark.dc.html", "SunWait.dc.html"])
   cpSync(file, "dist/" + file);

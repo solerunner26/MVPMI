@@ -94,6 +94,7 @@ try {
   await toggleTheme(page);
   await scan("signup-en-light");
   await page.getByPlaceholder(/અશોકભાઈ|Ashokbhai/).fill("Synthetic");
+  await page.getByPlaceholder(/પિતાનું નામ|Father’s name/).fill("Middle");
   await page.getByPlaceholder(/ચૌધરી|Chaudhary/).fill("Member");
   await page.locator('input[inputmode="numeric"]').first().fill("9000000001");
   await page

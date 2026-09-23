@@ -423,3 +423,57 @@
   color: var(--ok);
   margin: 6px 0 0;
 }
+
+/* ---- Audit fixes (September 2026) ---- */
+/* Form captions were 12px at 100% text size: too small for elderly readers. */
+.app label > .bi,
+.app label > div > .bi,
+.app .field-place-hint {
+  font-size: max(var(--f-sm), 14px) !important;
+}
+/* "Visual effects" switch: padding so the focus ring does not touch text. */
+.app .effects-control button {
+  padding: 12px 14px !important;
+  border-radius: 16px;
+}
+.app .effects-control button:focus-visible {
+  outline-offset: 2px;
+}
+.app .workflow-main-admin {
+  margin-top: 18px;
+  width: 100%;
+  min-height: 48px;
+  border-radius: 16px;
+  border: 1px dashed var(--gbd);
+  background: transparent;
+  color: var(--ink2);
+  font: inherit;
+  font-weight: 700;
+}
+.app .pin-code {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: var(--ind);
+  text-align: center;
+  margin: 8px 0;
+}
+.app .pin-steps {
+  padding-left: 22px;
+  line-height: 1.7;
+}
+.app .pin-signout {
+  margin-top: 18px;
+  border-top: 1px solid var(--gbd);
+  padding-top: 12px;
+}
+.app .pin-signout summary {
+  cursor: pointer;
+  color: var(--ink2);
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+.app .workflow-change p {
+  margin: 4px 0;
+}

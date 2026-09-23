@@ -53,7 +53,8 @@ export const UI_COPY = {
   confirm: ["કાર્યની ખાતરી કરો", "Confirm action"],
   contact: ["સંપર્ક વિકલ્પ", "Contact action"],
   textSize: ["અક્ષરનું માપ", "Text size"],
-  appLock: ["એપ લોક", "App lock"],
+  appLock: ["એપ લોક (પિન)", "App lock (PIN)"],
+  notifications: ["ફોન સૂચનાઓ", "Phone notifications"],
   backDashboard: ["ડેશબોર્ડ પર પાછા જાઓ", "Back to dashboard"],
   backDirectory: ["યાદીમાં પાછા જાઓ", "Back to directory"],
   backLogin: ["લોગિન પર પાછા જાઓ", "Back to login"],
@@ -179,6 +180,22 @@ export function errorText(message, lang = "gu") {
     "Cannot block your current admin session":
       "તમે તમારી ચાલુ એડમિન બેઠકને અવરોધિત કરી શકતા નથી.",
     "Backup exceeds 10 MB": "બેકઅપ ફાઇલ ૧૦ MBથી મોટી છે.",
+    "Notifications are not supported in this browser":
+      "આ બ્રાઉઝર સૂચનાઓ આપી શકતું નથી.",
+    "Notification permission was not granted":
+      "સૂચનાઓની પરવાનગી મળી નથી.",
+    "Only an approved member's own phone can use a reset code":
+      "રીસેટ કોડ ફક્ત સભ્યના પોતાના ફોન પર જ ચાલે છે.",
+    "Confirm you spoke with this member first":
+      "પહેલા સભ્ય સાથે વાત કરીને ખાતરી કરો.",
+    "Ask the main administrator for your own reset code":
+      "તમારો પોતાનો કોડ મુખ્ય એડમિન પાસેથી મેળવો.",
+    "A PIN is already set. Use Change PIN.":
+      "પિન પહેલેથી છે. 'પિન બદલો' વાપરો.",
+    "Unlock the app first": "પહેલા એપ ખોલો.",
+    "Set a PIN first": "પહેલા પિન બનાવો.",
+    "Confirm independent identity verification":
+      "ઓળખ ખાતરીનું ખાનું પસંદ કરો.",
   };
   if (exact[text]) return exact[text];
   if (/[\u0a80-\u0aff]/.test(text)) return text;

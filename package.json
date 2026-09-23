@@ -1,6 +1,6 @@
 {
  "name": "mvpmi-community-directory",
- "version": "0.3.4",
+ "version": "0.4.0",
  "private": true,
  "type": "module",
  "scripts": {
@@ -12,11 +12,12 @@
   "test:embedded": "npm run build && node scripts/embedded-login-test.mjs",
   "test:accessibility": "npm run build && node scripts/accessibility-test.mjs",
   "test:coverage": "node --experimental-test-coverage --test --test-coverage-include=\"server/*.mjs\" tests/*.test.mjs",
-  "check": "npm test && npm run test:ui && npm run test:embedded && npm run test:accessibility && npm run test:language && npm run test:village && npm run test:materials && npm audit --audit-level=moderate",
+  "check": "npm test && npm run test:ui && npm run test:lock && npm run test:embedded && npm run test:accessibility && npm run test:language && npm run test:village && npm run test:materials && npm audit --audit-level=moderate",
   "start:test": "node scripts/start-test-server.mjs",
   "test:language": "npm run build && node scripts/language-test.mjs",
   "test:materials": "npm run build && node scripts/material-test.mjs",
-  "test:village": "npm run build && node scripts/village-workflow-test.mjs"
+  "test:village": "npm run build && node scripts/village-workflow-test.mjs",
+  "test:lock": "npm run build && node scripts/app-lock-test.mjs"
  },
  "dependencies": {
   "@fontsource/manrope": "^5.2.6",

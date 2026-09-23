@@ -52,9 +52,15 @@ const { app } = createApp({
 // PORT can be a number or (for some hosting proxies) a socket path.
 const rawPort = process.env.PORT || "3000";
 const port = /^\d+$/.test(rawPort) ? Number(rawPort) : rawPort;
-const onListen = () =>
+let server;
+const onListen = () => {
+  const address = server?.address?.();
+  const shown = address && typeof address === "object" ? address.port : port;
   console.log(
-    `MVPMI community directory listening on ${port} (${development ? "development" : "live"} mode).`,
+    `MVPMI community directory listening on ${shown} (${development ? "development" : "live"} mode).`,
   );
-if (typeof port === "number") app.listen(port, "0.0.0.0", onListen);
-else app.listen(port, onListen);
+};
+server =
+  typeof port === "number"
+    ? app.listen(port, "0.0.0.0", onListen)
+    : app.listen(port, onListen);

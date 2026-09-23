@@ -1,0 +1,17 @@
+{
+  "name": "મહુવા ક્ષત્રિય રાજપૂત સમાજ · Community Directory",
+  "short_name": "સમાજ યાદી",
+  "description": "Mahuva Kshatriya Rajput Samaj community phone directory",
+  "lang": "gu",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFFBF6",
+  "theme_color": "#B2402C",
+  "icons": [
+    { "src": "/brand/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/brand/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/brand/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

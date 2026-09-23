@@ -22,14 +22,14 @@ test("live mode refuses to start without HTTPS cookies", () => {
 
 test("live mode starts (HTTPS cookies, trusted proxy) and the CommonJS bridge loads it in-process", async (t) => {
   const dir = mkdtempSync(join(tmpdir(), "mvpmi-live-"));
-  const port = String(20000 + Math.floor(Math.random() * 20000));
+  let port;
   const child = spawn(process.execPath, ["app.cjs"], {
     env: {
       ...process.env,
       DEVELOPMENT_MODE: "false",
       COOKIE_SECURE: "true",
       TRUST_PROXY: "1",
-      PORT: port,
+      PORT: "0",
       DB_PATH: join(dir, "live.sqlite"),
       ADMIN_PASSWORD: "LiveTest@2026!",
       ADMIN_GATE_CODE: "5831",
@@ -40,7 +40,9 @@ test("live mode starts (HTTPS cookies, trusted proxy) and the CommonJS bridge lo
   await new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error("server did not start")), 15000);
     child.stdout.on("data", (d) => {
-      if (/listening/.test(String(d))) {
+      const match = /listening on (\d+)/.exec(String(d));
+      if (match) {
+        port = match[1];
         clearTimeout(timer);
         resolve();
       }

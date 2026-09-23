@@ -39,7 +39,11 @@ async function newPage(width = 360) {
 async function register(page, name, phone, location = "", village = "થોરાળા") {
   const [first, ...rest] = name.split(" ");
   await page.getByPlaceholder(/અશોકભાઈ|Ashokbhai/).fill(first);
-  await page.getByPlaceholder(/ચૌધરી|Chaudhary/).fill(rest.pop() || first);
+  const last = rest.pop() || first;
+  await page
+    .getByPlaceholder(/પિતાનું નામ|Father’s name/)
+    .fill(rest.join(" ") || "Middle");
+  await page.getByPlaceholder(/ચૌધરી|Chaudhary/).fill(last);
   await page.locator('input[inputmode="numeric"]').first().fill(phone);
   if (location) await page.getByTestId("Current location").fill(location);
   await page
@@ -215,7 +219,7 @@ try {
   await va.getByTestId("Dashboard").click();
   let request = va
     .locator(".workflow-card")
-    .filter({ hasText: "Directory Applicant" });
+    .filter({ hasText: /Directory (\S+ )?Applicant/ });
   await request.getByRole("checkbox").check();
   await scan(va, "village-verification");
   await request.getByRole("button", { name: /Verify & forward/ }).click();
@@ -233,7 +237,7 @@ try {
   await admin.getByTestId("Village management").click();
   request = admin
     .locator(".workflow-card")
-    .filter({ hasText: "Directory Applicant" });
+    .filter({ hasText: /Directory (\S+ )?Applicant/ });
   await request.getByRole("checkbox").check();
   await scan(admin, "main-final-review");
   await request.getByRole("button", { name: /Final approval/ }).click();
@@ -254,7 +258,7 @@ try {
   await va.getByRole("button", { name: /My village members/ }).click();
   const memberCard = va
     .locator(".workflow-card")
-    .filter({ hasText: "Directory Applicant" });
+    .filter({ hasText: /Directory (\S+ )?Applicant/ });
   await memberCard.getByRole("button", { name: /Propose change/ }).click();
   await memberCard.getByTestId("Current location").fill("Ring Road, Surat");
   await memberCard.getByLabel(/Proposal reason/).fill("Member moved house");
@@ -299,7 +303,7 @@ try {
   await va.getByTestId("Dashboard").click();
   let rejectCard = va
     .locator(".workflow-card")
-    .filter({ hasText: "Unknown Applicant" });
+    .filter({ hasText: /Unknown (\S+ )?Applicant/ });
   await rejectCard.getByRole("button", { name: /Reject|નામંજૂર/ }).click();
   await rejectCard.waitFor({ state: "detached" });
   await rejected.reload();
@@ -317,7 +321,7 @@ try {
   await va.getByTestId("Dashboard").click();
   const repeatCard = va
     .locator(".workflow-card")
-    .filter({ hasText: "Repeat Applicant" });
+    .filter({ hasText: /Repeat (\S+ )?Applicant/ });
   await repeatCard.waitFor();
   await scan(va, "rejected-before-warning");
   assert.match(
@@ -349,7 +353,7 @@ try {
   await va.getByRole("button", { name: /My village members/ }).click();
   const removalCard = va
     .locator(".workflow-card")
-    .filter({ hasText: "Directory Applicant" });
+    .filter({ hasText: /Directory (\S+ )?Applicant/ });
   await removalCard.getByRole("button", { name: /Propose removal/ }).click();
   await removalCard.getByLabel(/Removal reason/).fill("Left the community");
   await removalCard

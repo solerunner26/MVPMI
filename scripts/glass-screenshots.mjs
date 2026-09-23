@@ -133,6 +133,7 @@ for (const theme of ["light", "dark"]) {
   const { page } = await phoneContext(theme);
   await shot(page, `signup-${theme}`);
   await page.getByPlaceholder(/અશોકભાઈ|Ashokbhai/).fill("જલદીપ");
+  await page.getByPlaceholder(/પિતાનું નામ|Father’s name/).fill("Middle");
   await page.getByPlaceholder(/ચૌધરી|Chaudhary/).fill("વાળા");
   await page.locator('input[inputmode="numeric"]').first().fill("9009000001");
   await page

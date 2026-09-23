@@ -205,7 +205,7 @@ export function AllAdminDirectory({ data, lang, onClose }) {
 
 // Separate, visible sign-in for village administrators. The hidden sun-tap
 // gate and the main-administrator password are never part of this flow.
-export function VillageAdminLogin({ lang, onAction, onClose }) {
+export function VillageAdminLogin({ lang, onAction, onClose, onMainAdmin }) {
   const h = React.createElement,
     B = (gu, en) => bilingual(gu, en, lang);
   const [phone, setPhone] = React.useState(""),
@@ -252,11 +252,11 @@ export function VillageAdminLogin({ lang, onAction, onClose }) {
         "p",
         null,
         B(
-          "આ સાઇન ઇન ફક્ત ગામના એડમિન માટે છે. મુખ્ય એડમિનનો પ્રવેશ અલગ અને છુપાવેલો રહે છે.",
-          "This sign-in is for village administrators only. The main administrator's access stays separate and hidden.",
+          "આ સાઇન ઇન ગામના એડમિન માટે છે. મુખ્ય એડમિન નીચેના બટનથી અલગ પ્રવેશ કોડ અને પાસવર્ડ વડે સાઇન ઇન કરે છે.",
+          "This sign-in is for village administrators. The main administrator uses the separate button below, with its own access code and password.",
         ),
       ),
-      error && h("p", { role: "alert" }, error),
+      error && h("p", { role: "alert" }, errorText(error, lang)),
       h(
         "form",
         {
@@ -303,6 +303,18 @@ export function VillageAdminLogin({ lang, onAction, onClose }) {
           B("સાઇન ઇન", "Sign in"),
         ),
       ),
+      onMainAdmin &&
+        h(
+          "button",
+          {
+            type: "button",
+            className: "workflow-main-admin",
+            onClick: onMainAdmin,
+          },
+          h("i", { className: "ph-duotone ph-crown-simple", "aria-hidden": true }),
+          " ",
+          B("મુખ્ય એડમિન સાઇન ઇન", "Main administrator sign in"),
+        ),
     ),
   );
 }
@@ -332,10 +344,21 @@ export function VillageWorkflow({
       setBusy(false);
     }
   }
+  // Calls that return a value (PIN reset codes) instead of new state.
+  act.raw = async (path, body) => {
+    setBusy(true);
+    setError("");
+    try {
+      return await onAction.raw(path, body);
+    } finally {
+      setBusy(false);
+    }
+  };
   const tabs = main
     ? [
         ["requests", "વિનંતીઓ", "Requests"],
         ["villages", "પાસવર્ડ રીસેટ", "Password reset"],
+        ["pins", "સભ્ય પિન રીસેટ", "Member PIN reset"],
         ["rejections", "નામંજૂર / બંધ વિનંતીઓ", "Rejected / closed requests"],
         ["removed", "દૂર કરેલા સભ્યો", "Removed members"],
       ]
@@ -476,6 +499,7 @@ export function VillageWorkflow({
       main &&
         tab === "villages" &&
         h(WorkflowVillageManager, { data, lang, act, busy }),
+      main && tab === "pins" && h(WorkflowPinHelp, { data, lang, onAction }),
       main &&
         tab === "rejections" &&
         h(
@@ -661,12 +685,43 @@ function WorkflowDecision({ request: r, data, lang, act, busy }) {
       : null,
     r.kind === "update" && r.old
       ? h(
-          "p",
-          null,
-          B("ગામ બદલવાની વિનંતી: ", "Village change request: "),
-          r.old.village,
-          " → ",
-          r.payload.village,
+          "div",
+          { className: "workflow-change" },
+          r.old.village !== r.payload.village &&
+            h(
+              "p",
+              null,
+              B("ગામ બદલવાની વિનંતી: ", "Village change: "),
+              r.old.village,
+              " → ",
+              r.payload.village,
+            ),
+          r.old.phone !== r.payload.phone &&
+            h(
+              "p",
+              null,
+              B("મોબાઇલ નંબર બદલવાની વિનંતી: ", "Mobile number change: "),
+              r.old.phone,
+              " → ",
+              r.payload.phone,
+            ),
+          (r.old.phone2 || "") !== (r.payload.phone2 || "") &&
+            h(
+              "p",
+              null,
+              B("બીજો નંબર: ", "Second number: "),
+              r.old.phone2 || "—",
+              " → ",
+              r.payload.phone2 || "—",
+            ),
+          h(
+            "p",
+            { className: "workflow-status" },
+            B(
+              "સભ્યને ફોન કરીને ખાતરી કરો કે નવો નંબર તેમનો જ છે.",
+              "Call the member and confirm the new number really belongs to them.",
+            ),
+          ),
         )
       : h(
           "p",
@@ -740,6 +795,7 @@ function WorkflowDecision({ request: r, data, lang, act, busy }) {
         ),
       ),
     !correcting &&
+      r.kind === "new" &&
       button(B("વિગત સુધારો", "Correct details"), () => setCorrecting(true)),
     correcting &&
       h(
@@ -918,6 +974,12 @@ function WorkflowMembers({ data, lang, act, busy }) {
 }
 function WorkflowMemberCard({ member: m, data, lang, act, busy, pending }) {
   const { h, B, field, button } = workflowTools(lang, busy);
+  const pin = h(PinCodeIssuer, {
+    lang,
+    busy,
+    self: m.id === data.meId,
+    issue: (body) => act.raw("village/members/" + m.id + "/pin-reset", body),
+  });
   const [mode, setMode] = React.useState(null),
     [reason, setReason] = React.useState(""),
     [form, setForm] = React.useState({
@@ -937,6 +999,7 @@ function WorkflowMemberCard({ member: m, data, lang, act, busy, pending }) {
     h("h3", null, bilingual(m.nameGu, m.name, lang)),
     h("p", null, m.phone, m.phone2 ? " · " + m.phone2 : ""),
     m.currentLocation && h("p", null, "હાલ : ", m.currentLocation),
+    pin,
     // Server-confirmed proposal state: a clear "forwarded" confirmation so
     // the administrator sees the action was taken and where it is now.
     pending &&
@@ -1370,5 +1433,133 @@ function WorkflowAssignment({ village: v, data, lang, act, busy }) {
           ),
         ),
       ),
+  );
+}
+
+// Forgotten member PIN: the administrator confirms the member by phone,
+// then reads the one-time code to them (valid for 15 minutes).
+function PinCodeIssuer({ lang, busy, issue, self }) {
+  const h = React.createElement,
+    B = (gu, en) => bilingual(gu, en, lang);
+  const [open, setOpen] = React.useState(false),
+    [confirmed, setConfirmed] = React.useState(false),
+    [code, setCode] = React.useState(""),
+    [error, setError] = React.useState("");
+  if (self) return null;
+  if (!open)
+    return h(
+      "button",
+      { type: "button", disabled: busy, onClick: () => setOpen(true) },
+      B("પિન રીસેટ કોડ", "PIN reset code"),
+    );
+  return h(
+    "div",
+    { className: "workflow-correction pin-issuer" },
+    code
+      ? h(
+          "div",
+          { role: "status" },
+          h("p", null, B("આ કોડ સભ્યને ફોન પર વાંચી સંભળાવો:", "Read this code to the member on the phone:")),
+          h("p", { className: "pin-code", "data-testid": "Issued PIN code" }, code.slice(0, 3) + " " + code.slice(3)),
+          h("p", null, B("૧૫ મિનિટ માન્ય · એક જ વાર ચાલે.", "Valid for 15 minutes · works once.")),
+          h("button", { type: "button", onClick: () => { setOpen(false); setCode(""); setConfirmed(false); } }, B("થઈ ગયું", "Done")),
+        )
+      : h(
+          "div",
+          null,
+          h(
+            "label",
+            { className: "workflow-check" },
+            h("input", {
+              type: "checkbox",
+              checked: confirmed,
+              onChange: (e) => setConfirmed(e.target.checked),
+            }),
+            B(
+              "મેં આ સભ્ય સાથે ફોન પર વાત કરી અને અવાજથી ઓળખ્યા છે.",
+              "I spoke with this member on the phone and recognised them.",
+            ),
+          ),
+          h(
+            "div",
+            { className: "workflow-actions" },
+            h(
+              "button",
+              {
+                type: "button",
+                disabled: busy || !confirmed,
+                onClick: async () => {
+                  setError("");
+                  try {
+                    const r = await issue({ identityConfirmed: true });
+                    setCode(r.code);
+                  } catch (e) {
+                    setError(errorText(e.message, lang));
+                  }
+                },
+              },
+              B("કોડ બનાવો", "Create code"),
+            ),
+            h("button", { type: "button", onClick: () => setOpen(false) }, B("રદ કરો", "Cancel")),
+          ),
+          error && h("p", { role: "alert" }, error),
+        ),
+  );
+}
+function WorkflowPinHelp({ data, lang, onAction }) {
+  const h = React.createElement,
+    B = (gu, en) => bilingual(gu, en, lang);
+  const [query, setQuery] = React.useState(""),
+    [busy, setBusy] = React.useState(false);
+  const q = query.trim().toLowerCase();
+  const digits = q.replace(/\D/g, "");
+  const found = q.length < 2
+    ? []
+    : data.members
+        .filter(
+          (m) =>
+            (m.name || "").toLowerCase().includes(q) ||
+            (m.nameGu || "").includes(query.trim()) ||
+            (digits.length >= 3 && (m.phone || "").includes(digits)),
+        )
+        .slice(0, 20);
+  return h(
+    "div",
+    null,
+    h(
+      "p",
+      null,
+      B(
+        "સભ્ય પિન ભૂલી જાય તો સામાન્ય રીતે તેમના ગામના એડમિન કોડ આપે છે. ગામના એડમિન ન હોય ત્યારે અહીંથી કોડ બનાવો.",
+        "When a member forgets their PIN their village administrator normally gives the code. Create one here when that is not possible.",
+      ),
+    ),
+    h(
+      "label",
+      { className: "workflow-field" },
+      B("નામ કે નંબર શોધો", "Search name or number"),
+      h("input", { value: query, onChange: (e) => setQuery(e.target.value) }),
+    ),
+    ...found.map((m) =>
+      h(
+        "article",
+        { className: "workflow-card", key: m.id },
+        h("h3", null, bilingual(m.nameGu, m.name, lang)),
+        h("p", null, m.phone, " · ", data.villages.find((v) => v.gu === m.village)?.[lang] || m.village),
+        h(PinCodeIssuer, {
+          lang,
+          busy,
+          self: false,
+          issue: async (body) => {
+            setBusy(true);
+            try {
+              return await onAction.raw("admin/members/" + m.id + "/pin-reset", body);
+            } finally {
+              setBusy(false);
+            }
+          },
+        }),
+      ),
+    ),
   );
 }
