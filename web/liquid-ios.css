@@ -19,24 +19,24 @@
   --lq-brand-2: #e9973b;
   --lq-brand-deep: #9c3421;
   --lq-on-brand: #ffffff;
-  --ind: #a93b25;
-  --ok: #1f7a4d;
+  --ind: #8f2f1c;
+  --ok: #1a6b43;
   --okBg: rgba(31, 122, 77, 0.12);
-  --dan: #b3261e;
+  --dan: #9e1f18;
   --danBg: rgba(179, 38, 30, 0.1);
 
   /* Ink */
   --ink: #2b1a14;
-  --ink2: #64514a;
-  --ink2sec: #64514a;
+  --ink2: #5a4740;
+  --ink2sec: #5a4740;
 
   /* Page: warm aurora (opaque, so full-screen overlays always hide content) */
   --lq-base: #f7eee5;
-  --page: radial-gradient(85% 50% at 0% 0%, rgba(255, 168, 92, 0.78) 0%, rgba(255, 168, 92, 0) 72%),
-    radial-gradient(70% 45% at 100% 18%, rgba(240, 104, 88, 0.5) 0%, rgba(240, 104, 88, 0) 72%),
-    radial-gradient(80% 50% at 100% 100%, rgba(170, 140, 245, 0.6) 0%, rgba(170, 140, 245, 0) 72%),
-    radial-gradient(70% 45% at 0% 78%, rgba(255, 196, 130, 0.62) 0%, rgba(255, 196, 130, 0) 72%),
-    radial-gradient(50% 35% at 50% 50%, rgba(255, 150, 170, 0.28) 0%, rgba(255, 150, 170, 0) 72%),
+  --page: radial-gradient(85% 50% at 0% 0%, rgba(255, 168, 92, 0.55) 0%, rgba(255, 168, 92, 0) 72%),
+    radial-gradient(70% 45% at 100% 18%, rgba(240, 104, 88, 0.36) 0%, rgba(240, 104, 88, 0) 72%),
+    radial-gradient(80% 50% at 100% 100%, rgba(170, 140, 245, 0.42) 0%, rgba(170, 140, 245, 0) 72%),
+    radial-gradient(70% 45% at 0% 78%, rgba(255, 196, 130, 0.45) 0%, rgba(255, 196, 130, 0) 72%),
+    radial-gradient(50% 35% at 50% 50%, rgba(255, 150, 170, 0.2) 0%, rgba(255, 150, 170, 0) 72%),
     #f6e8dc;
 
   /* Glass */
@@ -99,11 +99,11 @@
   --ink2: #d2c0b5;
   --ink2sec: #d2c0b5;
   --lq-base: #120b0a;
-  --page: radial-gradient(85% 50% at 0% 0%, rgba(196, 70, 40, 0.78) 0%, rgba(196, 70, 40, 0) 72%),
-    radial-gradient(70% 45% at 100% 16%, rgba(233, 140, 50, 0.38) 0%, rgba(233, 140, 50, 0) 72%),
-    radial-gradient(80% 50% at 100% 100%, rgba(110, 60, 190, 0.62) 0%, rgba(110, 60, 190, 0) 72%),
-    radial-gradient(70% 45% at 0% 82%, rgba(40, 80, 170, 0.55) 0%, rgba(40, 80, 170, 0) 72%),
-    radial-gradient(50% 35% at 50% 50%, rgba(170, 50, 90, 0.25) 0%, rgba(170, 50, 90, 0) 72%),
+  --page: radial-gradient(85% 50% at 0% 0%, rgba(196, 70, 40, 0.5) 0%, rgba(196, 70, 40, 0) 72%),
+    radial-gradient(70% 45% at 100% 16%, rgba(233, 140, 50, 0.3) 0%, rgba(233, 140, 50, 0) 72%),
+    radial-gradient(80% 50% at 100% 100%, rgba(110, 60, 190, 0.45) 0%, rgba(110, 60, 190, 0) 72%),
+    radial-gradient(70% 45% at 0% 82%, rgba(40, 80, 170, 0.4) 0%, rgba(40, 80, 170, 0) 72%),
+    radial-gradient(50% 35% at 50% 50%, rgba(170, 50, 90, 0.18) 0%, rgba(170, 50, 90, 0) 72%),
     #140c0b;
   --lq-fill: rgba(44, 30, 27, 0.5);
   --lq-fill-strong: rgba(34, 23, 21, 0.8);
@@ -1460,4 +1460,13 @@ body:has(.app.lq) {
 }
 .app.lq[data-material="opaque"] div[style*="var(--grad)"] {
   box-shadow: none !important;
+}
+/* Tool regions and title rows float on the page — no full-width slab. */
+.app.lq[data-theme][data-material] .directory-tools,
+.app.lq[data-theme][data-material] .context-header {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
 }

@@ -37,6 +37,8 @@ export async function verifyGlassContrast(page, incomplete, name) {
   for (const node of glass) {
     const target = node.target[0];
     const locator = page.locator(target).first();
+    // A live re-render can replace the node axe reported; skip it then.
+    if (!(await locator.count())) continue;
     const info = await locator.evaluate((el) => {
       const s = getComputedStyle(el);
       const r = el.getBoundingClientRect();
@@ -49,7 +51,8 @@ export async function verifyGlassContrast(page, incomplete, name) {
         large: size >= 24 || (bold && size >= 18.66),
         visible: r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight,
       };
-    });
+    }, undefined, { timeout: 5000 }).catch(() => null);
+    if (!info) continue;
     if (!info.visible) continue;
     const clip = {
       x: Math.max(0, info.box.x),

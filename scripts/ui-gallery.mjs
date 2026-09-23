@@ -115,7 +115,8 @@ const approveSelf = async (p, store) => {
 };
 
 const plain = await server(false);
-for (const theme of ["light", "dark"]) {
+const THEMES = (process.env.GALLERY_THEMES || "light,dark").split(",");
+for (const theme of THEMES) {
   // Guest / applicant
   let p = await page(plain.url, theme);
   await snap(p, "01-signup", theme);
@@ -199,7 +200,7 @@ for (const theme of ["light", "dark"]) {
 plain.close();
 
 const locked = await server(true);
-for (const theme of ["light", "dark"]) {
+for (const theme of THEMES) {
   const p = await page(locked.url, theme);
   await approveSelf(p, locked.store).catch(() => {});
   await p.getByRole("button", { name: "5", exact: true }).first().waitFor();
