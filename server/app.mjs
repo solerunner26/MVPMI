@@ -7,7 +7,7 @@ import {
 } from "./village-approval.mjs";
 import { isDeepStrictEqual } from "node:util";
 import { fileURLToPath } from "node:url";
-import { installSessions, clientKey } from "./session.mjs";
+import { installSessions, clientKey, knownClient } from "./session.mjs";
 import {
   createNotifier,
   installDevicePull,
@@ -307,9 +307,21 @@ export function createApp({
     rate,
     notify,
     clientKey,
+    knownClient,
     issuePinReset,
   });
   app.get("/api/state", (req, res) => res.json(lockedState(req)));
+  // Deployment check: confirms the server runs and whether each visitor's
+  // own address reaches the app (needed for fair per-visitor limits).
+  app.get("/api/health", (req, res) =>
+    res.json({
+      ok: true,
+      mode: development ? "development" : "live",
+      https: secure,
+      visitorAddressVisible: knownClient(req),
+      node: process.versions.node,
+    }),
+  );
   app.post("/api/enrollment", (req, res) => {
     rate("enroll:" + req.session.id, 30, 3600000);
     if (store.all("members").some((m) => m.owner === req.session.owner))
@@ -472,9 +484,20 @@ export function createApp({
   });
   app.post("/api/admin/gate", (req, res) => {
     rate("gate:" + req.session.id);
-    rate("gate-ip:" + clientKey(req), 30);
+    if (knownClient(req)) rate("gate-ip:" + clientKey(req), 30);
+    else {
+      // Visitor addresses are hidden by the proxy: fall back to a site-wide
+      // cap on WRONG codes only (100 per hour).
+      const g = store.get("limits", "gate-global-failures");
+      if (g?.until > Date.now() && g.count >= 100)
+        fail("ઘણા પ્રયાસો થયા · Too many attempts. Please try again later.", 429);
+    }
     const a = store.get("config", "admin");
     if (!passwordMatches(String(req.body.code || ""), a.gate)) {
+      if (!knownClient(req))
+        try {
+          rate("gate-global-failures", 1e9, 3600000);
+        } catch {}
       alert(req, "ખોટો કોડ · Incorrect access code");
       fail("Incorrect access code", 401);
     }
@@ -972,7 +995,10 @@ export function createApp({
   });
   // Downloadable CSV reports. UTF-8 BOM keeps Gujarati correct in Excel.
   const csvCell = (value) => {
-    const text = String(value ?? "");
+    let text = String(value ?? "");
+    // Spreadsheet formula injection: a cell that starts with = + - @ (or a
+    // tab/return) is stored as text, never run as a formula in Excel.
+    if (typeof value === "string" && /^[=+\-@\t\r]/.test(text)) text = "'" + text;
     return /[",\n\r]/.test(text)
       ? '"' + text.replaceAll('"', '""') + '"'
       : text;

@@ -7,7 +7,14 @@ if ! command -v node >/dev/null 2>&1; then
 fi
 node -e 'const [a,b]=process.versions.node.split(".").map(Number);process.exit(a>22||(a===22&&b>=13)?0:1)' || {
   echo 'Please update Node.js to version 22.13 or a newer LTS release.'
+  echo 'Press Return to close this window.'
+  read -r answer
   exit 1
 }
-npm ci --omit=dev || exit 1
+npm ci --omit=dev || {
+  echo 'Installation failed. Check the internet connection, then try again.'
+  echo 'Press Return to close this window.'
+  read -r answer
+  exit 1
+}
 node scripts/start-test-server.mjs

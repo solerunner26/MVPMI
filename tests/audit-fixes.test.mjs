@@ -232,3 +232,32 @@ test("expired and abandoned rows are cleaned up", async (t) => {
   assert.equal(f.store.get("sessions", "x".repeat(64)), null);
   assert.equal(f.store.get("limits", "old"), null);
 });
+
+test("CSV reports cannot carry spreadsheet formulas", async (t) => {
+  const f = await setup(t);
+  await join(f, "9000000041", '=HYPERLINK("x") Middle Name');
+  const csv = Buffer.from(await f.admin("admin/export.csv?type=members&lang=en")).toString("utf8");
+  assert.ok(csv.includes("'=HYPERLINK"), "formula-looking text is prefixed with an apostrophe");
+});
+
+test("health check and consistent database backup script", async (t) => {
+  const { mkdtempSync, readdirSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { spawnSync } = await import("node:child_process");
+  const { createApp } = await import("../server/app.mjs");
+  const dir = mkdtempSync(join(tmpdir(), "mvpmi-backup-"));
+  const { store } = createApp({
+    dbPath: join(dir, "db.sqlite"),
+    adminPassword: "Backup@2026!x",
+    gateCode: "5831",
+  });
+  store.db.close();
+  const r = spawnSync(process.execPath, ["scripts/backup-db.mjs", join(dir, "db.sqlite"), join(dir, "out")], { encoding: "utf8" });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(readdirSync(join(dir, "out")).length, 1);
+  const f = await fixture(t);
+  const health = await f.client()("health");
+  assert.equal(health.ok, true);
+  assert.equal(health.mode, "development");
+});

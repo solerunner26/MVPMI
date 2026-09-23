@@ -10,6 +10,13 @@ const SESSION_DAYS = 180;
 // client. "unknown" keeps a stable key when neither is available.
 export const clientKey = (req) =>
   String(req.ip || req.socket?.remoteAddress || "unknown");
+// False when the visitor's own address is not visible (for example a proxy
+// that does not forward it). Per-address limits are then skipped instead of
+// putting every visitor into one shared bucket.
+export const knownClient = (req) => {
+  const ip = String(req.ip || req.socket?.remoteAddress || "");
+  return !!ip && !/^(::1|127\.|::ffff:127\.|unknown$)/.test(ip);
+};
 
 // Isolated from domain logic so both cookie and cookie-free preview paths are tested.
 export function installSessions(app, store, { development, secure, rate }) {
@@ -53,7 +60,7 @@ export function installSessions(app, store, { development, secure, rate }) {
       let fresh = false;
       if (!session || session.expires <= Date.now()) {
         fresh = true;
-        rate("session:" + clientKey(req), 300, 3600000);
+        if (knownClient(req)) rate("session:" + clientKey(req), 300, 3600000);
         session = {
           id: issue(res),
           owner: randomUUID(),

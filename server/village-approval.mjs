@@ -315,7 +315,7 @@ const credential = (pass) => {
 export function installVillageApproval(
   app,
   store,
-  { admin, state, rate, notify = () => {}, clientKey, issuePinReset },
+  { admin, state, rate, notify = () => {}, clientKey, knownClient, issuePinReset },
 ) {
   const villageLabel = (gu) => {
     const v = store.get("villages", gu);
@@ -412,7 +412,11 @@ export function installVillageApproval(
       fail("નંબર બરાબર લખો · Enter a valid 10-digit mobile number");
     // Wrong passwords are limited per number AND per client, so a stranger
     // cannot lock a real administrator out from another network.
-    const phoneKey = "village-login-phone:" + phone + ":" + clientKey(req);
+    const phoneKey =
+      "village-login-phone:" +
+      phone +
+      ":" +
+      (knownClient(req) ? clientKey(req) : req.session.id);
     const blocked = (key, max) => (store.get("limits", key)?.until > Date.now() && store.get("limits", key).count >= max);
     if (blocked(phoneKey, 5) || blocked("village-login-phone:" + phone, 100))
       fail("ઘણા પ્રયાસો થયા · Too many attempts. Please try again later.", 429);
