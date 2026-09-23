@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- HTTPS only. Android 7.1 and older do not include the Let's Encrypt root
+     (ISRG Root X1), which cPanel AutoSSL may use; it is bundled here so older
+     phones can still connect. All normal system roots remain trusted. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="@raw/isrg_root_x1" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

@@ -1,9 +1,25 @@
 import java.net.URI
 
 plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }
-val communityUrl = providers.gradleProperty("communityUrl").orElse("https://example.invalid").get()
+
+// The hosted server address is built into the app, e.g.
+//   gradle assembleRelease -PcommunityUrl=https://directory.example.org
+// It must be the ROOT of an HTTPS site (a sub-domain is fine, a sub-folder
+// such as https://example.org/directory is not: the web app uses /api paths).
+val communityUrl = providers.gradleProperty("communityUrl").orElse("https://example.invalid").get().trimEnd('/')
 val parsedCommunityUrl = URI(communityUrl)
-require(parsedCommunityUrl.scheme == "https" && parsedCommunityUrl.host != null && parsedCommunityUrl.rawUserInfo == null && parsedCommunityUrl.rawQuery == null && parsedCommunityUrl.rawFragment == null) { "communityUrl must be a valid HTTPS server URL without credentials, query or fragment" }
+require(
+    parsedCommunityUrl.scheme == "https" && parsedCommunityUrl.host != null &&
+        parsedCommunityUrl.rawUserInfo == null && parsedCommunityUrl.rawQuery == null &&
+        parsedCommunityUrl.rawFragment == null && parsedCommunityUrl.rawPath.isNullOrEmpty(),
+) { "communityUrl must be an HTTPS site root (no sub-folder, credentials, query or fragment), e.g. https://directory.example.org" }
+
+// Every build that is shared with members MUST be signed with the same
+// permanent key, otherwise phones refuse to install an update over the old
+// app. The key is provided through environment variables (GitHub secrets in
+// CI; see docs/ANDROID_RELEASE.md). It is never stored in the repository.
+val keystoreFile = System.getenv("MVPMI_KEYSTORE_FILE")?.takeIf { it.isNotBlank() }
+
 android {
     namespace = "org.mvpmi.directory"
     compileSdk = 36
@@ -11,9 +27,28 @@ android {
         applicationId = "org.mvpmi.directory"
         minSdk = 21
         targetSdk = 36
-        versionCode = 8
-        versionName = "0.3.4-dev"
+        // CI passes a growing number (-PversionCode=<run number>) so every
+        // new APK installs as an update.
+        versionCode = providers.gradleProperty("versionCode").orElse("9").get().toInt()
+        versionName = "0.4.0"
         buildConfigField("String", "COMMUNITY_URL", "\"${communityUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
+    }
+    signingConfigs {
+        if (keystoreFile != null) {
+            create("release") {
+                storeFile = file(keystoreFile)
+                storePassword = System.getenv("MVPMI_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("MVPMI_KEY_ALIAS")
+                keyPassword = System.getenv("MVPMI_KEY_PASSWORD")
+            }
+        }
+    }
+    buildTypes {
+        getByName("release") {
+            isDebuggable = false
+            isMinifyEnabled = false
+            if (keystoreFile != null) signingConfig = signingConfigs.getByName("release")
+        }
     }
     buildFeatures { buildConfig = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
@@ -22,10 +57,13 @@ android {
 
 dependencies { testImplementation("junit:junit:4.13.2") }
 
-// This host is deliberately not publishable until the documented blockers are resolved.
+// A release build needs a real server address and the permanent signing key.
 val verifyReleaseReadiness by tasks.registering {
     doLast {
-        throw GradleException("Release blocked: member identity/recovery, privacy deletion, native exports and Android device validation are incomplete. See docs/RELEASE_AUDIT.md.")
+        if (parsedCommunityUrl.host == "example.invalid")
+            throw GradleException("Release build needs your hosted address: -PcommunityUrl=https://your-domain")
+        if (keystoreFile == null)
+            throw GradleException("Release build needs the permanent signing key (MVPMI_KEYSTORE_FILE and passwords). See docs/ANDROID_RELEASE.md.")
     }
 }
 tasks.configureEach {

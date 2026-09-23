@@ -3,13 +3,7 @@ package org.mvpmi.directory
 import android.annotation.TargetApi
 import android.app.Activity
 import android.app.AlertDialog
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.ActivityNotFoundException
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
@@ -19,12 +13,13 @@ import android.util.Base64
 import android.text.InputType
 import android.view.Gravity
 import android.view.View
+import android.view.WindowManager
 import android.webkit.*
 import android.widget.*
 import android.window.OnBackInvokedCallback
 import android.window.OnBackInvokedDispatcher
 
-/** Online debug host for the supplied design. Not the finished offline/native app. */
+/** Android host for the hosted community directory (online WebView app). */
 class MainActivity : Activity() {
     private lateinit var web: WebView
     private lateinit var content: FrameLayout
@@ -64,28 +59,72 @@ class MainActivity : Activity() {
 
         @android.webkit.JavascriptInterface
         fun notify(title: String, text: String) {
-            runOnUiThread { showReminder(title, text) }
+            runOnUiThread { Notifications.show(this@MainActivity, "", title, text) }
+        }
+
+        /** Background notifications: store the device token for [NotificationJob]. */
+        @android.webkit.JavascriptInterface
+        fun registerDevice(token: String) {
+            if (!Regex("[a-f0-9]{64}").matches(token)) return
+            runOnUiThread {
+                Notifications.save(this@MainActivity, serverUrl, token)
+                askNotificationPermission()
+                pullSoon()
+            }
+        }
+
+        /** The page saw something new: check the server now. */
+        @android.webkit.JavascriptInterface
+        fun pullNow() {
+            runOnUiThread { pullSoon() }
+        }
+    }
+
+    private fun pullSoon() {
+        val context = applicationContext
+        Thread { Notifications.pull(context) }.start()
+    }
+
+    /** Asked only once the person has applied or signed in (not at first launch). */
+    private fun askNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED &&
+            !getPreferences(MODE_PRIVATE).getBoolean("askedNotifications", false)) {
+            getPreferences(MODE_PRIVATE).edit().putBoolean("askedNotifications", true).apply()
+            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 102)
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Community phone numbers must not appear in screenshots, screen
+        // recordings or the recent-apps preview.
+        window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
         if (BuildConfig.DEBUG) serverUrl = getPreferences(MODE_PRIVATE).getString("testServer", serverUrl) ?: serverUrl
-        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.rgb(255, 251, 246)) }
+        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.rgb(36, 20, 19)) }
+        // Android 15+ always draws edge-to-edge: coloured bars sit behind the
+        // status and navigation icons so the (white) icons stay visible.
+        val statusBar = View(this).apply { setBackgroundColor(Color.rgb(178, 64, 44)) }
+        val navigationBar = View(this).apply { setBackgroundColor(Color.rgb(36, 20, 19)) }
         root.setOnApplyWindowInsetsListener { view, insets ->
             @Suppress("DEPRECATION")
-            view.setPadding(insets.systemWindowInsetLeft, insets.systemWindowInsetTop,
-                insets.systemWindowInsetRight, insets.systemWindowInsetBottom)
+            view.setPadding(insets.systemWindowInsetLeft, 0, insets.systemWindowInsetRight, 0)
+            @Suppress("DEPRECATION")
+            statusBar.layoutParams = LinearLayout.LayoutParams(-1, insets.systemWindowInsetTop)
+            @Suppress("DEPRECATION")
+            navigationBar.layoutParams = LinearLayout.LayoutParams(-1, insets.systemWindowInsetBottom)
             insets
         }
+        root.addView(statusBar, LinearLayout.LayoutParams(-1, 0))
         if (BuildConfig.DEBUG) {
             val bar = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(dp(12), 0, dp(8), 0) }
             bar.addView(TextView(this).apply { text = "TEST BUILD · Made-up contacts only"; textSize = 11f; setTextColor(Color.rgb(107, 79, 72)) }, LinearLayout.LayoutParams(0, dp(48), 1f))
             bar.addView(Button(this).apply { text = "Server"; contentDescription = "Change test server"; setOnClickListener { configureServer() } })
             root.addView(bar)
         }
-        content = FrameLayout(this)
+        content = FrameLayout(this).apply { setBackgroundColor(Color.rgb(255, 251, 246)) }
         root.addView(content, LinearLayout.LayoutParams(-1, 0, 1f))
+        root.addView(navigationBar, LinearLayout.LayoutParams(-1, 0))
         web = WebView(this)
         content.addView(web, FrameLayout.LayoutParams(-1, -1))
         setContentView(root)
@@ -97,12 +136,9 @@ class MainActivity : Activity() {
             allowContentAccess = false
             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
             setSupportMultipleWindows(false)
-            userAgentString += " MVPMlAndroid/0.1"
+            userAgentString += " MVPMlAndroid/" + BuildConfig.VERSION_NAME
         }
         web.addJavascriptInterface(Bridge(), "mvpmiBridge")
-        if (Build.VERSION.SDK_INT >= 33 &&
-            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED)
-            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 102)
         CookieManager.getInstance().setAcceptCookie(true)
         CookieManager.getInstance().setAcceptThirdPartyCookies(web, false)
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
@@ -115,6 +151,11 @@ class MainActivity : Activity() {
             @Deprecated("Compatible main-frame error callback")
             override fun onReceivedError(view: WebView, code: Int, description: String, failingUrl: String) {
                 showConnectionError()
+            }
+            // The hosting server answered with an error page (busy, restarting, updating).
+            override fun onReceivedHttpError(view: WebView, request: WebResourceRequest, response: WebResourceResponse) {
+                if (request.isForMainFrame && response.statusCode >= 500)
+                    showConnectionError("સર્વર થોડી વાર માટે ઉપલબ્ધ નથી. થોડી મિનિટ પછી ફરી પ્રયાસ કરો.\nThe server is busy or restarting. Please try again in a few minutes.")
             }
             override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: android.net.http.SslError) {
                 handler.cancel()
@@ -187,15 +228,18 @@ class MainActivity : Activity() {
         dialog.show()
     }
 
-    private fun showConnectionError(detail: String = "Check that your computer's test server is running. Your phone and computer must use the same Wi-Fi.") {
+    private fun showConnectionError(detail: String = if (BuildConfig.DEBUG)
+            "Check that your computer's test server is running. Your phone and computer must use the same Wi-Fi."
+        else
+            "ઇન્ટરનેટ કનેક્શન તપાસો અને ફરી પ્રયાસ કરો.\nCheck your internet connection and try again.") {
         if (isFinishing) return
         errorView?.let { content.removeView(it) }
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; setPadding(dp(24), dp(24), dp(24), dp(24))
             setBackgroundColor(Color.rgb(255, 251, 246))
             addView(TextView(this@MainActivity).apply { text = "કનેક્શન થઈ શક્યું નથી\nCould not connect"; textSize = 22f; gravity = Gravity.CENTER })
-            addView(TextView(this@MainActivity).apply { text = "\n$detail\n\n$serverUrl\n"; textSize = 15f; gravity = Gravity.CENTER })
-            addView(Button(this@MainActivity).apply { text = "Retry"; setOnClickListener { loadServer() } })
+            addView(TextView(this@MainActivity).apply { text = if (BuildConfig.DEBUG) "\n$detail\n\n$serverUrl\n" else "\n$detail\n"; textSize = 17f; gravity = Gravity.CENTER })
+            addView(Button(this@MainActivity).apply { text = "ફરી પ્રયાસ કરો · Retry"; textSize = 17f; setOnClickListener { loadServer() } })
             if (BuildConfig.DEBUG) addView(Button(this@MainActivity).apply { text = "Change test server"; setOnClickListener { configureServer() } })
         }
         errorView = box; content.addView(box, FrameLayout.LayoutParams(-1, -1))
@@ -204,21 +248,17 @@ class MainActivity : Activity() {
     private fun route(uri: Uri, mainFrame: Boolean = true): Boolean {
         when (NavigationPolicy.classify(uri.toString(), serverUrl, mainFrame, BuildConfig.DEBUG)) {
             NavigationPolicy.Destination.INTERNAL -> return false
-            NavigationPolicy.Destination.DIAL -> {
-                // Optional convenience: managed-device clipboard restrictions must not block dialing.
-                try {
-                    (getSystemService(CLIPBOARD_SERVICE) as ClipboardManager)
-                        .setPrimaryClip(ClipData.newPlainText("Phone", uri.schemeSpecificPart))
-                } catch (_: SecurityException) { /* Continue to the dialer. */ }
-                open(Intent(Intent.ACTION_DIAL, uri))
-            }
+            // Numbers are not copied to the clipboard (other apps could read them).
+            NavigationPolicy.Destination.DIAL -> open(Intent(Intent.ACTION_DIAL, uri))
             NavigationPolicy.Destination.WHATSAPP -> open(Intent(Intent.ACTION_VIEW, uri))
-            NavigationPolicy.Destination.BLOCKED -> { }
+            NavigationPolicy.Destination.BLOCKED -> if (mainFrame) message("આ લિંક ખોલી શકાતી નથી · This link cannot be opened")
         }
         return true
     }
 
     private fun navigateBack() {
+        // On the connection-error screen, Back leaves the app.
+        if (errorView != null) { finish(); return }
         if (backPending) return
         backPending = true
         web.evaluateJavascript("Boolean(window.mvpmiBack && window.mvpmiBack())") { handled ->
@@ -260,33 +300,6 @@ class MainActivity : Activity() {
         }
     }
 
-    /** Local reminder notification while the app is being used. */
-    private fun showReminder(title: String, text: String) {
-        try {
-            val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-            if (Build.VERSION.SDK_INT >= 26) {
-                val channel = NotificationChannel("mvpmi-reminders", "Community reminders", NotificationManager.IMPORTANCE_DEFAULT)
-                manager.createNotificationChannel(channel)
-            }
-            val intent = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
-            val builder = if (Build.VERSION.SDK_INT >= 26)
-                Notification.Builder(this, "mvpmi-reminders")
-            else
-                @Suppress("DEPRECATION") Notification.Builder(this)
-            val notification = builder
-                .setSmallIcon(android.R.drawable.stat_notify_chat)
-                .setContentTitle(title)
-                .setContentText(text)
-                .setStyle(Notification.BigTextStyle().bigText(text))
-                .setContentIntent(intent)
-                .setAutoCancel(true)
-                .build()
-            manager.notify(1001, notification)
-        } catch (_: Exception) {
-            /* reminders are best-effort */
-        }
-    }
-
     private fun message(text: String) = Toast.makeText(this, text, Toast.LENGTH_LONG).show()
 
     @Deprecated("Required for Android 5 compatibility")
@@ -312,5 +325,10 @@ class MainActivity : Activity() {
     }
     @Deprecated("Legacy back handling; API 33+ uses ModernBack")
     override fun onBackPressed() { navigateBack() }
+    override fun onResume() {
+        super.onResume()
+        // Deliver anything that arrived while the app was closed.
+        pullSoon()
+    }
     override fun onDestroy() { unregisterBack?.invoke(); upload?.onReceiveValue(null); web.destroy(); super.onDestroy() }
 }

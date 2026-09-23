@@ -25,10 +25,12 @@ jobs:
       - run: npm ci
       - run: npm run test:coverage
       - run: npm run test:ui
+      - run: npm run test:lock
       - run: npm run test:embedded
       - run: npm run test:accessibility
       - run: npm run test:language
       - run: npm run test:materials
+      - run: npm run test:village
       - run: npm audit --audit-level=moderate
       - uses: actions/upload-artifact@v4
         if: always()
@@ -36,14 +38,14 @@ jobs:
           name: browser-quality-results
           path: test-results/
           retention-days: 7
-  android-debug:
+  android:
+    # Never package an app from code whose server/browser checks failed.
+    needs: server-and-browser
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-    permissions:
-      # Tag builds publish the debug APK to a GitHub release.
-      contents: write
+    timeout-minutes: 30
     env:
-      COMMUNITY_URL: ${{ inputs.community_url || vars.COMMUNITY_TEST_URL || 'https://example.invalid' }}
+      COMMUNITY_URL: ${{ inputs.community_url || vars.COMMUNITY_URL || vars.COMMUNITY_TEST_URL || 'https://example.invalid' }}
+      VERSION_CODE: ${{ github.run_number }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-java@v5
@@ -63,7 +65,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          gradle -p android :app:lintDebug :app:testDebugUnitTest :app:assembleDebug "-PcommunityUrl=$COMMUNITY_URL" --console=plain 2>&1 | tee android-build.log
+          gradle -p android :app:lintDebug :app:testDebugUnitTest :app:assembleDebug "-PcommunityUrl=$COMMUNITY_URL" "-PversionCode=$((VERSION_CODE + 100))" --console=plain 2>&1 | tee android-build.log
           result=${PIPESTATUS[0]}
           if [ "$result" -ne 0 ]; then
             python3 - <<'PYERROR'
@@ -75,6 +77,36 @@ jobs:
           PYERROR
           fi
           exit "$result"
+      # The shareable app: built only when the permanent signing key is stored
+      # as repository secrets and COMMUNITY_URL points at the live server.
+      - name: Build the signed release APK (members install this one)
+        id: release
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.MVPMI_KEYSTORE_BASE64 }}
+          MVPMI_KEYSTORE_PASSWORD: ${{ secrets.MVPMI_KEYSTORE_PASSWORD }}
+          MVPMI_KEY_ALIAS: ${{ secrets.MVPMI_KEY_ALIAS }}
+          MVPMI_KEY_PASSWORD: ${{ secrets.MVPMI_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ] || [ "$COMMUNITY_URL" = "https://example.invalid" ]; then
+            echo "Release APK skipped: add the signing secrets and the COMMUNITY_URL variable (docs/ANDROID_RELEASE.md)."
+            echo "built=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/mvpmi-release.jks"
+          export MVPMI_KEYSTORE_FILE="$RUNNER_TEMP/mvpmi-release.jks"
+          gradle -p android :app:assembleRelease "-PcommunityUrl=$COMMUNITY_URL" "-PversionCode=$((VERSION_CODE + 100))" --console=plain
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs android/app/build/outputs/apk/release/app-release.apk
+          cp android/app/build/outputs/apk/release/app-release.apk android/app/build/outputs/apk/release/mvpmi.apk
+          rm -f "$RUNNER_TEMP/mvpmi-release.jks"
+          echo "built=true" >> "$GITHUB_OUTPUT"
+      - name: Upload the release APK
+        if: steps.release.outputs.built == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mvpmi-release-apk
+          path: android/app/build/outputs/apk/release/mvpmi.apk
+          retention-days: 30
       - name: Verify APK signature and record checksum
         shell: bash
         run: |
@@ -102,21 +134,29 @@ jobs:
             android/app/build/reports/
             android/app/build/outputs/apk/debug/
           retention-days: 7
-      # Tag pushes (v*) publish the same verified APK to a permanent GitHub
-      # release, so testers never depend on expiring artifact links.
-      - name: Publish debug APK to a GitHub release (tag builds only)
-        if: startsWith(github.ref, 'refs/tags/v')
+  publish:
+    # Tag pushes (v*) attach the APKs to a permanent GitHub release. Only this
+    # job may write to the repository.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: android
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          path: apk
+      - name: Publish APKs to the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           TAG="${GITHUB_REF_NAME}"
-          APK_DIR=android/app/build/outputs/apk/debug
           if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY"; then
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" \
-              --title "MVPMI Test $TAG (debug)" \
-              --notes-file .github/release-notes-debug.md \
-              --prerelease
+              --title "MVPMI $TAG" \
+              --notes-file .github/release-notes-debug.md
           fi
-          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" \
-            "$APK_DIR/app-debug.apk" "$APK_DIR/SHA256SUMS.txt" "$APK_DIR/BUILD-INFO.txt" --clobber
+          files=$(find apk/mvpmi-release-apk apk/mvpmi-debug-apk -type f 2>/dev/null)
+          gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" $files --clobber
