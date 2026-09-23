@@ -12,3 +12,5 @@ android/local.properties
 *.keystore
 android/**/build/
 android-build.log
+backups/
+*.p12

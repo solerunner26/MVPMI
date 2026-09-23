@@ -353,3 +353,35 @@ app_config              admin-editable, so villages can be added without a relea
 Suggested framing:
 
 > "Below is a complete design dossier for an Android community contact-directory app, written by the designer. I am the client and I do not have a design or Android background. Read §11 and §12 especially. Write me a rigorous self-assessment prompt I can give back to the designer that forces them to (a) justify every unresolved decision, (b) design the missing states and flows listed as gaps, (c) stress-test the accessibility, security, privacy and low-end-device assumptions, and (d) tell me what they would cut. Be specific and cite the section numbers."
+
+---
+
+## 15. Addendum — implemented behaviour as of v0.4.0 (September 2026)
+
+Where this dossier and the running app differ, the app below is current.
+
+- **Village field:** a fixed list of the seven villages (dropdown), not a
+  free-text field with spelling suggestions. The main administrator can add
+  villages later.
+- **Name:** three required fields in the order First → Middle (father's) →
+  Surname.
+- **Approval chain:** applicant → the village administrator of that village
+  (verifies identity) → main administrator (final approval). Mobile-number
+  and village changes follow the same chain.
+- **App lock (PIN):** mandatory four-digit PIN for every approved member and
+  village administrator, checked on the server. Asked on every app start,
+  after 30 seconds in the background and after 3 idle minutes. Wrong PINs:
+  after 5, a 1-minute wait that doubles each time (max 60 minutes); after 15,
+  only a reset code opens it. A forgotten PIN is reset with a one-time code
+  from the village administrator (or main administrator).
+- **Administrator lockouts:** main-admin access code and password failures
+  are limited per visitor; there is no 15-minute global lockout.
+- **Notifications:** phone notifications for new applications, forwarding,
+  approval/rejection, changes and security alerts (Android app or browser
+  Web Push). Notifications never include phone numbers.
+- **Admin entrance:** besides the hidden five-tap gesture on the sun logo,
+  a "Main administrator sign in" button sits in the administrator sign-in
+  panel.
+- **Privacy on the phone:** screenshots of the Android app are blocked;
+  numbers are not copied to the clipboard; nothing from the directory is
+  stored on the phone.

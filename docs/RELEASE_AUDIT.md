@@ -1,5 +1,8 @@
 # MVPMl — Development & Release Audit
 
+> **Updated by the v0.4.0 audit:** identity is verified in person by village administrators (no SMS), live mode and signed release APKs are enabled, and the app lock is server-enforced. See [AUDIT_FIXES.md](AUDIT_FIXES.md). The remaining items below that still apply: real-device testing, a privacy/retention policy, and Play Store requirements (only if you publish there).
+
+
 **Review date:** 15 September 2026
 **Release decision:** **NOT READY TO PUBLISH**
 **What is usable now:** the browser development preview and a debug APK for initial phone/emulator testing, with synthetic contacts only.

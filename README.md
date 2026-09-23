@@ -2,7 +2,16 @@
 
 Development implementation of the supplied Gujarati/English community-directory design.
 
-**Status: tested browser development build + a compiled, debug-signed Android test APK. Not ready for real community data or production distribution.** The original HTML and dossier are preserved unchanged. The app is generated from their markup, styles, icons and sun components; the designer's external screen-jump controls and sample data are not exposed by the running application.
+**Status (v0.4.0, 23 September 2026): ready to put online.** A full audit fixed
+27 reported problems and added free system notifications — see
+[docs/AUDIT_FIXES.md](docs/AUDIT_FIXES.md). Checkpoint before those changes:
+tag `Pre-Full-Audit-Fix`.
+
+- **Go live on GoDaddy (free):** [docs/DEPLOY_GODADDY.md](docs/DEPLOY_GODADDY.md)
+- **Shareable Android app:** [docs/ANDROID_RELEASE.md](docs/ANDROID_RELEASE.md)
+- Still recommended before inviting everyone: a short test with 5–10 real
+  phones ([docs/BETA_TEST_CHECKLIST.md](docs/BETA_TEST_CHECKLIST.md)) and a
+  one-page privacy note for members.
 
 ## Modern redesign review — 17 September 2026
 
@@ -106,18 +115,20 @@ gradle assembleDebug -PcommunityUrl=https://your-development-host.example
 
 **The debug APK was built, linted, unit-tested and signature-verified in GitHub Actions. It has not yet been installed/tested on an emulator or phone.** The local sandbox still lacks an Android SDK/JDK. `minSdk = 21` is a packaging target, not a claim that this web renderer works on Android 5. The current JS/CSS require a modern WebView. Native/offline rendering, legacy WebView fallbacks, device testing, download/print/share integration, native Back integration testing and release signing remain work. Use the browser preview to test exports for now.
 
-## Production blockers — do not skip
+## How identity, privacy and delivery work (v0.4.0)
 
-`server/index.mjs` intentionally refuses to launch without `DEVELOPMENT_MODE=true`.
-
-1. **Member SMS ownership verification.** Development identity is an opaque browser session, not a verified phone number. Access codes are retired: deleted members reapply through both stages, and an active member on a new device needs a main-administrator-confirmed replacement (no automatic access). New-number verification still requires an SMS provider.
-2. **Android compatibility and accessibility.** Finish the native implementation/decide the hybrid approach, test actual low-end devices, OS font scaling, TalkBack, touch tile-reordering and Gujarati conjunct rendering. No app can promise every Android version.
-3. **Privacy policy and retention.** The UI discloses member visibility and archive retention, but there is no approved retention duration/legal policy or automatic purge. Backups contain personal data in plaintext; store securely. Archive isolation currently means a separate server-side table with admin-only API access, not a separate physical database.
-4. **Notifications and delegation.** Village administrators are delegated, village-scoped roles with their own credentials; there is still no co-administrator recovery of the main account. Security alerts are in-app only; no push/SMS intrusion notifications and no member approval notifications. Village administrators are delegated, village-scoped roles; there is still no co-administrator recovery of the main account.
-5. **Operations.** HTTPS, `COOKIE_SECURE=true`, encrypted server storage/backups, infrastructure rate limits, monitoring, scheduled backups, migrations, cleanup and deployment hardening are required. Current rate limits deliberately use the socket address and ignore untrusted forwarded-IP headers; shared proxies can share a limit.
-6. **Offline and scaling.** No persistent offline directory or conflict queue. Existing data stays in page memory during a disconnect; revocation is enforced at the next successful server request. Add indexed relational queries/pagination for larger communities.
-7. **Remaining design features.** Villages are main-administrator managed (seeded with the original seven), but mobile long-press tile reordering is unimplemented, and backup restores directory and governance data rather than the full authentication/security system. PDF and file sharing still depend on browser support.
-
-See `docs/IMPLEMENTATION.md` for the architecture and next steps. Do not remove the development guard until these decisions and security work are complete.
-
-Android `assembleRelease` and `bundleRelease` are intentionally blocked until the P0 items in the audit are resolved. `.github/workflows/quality.yml` prepares debug compilation/Lint/Kotlin tests on a runner with the Android toolchain; adding this workflow does not mean those checks have passed.
+1. **Identity:** the village administrator, who knows the family, verifies
+   every applicant and every mobile-number change; the main administrator
+   gives final approval. No SMS/OTP cost.
+2. **App lock:** a mandatory four-digit PIN, checked on the server; while
+   locked the server sends no directory records.
+3. **Notifications:** Android background check (no Firebase) and browser
+   Web Push; names only, never numbers.
+4. **Live mode:** `DEVELOPMENT_MODE=false` requires HTTPS
+   (`COOKIE_SECURE=true`); run behind cPanel/Passenger with `app.cjs`.
+5. **Android:** release APK signed with one permanent key through GitHub
+   Actions; screenshots blocked; no cloud backup of app data.
+6. **Backups:** `scripts/backup-db.mjs` (daily cron) plus JSON export in the
+   admin panel.
+7. **Remaining owner decisions:** retention period for removed members, a
+   privacy note, and real-phone testing.

@@ -1,5 +1,8 @@
 # MVPMI — Release Roadmap & Going-Online Guide
 
+> **Superseded for deployment (v0.4.0):** use [DEPLOY_GODADDY.md](DEPLOY_GODADDY.md) and [ANDROID_RELEASE.md](ANDROID_RELEASE.md). The live-mode guard, SMS requirement and Gradle release blocker described below were resolved in v0.4.0 — see [AUDIT_FIXES.md](AUDIT_FIXES.md).
+
+
 Answers to the owner's two questions (audit list items **19** and **20**):
 how to release the app for normal users, village admins and the main
 administrator, and how to put everything online without the Play Store —
