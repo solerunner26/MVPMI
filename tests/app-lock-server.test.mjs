@@ -52,7 +52,7 @@ test("an engaged lock hides the directory until the right PIN; wrong PINs wait l
   await m("lock/unlock", { pin: "2580" }, 429);
   s = await m("state");
   assert.ok(s.lockWaitUntil > Date.now());
-  const session = f.store.all("sessions").find((x) => x.lock?.hash);
+  const session = f.store.all("sessions").find((x) => x.lock?.fails >= 5);
   session.lock.until = 0;
   f.store.put("sessions", session);
   await m("lock/unlock", { pin: "2580" });
