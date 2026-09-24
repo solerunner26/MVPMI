@@ -1470,3 +1470,545 @@ body:has(.app.lq) {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
 }
+
+/* ---------- 20. Precision pass (v0.6) ----------------------------------- */
+/* Rule of the pass: text is never cut, clipped, squeezed onto two lines
+   inside a capsule, or drawn over other text; the same kind of control has
+   the same size, shape and states in light and dark. */
+
+/* 20.1 Tab lens moves in both directions (section tabs can use two rows). */
+.app.lq .lq-tabs::after,
+.app.lq .directory-segments::after,
+.app.lq .workflow-tabs::after {
+  top: 0 !important;
+  bottom: auto !important;
+  height: var(--thumb-h, calc(100% - 10px));
+  transform: translate(var(--thumb-x), var(--thumb-y, 5px));
+}
+.app.lq .lq-tabs.lq-moving::after,
+.app.lq .directory-segments.lq-moving::after,
+.app.lq .workflow-tabs.lq-moving::after {
+  transform: translate(var(--thumb-x), var(--thumb-y, 5px)) scale(1.03, 0.9);
+}
+
+/* 20.2 Management sheet: title row carries Back / Sign out on the right,
+   the section tabs get the full width underneath. */
+.app.lq .workflow-panel {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-content: start;
+  column-gap: 12px;
+}
+.app.lq .workflow-panel > * {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.app.lq .workflow-panel > .workflow-heading {
+  grid-column: 1;
+  grid-row: 1;
+  min-height: 48px;
+  margin: 0 0 14px !important;
+}
+.app.lq .workflow-panel > .workflow-toolbar {
+  display: contents !important;
+}
+.app.lq .workflow-panel .workflow-controls {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+  padding: 0 !important;
+  border: 0 !important;
+  gap: 8px !important;
+}
+.app.lq .workflow-heading h2,
+.app.lq .workflow-title {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  overflow-wrap: anywhere;
+  line-height: 1.25 !important;
+  font-size: calc(clamp(16px, 4.6vw, 21px) * var(--fs, 1)) !important;
+  text-wrap: balance;
+}
+
+/* 20.3 Section tabs = iOS tab-bar style: icon above a centred label, equal
+   columns, rows of at most three. Long labels wrap inside their own tab. */
+.app.lq .workflow-panel .workflow-tabs {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  width: 100%;
+  display: grid !important;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px !important;
+  padding: 5px !important;
+  margin: 0 0 16px !important;
+  overflow: visible !important;
+  border-radius: 28px !important;
+}
+.app.lq .workflow-panel .workflow-tabs > button {
+  grid-column: span 2;
+  flex-direction: column !important;
+  gap: 4px !important;
+  min-width: 0 !important;
+  min-height: 66px !important;
+  padding: 9px 6px 8px !important;
+  border-radius: 23px !important;
+  white-space: normal !important;
+  text-align: center;
+  line-height: 1.2 !important;
+  font-size: calc(13px * var(--fs, 1)) !important;
+  overflow-wrap: anywhere;
+}
+.app.lq .workflow-panel .workflow-tabs > button .bi {
+  align-items: center;
+}
+.app.lq .workflow-panel .workflow-tabs > button i {
+  font-size: 22px !important;
+}
+/* A last row of two tabs shares the full width; a single last tab too. */
+.app.lq .workflow-panel .workflow-tabs > button:nth-child(3n + 1):nth-last-child(2),
+.app.lq .workflow-panel .workflow-tabs > button:nth-child(3n + 2):last-child {
+  grid-column: span 3;
+}
+.app.lq .workflow-panel .workflow-tabs > button:nth-child(3n + 1):last-child {
+  grid-column: 1 / -1;
+}
+.app.lq .workflow-panel .workflow-tabs::after {
+  border-radius: 23px !important;
+}
+.app.lq[data-reading="large"] .workflow-panel .workflow-tabs {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.app.lq[data-reading="large"] .workflow-panel .workflow-tabs > button {
+  grid-column: auto !important;
+}
+.app.lq[data-reading="large"] .workflow-panel .workflow-tabs > button:last-child:nth-child(odd) {
+  grid-column: 1 / -1 !important;
+}
+
+/* 20.4 Card actions: the main action takes the full width; the others
+   share a row equally and never break their label; three or more quiet
+   actions become a tidy vertical list. */
+.app.lq .workflow-actions {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+  margin: 16px 0 0 !important;
+}
+.app.lq .workflow-actions > button,
+.app.lq .workflow-panel .workflow-actions > button {
+  flex: 1 1 0 !important;
+  min-width: fit-content !important;
+  max-width: 100%;
+  white-space: normal;
+  text-wrap: balance;
+}
+.app.lq .workflow-actions > button.lq-primary,
+.app.lq .workflow-panel .workflow-actions > button.lq-primary,
+.app.lq .workflow-panel .workflow-actions:not(:has(> .lq-primary)):has(> button:nth-child(3)) > button {
+  flex-basis: 100% !important;
+}
+@media (max-width: 400px) {
+  .app.lq .workflow-panel .workflow-actions > button:not(.lq-primary) {
+    flex: 1 1 0 !important;
+  }
+  .app.lq .workflow-panel .workflow-actions > button.lq-primary,
+  .app.lq .workflow-panel .workflow-actions:not(:has(> .lq-primary)):has(> button:nth-child(3)) > button {
+    flex-basis: 100% !important;
+  }
+}
+/* A label that cannot fit one line even alone (very large text) wraps
+   inside a taller capsule instead of spilling out. */
+.app.lq .workflow-panel button,
+.app.lq button[data-glass="2"],
+.app.lq button[data-glass="3"],
+.app.lq .lq-primary,
+.app.lq .lq-btn {
+  height: auto !important;
+  text-align: center;
+  line-height: 1.25 !important;
+}
+.app.lq .workflow-panel .workflow-actions > button,
+.app.lq .workflow-panel .workflow-card > button {
+  padding-block: 12px !important;
+}
+.app.lq .workflow-actions > button:only-child {
+  flex-basis: 100% !important;
+}
+/* Stand-alone card buttons ("Correct details" …) are full-width capsules. */
+.app.lq .workflow-card > button {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin: 12px 0 0;
+}
+
+/* 20.5 Status chips sit on their own line with a coloured status dot. */
+.app.lq .workflow-status {
+  display: flex !important;
+  width: fit-content;
+  max-width: 100%;
+  margin: 12px 0 !important;
+  line-height: 1.3;
+  padding: 7px 14px 7px 12px !important;
+  gap: 8px !important;
+  font-size: var(--f-xs) !important;
+}
+.app.lq .workflow-status::before {
+  content: "";
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 22%, transparent);
+}
+.app.lq[data-material="opaque"] .workflow-status::before {
+  box-shadow: none;
+}
+.app.lq .workflow-card > p:not(.workflow-status):not(.rejected-before) {
+  margin: 4px 0 !important;
+  color: var(--ink2);
+}
+.app.lq .workflow-card > h3 {
+  margin: 0 0 8px !important;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.app.lq .workflow-check {
+  margin: 16px 0 0 !important;
+  line-height: 1.35;
+}
+
+/* 20.6 Disabled primary = calm neutral capsule (like iOS), readable. */
+.app.lq button[data-glass="3"]:disabled,
+.app.lq button[style*="var(--grad)"]:disabled,
+.app.lq .lq-primary:disabled,
+.app.lq .workflow-panel .lq-primary:disabled,
+.app.lq[data-material] .workflow-panel .lq-primary:disabled {
+  opacity: 1 !important;
+  filter: none !important;
+  color: var(--ink2) !important;
+  text-shadow: none !important;
+  border-color: var(--lq-hairline) !important;
+  background: color-mix(in srgb, var(--ink2) 13%, var(--lq-base)) !important;
+  box-shadow: none !important;
+  cursor: not-allowed;
+}
+.app.lq button:disabled i {
+  color: inherit !important;
+}
+
+/* 20.7 Tiles: one tile shape everywhere (dashboard, statistics, villages):
+   rounded rectangle — never a capsule — equal height per grid. */
+.app.lq button.mvpmi-tile,
+.app.lq .mvpmi-tile {
+  border-radius: 24px !important;
+  padding: 14px 14px 13px !important;
+  min-height: 128px !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  gap: 6px !important;
+  text-align: left !important;
+  white-space: normal !important;
+  line-height: 1.25 !important;
+}
+.app.lq .admin-dashboard-grid,
+.app.lq .stats-village-grid,
+.app.lq .village-grid,
+.app.lq .collection-grid {
+  grid-auto-rows: 1fr;
+  align-items: stretch;
+}
+.app.lq .mvpmi-tile .tile-top {
+  width: 100%;
+  align-items: center !important;
+}
+.app.lq .mvpmi-tile .tile-label {
+  font-size: calc(15px * var(--fs, 1)) !important;
+  font-weight: 800 !important;
+  overflow-wrap: anywhere;
+}
+.app.lq .mvpmi-tile .tile-hint {
+  font-size: calc(12.5px * var(--fs, 1)) !important;
+  line-height: 1.3 !important;
+  color: var(--ink2) !important;
+  overflow-wrap: anywhere;
+  white-space: normal !important;
+}
+.app.lq .mvpmi-tile .tile-count {
+  min-width: 26px !important;
+  height: 26px !important;
+  padding: 0 8px !important;
+  font-size: 13px !important;
+  line-height: 26px !important;
+}
+
+/* 20.8 Form groups (sign-up, edit details, reset): a glass card needs room
+   inside it — labels never touch the card edge. */
+.app.lq[data-screen] .noscroll > [data-glass="1"] {
+  padding: 20px 16px !important;
+  border-radius: var(--lq-r-card) !important;
+  gap: 18px !important;
+}
+
+/* 20.9 Phone number rows in member cards: an inset well with even padding;
+   Call and WhatsApp are equal twin capsules inside it. */
+.app.lq .contact-number-row {
+  padding: 12px !important;
+  border: 1px solid var(--lq-hairline) !important;
+  border-radius: 20px !important;
+  gap: 10px !important;
+  background: var(--lq-fill-soft) !important;
+}
+.app.lq .contact-number-row + .contact-number-row {
+  margin-top: 10px;
+}
+.app.lq .contact-number-row > div:first-child {
+  padding: 0 4px;
+}
+.app.lq .contact-action {
+  flex: 1 1 0 !important;
+  min-height: 50px !important;
+  padding: 0 12px !important;
+  font-size: var(--lq-btn-font) !important;
+  font-weight: 700 !important;
+}
+
+/* 20.10 Search: the clear button is a quiet round icon inside the field. */
+.app.lq .directory-search button {
+  flex: 0 0 48px !important;
+  width: 48px !important;
+  height: 48px !important;
+  min-height: 48px !important;
+  margin-right: -10px;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink2) !important;
+}
+.app.lq .directory-search button i {
+  font-size: 22px !important;
+}
+
+/* 20.11 Admin sign-in links: two equal capsules side by side. */
+.app.lq div[style*="justify-content: space-between"] > button[data-glass="2"][style*="background: none"] {
+  flex: 1 1 0;
+  min-width: fit-content;
+}
+.app.lq div[style*="justify-content: space-between"]:has(> button[data-glass="2"][style*="background: none"] + button) {
+  gap: 10px;
+}
+/* Sheet forms: the submit button spans the form like every other primary. */
+.app.lq .preferences-panel form .lq-primary,
+.app.lq .preferences-panel .workflow-panel-form .lq-primary {
+  width: 100%;
+}
+
+/* 20.12 Reading-size card: glass needs inner room like every other card. */
+.app.lq .reading-control {
+  padding: 16px !important;
+  border-radius: 22px !important;
+}
+
+/* 20.13 One capsule size and one label size for every text button, in both
+   themes: 50 px tall, full pill radius, 15 px bold label (scales with the
+   reading-size setting). Brand buttons written with inline styles in the
+   original design join the same family. */
+.app.lq {
+  --lq-btn-font: max(14px, calc(15px * var(--fs, 1)));
+}
+.app.lq button[style*="var(--grad)"],
+.app.lq a[role="button"][style*="var(--grad)"] {
+  min-height: 50px !important;
+  height: auto !important;
+  border-radius: 999px !important;
+  padding: 12px 22px !important;
+}
+.app.lq :where(
+  button[data-glass="2"]:not(.mvpmi-tile, .workflow-chip, .workflow-eye, [aria-label]),
+  button[data-glass="3"],
+  button[style*="var(--grad)"],
+  .lq-primary,
+  .lq-btn,
+  .workflow-panel button:not(.workflow-chip, .workflow-eye, [role="switch"]),
+  .returning-member,
+  .settings-help,
+  .close-preferences,
+  .reset-size,
+  .workflow-launch,
+  .workflow-main-admin
+) {
+  font-size: var(--lq-btn-font) !important;
+  font-weight: 700 !important;
+}
+.app.lq .workflow-panel .workflow-tabs > button {
+  font-size: calc(13px * var(--fs, 1)) !important;
+}
+/* Circular icon buttons are 48 px everywhere (sheet toolbars included). */
+.app.lq .workflow-panel .workflow-chip,
+.app.lq .workflow-panel .workflow-eye,
+.app.lq .workflow-eye {
+  width: 48px !important;
+  height: 48px !important;
+  min-height: 48px !important;
+  min-width: 48px !important;
+  flex: 0 0 48px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+}
+/* Segmented control labels match the rest of the type scale. */
+.app.lq .directory-segments > button {
+  font-size: max(13px, calc(14px * var(--fs, 1))) !important;
+}
+/* Title-row back buttons are the same 48 px glass circle as the header. */
+.app.lq .context-header > button[data-glass="2"],
+.app.lq .context-header sc-if > button[data-glass="2"] {
+  min-height: 48px !important;
+  height: 48px !important;
+  width: 48px !important;
+  padding: 0 !important;
+}
+.app.lq button[style*="var(--grad)"],
+.app.lq a[role="button"][style*="var(--grad)"] {
+  padding: 10px 22px !important;
+}
+.app.lq .workflow-launch {
+  min-height: 50px !important;
+}
+
+/* 20.14 Passcode keypads are centred exactly (gate and app lock). */
+.app.lq .access-keypad {
+  justify-content: center !important;
+  justify-self: center;
+  align-self: center;
+  width: max-content !important;
+  margin-inline: auto !important;
+}
+
+/* 20.15 Finishing touches ------------------------------------------------ */
+/* Alphabet index in the directory: a small glass letter badge that stays
+   pinned while its group scrolls. */
+.app.lq div[style*="position: sticky"][style*="letter-spacing: 0.08em"] {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 11px !important;
+  line-height: 34px;
+  text-align: center;
+  border-radius: 999px !important;
+  letter-spacing: 0 !important;
+  color: var(--ind) !important;
+  border: 1px solid var(--lq-rim-b);
+  border-color: var(--lq-rim-t) var(--lq-rim-r) var(--lq-rim-b) var(--lq-rim-l);
+  background: color-mix(in srgb, var(--lq-brand) 10%, var(--lq-fill-strong)) !important;
+  box-shadow: var(--lq-inner), 0 6px 14px -8px rgba(90, 44, 22, 0.45);
+  box-sizing: border-box;
+}
+/* Member initials sit in a soft halo ring. */
+.app.lq .member-card div[style*="border-radius:50%"],
+.app.lq .member-card div[style*="border-radius: 50%"] {
+  outline: 2px solid color-mix(in srgb, var(--lq-brand) 22%, transparent);
+  outline-offset: 3px;
+}
+/* The status dot breathes gently while a request waits. */
+@keyframes lq-breathe {
+  0%, 100% { box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 22%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in srgb, currentColor 6%, transparent); }
+}
+.app.lq[data-material="blur"] .workflow-status::before,
+.app.lq[data-material="translucent"] .workflow-status::before {
+  animation: lq-breathe 2.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .app.lq .workflow-status::before {
+    animation: none !important;
+  }
+}
+/* Section headings inside sheets get a hairline under the title row. */
+.app.lq .workflow-panel > .workflow-heading {
+  position: relative;
+}
+.app.lq .directory-segments > button {
+  padding: 0 10px !important;
+  gap: 6px !important;
+}
+@media (max-width: 374px) {
+  .app.lq .directory-segments > button {
+    font-size: max(12px, calc(13px * var(--fs, 1))) !important;
+    padding: 0 8px !important;
+  }
+}
+/* Small phones (≤ 374 px): the same controls, slightly tighter insides so
+   labels stay on one line. */
+@media (max-width: 374px) {
+  .app.lq .directory-segments > button {
+    padding: 0 6px !important;
+    gap: 5px !important;
+  }
+  .app.lq .directory-segments .segment-count {
+    padding: 0 6px !important;
+    min-width: 22px;
+  }
+  .app.lq .contact-action {
+    padding: 0 8px !important;
+    gap: 6px !important;
+    font-size: max(13px, calc(14px * var(--fs, 1))) !important;
+  }
+  .app.lq button[style*="var(--grad)"],
+  .app.lq button[data-glass="2"]:not(.mvpmi-tile):not([aria-label]),
+  .app.lq .workflow-panel .workflow-actions > button {
+    padding-inline: 14px !important;
+  }
+}
+.app.lq div[style*="justify-content: space-between"] > button[data-glass="2"][style*="background: none"] {
+  min-width: fit-content !important;
+  padding-inline: 14px !important;
+}
+.app.lq .directory-segments .segment-count {
+  box-sizing: border-box !important;
+  min-width: 24px !important;
+}
+.app.lq .contact-number-row a.contact-action,
+.app.lq .contact-number-row button.contact-action {
+  padding: 0 14px !important;
+  gap: 7px !important;
+  text-align: center;
+  line-height: 1.2 !important;
+}
+@media (max-width: 374px) {
+  .app.lq .contact-number-row a.contact-action,
+  .app.lq .contact-number-row button.contact-action {
+    padding: 0 8px !important;
+    gap: 6px !important;
+  }
+}
+/* Very narrow phones (≤ 359 px): the floating header keeps all six 48 px
+   targets inside the capsule (nothing is pushed off the edge). */
+@media (max-width: 359px) {
+  .app.lq .main-header {
+    margin: 6px 6px 4px !important;
+    padding: 4px !important;
+    gap: 2px !important;
+  }
+  .app.lq .main-header .header-actions {
+    gap: 2px !important;
+  }
+}
+/* Large reading sizes: labels may wrap inside the capsule rather than spill. */
+.app.lq[data-reading="large"] .contact-number-row a.contact-action,
+.app.lq[data-reading="large"] .contact-number-row button.contact-action {
+  white-space: normal !important;
+  text-align: center;
+  line-height: 1.2;
+  padding: 6px 8px !important;
+  height: auto !important;
+}

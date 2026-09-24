@@ -2,7 +2,7 @@
 
 Development implementation of the supplied Gujarati/English community-directory design.
 
-**v0.5.0 — iOS-style Liquid Glass design in light and dark ([docs/LIQUID_GLASS_V2.md](docs/LIQUID_GLASS_V2.md)); functionality unchanged.**
+**v0.6.0 — iOS-style Liquid Glass design in light and dark, precision pass: no clipped or overlapping text, uniform controls ([docs/LIQUID_GLASS_V2.md](docs/LIQUID_GLASS_V2.md)); functionality unchanged.**
 
 **Status (v0.4.0, 23 September 2026): ready to put online.** A full audit fixed
 27 reported problems and added free system notifications — see

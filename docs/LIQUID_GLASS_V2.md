@@ -1,4 +1,43 @@
-# Liquid Glass UI — v0.5 (iOS style, light & dark)
+# Liquid Glass UI — v0.6 (iOS style, light & dark)
+
+## v0.6 precision pass
+
+Checkpoint before this pass: git tag **`Pre-LiquidGlass-v3`** (end of v0.5.0),
+branch `design/liquid-glass-v3`. Only presentation changed (CSS, plus the tab
+lens now also follows the vertical position); every handler, text and API
+call is identical.
+
+![Precision pass, light](liquid-ios/v06-light.png)
+
+![Precision pass, dark](liquid-ios/v06-dark.png)
+
+| Problem found | Fix |
+|---|---|
+| Admin section tabs were cut off at the edge of a scrolling strip ("મારા ગામ…") and squeezed next to Back / Sign out | Back and Sign out moved to the title row; section tabs became an iOS tab-bar grid (icon above label, max three per row, a last row of two shares the width). The glass lens slides between rows too |
+| Long names in the sheet title were cut with "…" | Title wraps onto a second line instead |
+| "ચકાસીને આગળ મોકલો" broke onto two lines inside a half-width capsule | Main action takes the full width; the other actions share the next row equally; three quiet actions become a neat full-width list |
+| Status chip glued to the "Correct details" button | Status chip on its own line with a coloured status dot (gently breathing while it waits); stand-alone card buttons are full-width capsules |
+| Dashboard and statistics tiles were drawn as pills: corners cut the hint text ("…JSON", "ડાઉનલોડ…") | One tile shape everywhere: 24 px rounded rectangle, 128 px tall, equal rows, hint wraps inside |
+| Form cards, reading-size card and phone rows had no inner padding (labels touching the card edge, WhatsApp touching the row edge) | 16–20 px inner padding; phone row is an inset well with twin Call / WhatsApp capsules |
+| Search "clear" button showed as a stray bubble | Quiet 48 px round icon inside the field |
+| Disabled primary looked muddy | Calm neutral capsule with readable text (iOS style) |
+| Keypads sat off-centre | Exactly centred |
+| Different heights / radii / label sizes for the same kind of button | Every text button: 50 px capsule, 15 px bold label; every icon button: 48 px circle; every tile: 24 px radius — in both themes |
+| Small phones (320–374 px) | Header keeps all six 48 px buttons inside the capsule; segment and Call/WhatsApp labels stay on one line |
+
+New finishing touches: glass alphabet badges in the directory, a halo ring
+around member initials, status dots.
+
+New tool: `GALLERY_AUDIT=1 node scripts/ui-gallery.mjs <folder> <width>`
+writes `layout-report.json` listing clipped text, text escaping a control,
+capsule labels on two lines, overlapping text, and the size of every control
+family. The final run reports **0 clipped, 0 escaping, 0 overlapping** texts
+on all 46 screen × theme states (Gujarati at 390 px; English at 360 and
+320 px).
+
+---
+
+# v0.5 (first Liquid Glass release)
 
 Checkpoint before this redesign: git tag **`Pre-LiquidGlass-v2`** (v0.4.0).
 All design work is on branch `design/liquid-glass-v2`. **No functionality

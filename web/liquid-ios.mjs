@@ -17,16 +17,22 @@ function lqPlaceLens(group) {
     group.style.setProperty("--thumb-o", "0");
     return;
   }
+  // The lens follows the tab in both directions: section tabs may sit in a
+  // grid of two rows (every label fully visible, never cut off).
   const x = active.offsetLeft,
-    w = active.offsetWidth;
+    w = active.offsetWidth,
+    y = active.offsetTop,
+    hh = active.offsetHeight;
   const previous = group.__lqLens;
-  if (previous && previous.x === x && previous.w === w) {
+  if (previous && previous.x === x && previous.w === w && previous.y === y && previous.h === hh) {
     group.classList.add("lq-ready");
     return;
   }
-  group.__lqLens = { x, w };
+  group.__lqLens = { x, w, y, h: hh };
   group.style.setProperty("--thumb-x", x + "px");
   group.style.setProperty("--thumb-w", w + "px");
+  group.style.setProperty("--thumb-y", y + "px");
+  group.style.setProperty("--thumb-h", hh + "px");
   group.style.setProperty("--thumb-o", "1");
   if (previous) {
     group.classList.add("lq-moving");

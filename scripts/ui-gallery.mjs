@@ -9,6 +9,18 @@ import { mkdirSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import { verifyGlassContrast } from "./glass-contrast-checks.mjs";
 import assert from "node:assert/strict";
+import { writeFileSync } from "node:fs";
+import { layoutAudit } from "./layout-audit.mjs";
+
+// GALLERY_AUDIT=1 writes a layout report (clipped/wrapped/overlapping text,
+// control sizes) next to the screenshots. GALLERY_FAST=1 skips the full-glass
+// device stub (layout is identical; rendering is much faster).
+const AUDIT = process.env.GALLERY_AUDIT === "1";
+const FAST = process.env.GALLERY_FAST === "1";
+const report = {};
+// GALLERY_PARTS=guest,member,main,village,lock limits the run to some flows.
+const PARTS = (process.env.GALLERY_PARTS || "guest,member,main,village,lock").split(",");
+const part = (name) => PARTS.includes(name);
 
 // GLASS_A11Y=1 additionally runs axe (WCAG 2.1 A/AA) on every screen in the
 // full Liquid Glass mode and measures glass text contrast on real pixels.
@@ -61,10 +73,10 @@ function server(requireAppLock) {
 
 const browser = await launchBrowser();
 const shots = [];
-async function page(url, theme, lang = "gu") {
+async function page(url, theme, lang = process.env.GALLERY_LANG || "gu") {
   const context = await browser.newContext({ viewport: { width: WIDTH, height: 844 }, deviceScaleFactor: 2 });
   // A typical phone (the sandbox browser reports 2 cores = low-end mode).
-  await context.addInitScript(() => {
+  if (!FAST) await context.addInitScript(() => {
     Object.defineProperty(navigator, "hardwareConcurrency", { get: () => 8 });
     Object.defineProperty(navigator, "deviceMemory", { get: () => 6 });
   });
@@ -83,6 +95,9 @@ const snap = async (p, name, theme) => {
   const file = `${OUT}/${name}-${theme}.png`;
   await p.screenshot({ path: file });
   shots.push(file);
+  if (AUDIT) report[name + "-" + theme] = await layoutAudit(p);
+  if (process.env.GALLERY_PROBE && new RegExp(process.env.GALLERY_PROBE_AT || ".").test(name))
+    console.log(name, await p.evaluate(process.env.GALLERY_PROBE));
   if (A11Y) {
     const result = await new AxeBuilder({ page: p })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
@@ -117,8 +132,10 @@ const approveSelf = async (p, store) => {
 const plain = await server(false);
 const THEMES = (process.env.GALLERY_THEMES || "light,dark").split(",");
 for (const theme of THEMES) {
+  let p;
   // Guest / applicant
-  let p = await page(plain.url, theme);
+  if (part("guest")) {
+  p = await page(plain.url, theme);
   await snap(p, "01-signup", theme);
   await p.locator(".noscroll").first().evaluate((el) => (el.scrollTop = 600));
   await snap(p, "02-signup-lower", theme);
@@ -138,8 +155,10 @@ for (const theme of THEMES) {
   await p.getByTestId("Brand logo").waitFor();
   await snap(p, "06-pending", theme);
   await p.context().close();
+  }
 
   // Approved member
+  if (part("member")) {
   p = await page(plain.url, theme);
   await approveSelf(p, plain.store);
   await snap(p, "07-directory-all", theme);
@@ -159,8 +178,10 @@ for (const theme of THEMES) {
   await p.getByRole("button", { name: /Edit my details|મારી વિગત બદલો/ }).click();
   await snap(p, "13-edit-profile", theme);
   await p.context().close();
+  }
 
   // Main administrator
+  if (part("main")) {
   p = await page(plain.url, theme);
   for (let i = 0; i < 5; i++) await p.getByTestId("Brand logo").click({ force: true });
   await p.getByRole("button", { name: "5", exact: true }).first().waitFor();
@@ -184,8 +205,10 @@ for (const theme of THEMES) {
   await p.locator(".workflow-tabs button").nth(1).click();
   await snap(p, "20-workflow-villages", theme);
   await p.context().close();
+  }
 
   // Village administrator
+  if (part("village")) {
   p = await page(plain.url, theme);
   await p.getByTestId("Village admin sign in").click();
   await p.getByRole("dialog").locator("input").first().fill("9001000003");
@@ -196,11 +219,12 @@ for (const theme of THEMES) {
   await p.locator(".workflow-tabs button").nth(1).click();
   await snap(p, "22-va-members", theme);
   await p.context().close();
+  }
 }
 plain.close();
 
 const locked = await server(true);
-for (const theme of THEMES) {
+for (const theme of part("lock") ? THEMES : []) {
   const p = await page(locked.url, theme);
   await approveSelf(p, locked.store).catch(() => {});
   await p.getByRole("button", { name: "5", exact: true }).first().waitFor();
@@ -210,6 +234,7 @@ for (const theme of THEMES) {
 }
 locked.close();
 await browser.close();
+if (AUDIT) writeFileSync(OUT + "/layout-report.json", JSON.stringify(report, null, 1));
 console.log("Saved " + shots.length + " screenshots to " + OUT);
 if (A11Y)
   console.log(
