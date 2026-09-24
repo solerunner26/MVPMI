@@ -26,7 +26,24 @@ export async function layoutAudit(page) {
       const s = getComputedStyle(el);
       const hides = s.overflowX !== "visible" || s.overflowY !== "visible" || s.textOverflow === "ellipsis";
       if (!hides || s.overflowX === "auto" || s.overflowX === "scroll" || s.overflowY === "auto" || s.overflowY === "scroll") continue;
-      if (el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1)
+      if (!(el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1)) continue;
+      // Only text matters: decorative layers (the aurora behind the page)
+      // may extend past a clipping frame without hiding anything.
+      const box = el.getBoundingClientRect();
+      const hidden = [...el.querySelectorAll("*"), el].some((n) =>
+        [...n.childNodes].some((t) => {
+          if (t.nodeType !== 3 || !t.data.trim() || !visible(n) || n.closest(".sr-only")) return false;
+          // Text inside its own scroller is scrolled, not clipped.
+          for (let a = n; a && a !== el; a = a.parentElement) {
+            const o = getComputedStyle(a);
+            if (/(auto|scroll)/.test(o.overflowX + o.overflowY)) return false;
+          }
+          const r = document.createRange();
+          r.selectNodeContents(t);
+          return [...r.getClientRects()].some((q) => q.width > 1 && (q.left < box.left - 1 || q.right > box.right + 1 || q.top < box.top - 1 || q.bottom > box.bottom + 1));
+        }),
+      );
+      if (hidden || s.textOverflow === "ellipsis")
         out.clipped.push({ el: path(el), text: label(el), w: [el.clientWidth, el.scrollWidth], h: [el.clientHeight, el.scrollHeight] });
     }
     const textRects = (root) => {

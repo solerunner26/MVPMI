@@ -2012,3 +2012,20 @@ body:has(.app.lq) {
   padding: 6px 8px !important;
   height: auto !important;
 }
+
+/* 20.16 Dropdowns: iOS up/down chevron, centred in its own lane. */
+.app.lq[data-material] select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='18' viewBox='0 0 12 18'%3E%3Cpath d='M2.5 7 6 3.5 9.5 7M2.5 11 6 14.5 9.5 11' fill='none' stroke='%23a93b25' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 16px center !important;
+  background-size: 12px 18px !important;
+  background-color: var(--lq-well) !important;
+  background-origin: border-box !important;
+  background-clip: border-box !important;
+}
+.app.lq[data-material][data-theme="dark"] select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='18' viewBox='0 0 12 18'%3E%3Cpath d='M2.5 7 6 3.5 9.5 7M2.5 11 6 14.5 9.5 11' fill='none' stroke='%23ff9d74' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+}
+.app.lq[data-material="opaque"][data-theme] select {
+  background-image: none !important;
+}
