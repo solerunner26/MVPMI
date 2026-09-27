@@ -132,6 +132,16 @@ class Component extends DesignComponent {
     document.addEventListener("keydown", this._onKey);
     // Liquid Glass presentation layer (tab lens, finger-following sheen).
     this._lqCleanup = liquidInstall(document.querySelector(".app"));
+    // Returning from Google's consent page (Drive backup connection).
+    try {
+      const drive = new URLSearchParams(location.search).get("drive");
+      if (drive) {
+        history.replaceState(null, "", location.pathname);
+        if (drive === "connected")
+          this.flash("Google Drive જોડાયું. પહેલું બેકઅપ શરૂ થયું.", "Google Drive connected. The first backup has started.");
+        else this.flash("Google Drive જોડાઈ શક્યું નહીં. ફરી પ્રયાસ કરો.", "Google Drive could not be connected. Please try again.");
+      }
+    } catch {}
     window.mvpmiBack = () => this.handleBack();
     // The PIN now lives on the server; remove any old on-device PIN record.
     clearAppLock();
@@ -1187,6 +1197,13 @@ class Component extends DesignComponent {
           api: (path, body) => this.api(path, body),
         })
       : null;
+    v.driveBackupPanel =
+      s.role === "admin"
+        ? React.createElement(DriveBackupPanel, {
+            lang: s.lang,
+            api: (path, body) => this.api(path, body),
+          })
+        : null;
     v.notificationPanel = React.createElement(NotificationSettings, {
       lang: s.lang,
       api: (path, body) => this.api(path, body),

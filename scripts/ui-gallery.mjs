@@ -200,6 +200,12 @@ for (const theme of THEMES) {
   await snap(p, "18-admin-section", theme);
   await p.keyboard.press("Escape");
   await p.waitForTimeout(300);
+  await p.getByRole("button", { name: /ડેશબોર્ડ પર પાછા જાઓ|Back to dashboard/ }).first().click().catch(() => {});
+  await p.locator(".admin-dashboard-grid .mvpmi-tile").nth(3).click().catch(() => {});
+  await p.getByTestId("Drive backup").waitFor({ timeout: 5000 }).catch(() => {});
+  await snap(p, "18b-admin-backup", theme);
+  await p.keyboard.press("Escape");
+  await p.waitForTimeout(300);
   await p.getByTestId("Village management").click();
   await snap(p, "19-workflow-requests", theme);
   await p.locator(".workflow-tabs button").nth(1).click();

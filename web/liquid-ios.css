@@ -2029,3 +2029,21 @@ body:has(.app.lq) {
 .app.lq[data-material="opaque"][data-theme] select {
   background-image: none !important;
 }
+
+/* Drive backup card (admin Backup tab). */
+.app.lq .drive-backup-slot .settings-label {
+  margin: 0 0 4px !important;
+}
+.app.lq .drive-backup-slot .applock-note {
+  margin: 0 !important;
+  line-height: 1.5;
+}
+.app.lq .drive-backup-slot details {
+  margin-top: 12px;
+}
+.app.lq .drive-backup-slot code {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--lq-well);
+  color: var(--ink);
+}

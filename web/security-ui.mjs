@@ -283,3 +283,135 @@ export function NotificationSettings({ lang, api }) {
     msg && h("p", { role: "status", className: "applock-msg" }, msg),
   );
 }
+
+// ---- Google Drive backup (admin Backup tab) ----
+export function DriveBackupPanel({ lang, api }) {
+  const h = React.createElement;
+  const B = (gu, en) => bilingual(gu, en, lang);
+  const [info, setInfo] = React.useState(null);
+  const [msg, setMsg] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
+  const load = () =>
+    api("admin/drive")
+      .then(setInfo)
+      .catch((e) => setMsg(errorText(e.message, lang)));
+  React.useEffect(() => {
+    load();
+  }, []);
+  async function run(path, done) {
+    setBusy(true);
+    setMsg("");
+    try {
+      const r = await api(path, {});
+      if (r.url) {
+        window.location.assign(r.url);
+        return;
+      }
+      setInfo(r);
+      if (done) setMsg(done);
+    } catch (e) {
+      setMsg(errorText(e.message, lang));
+    } finally {
+      setBusy(false);
+    }
+  }
+  const when = (t) =>
+    t
+      ? new Date(t).toLocaleString(lang === "gu" ? "gu-IN" : "en-IN", {
+          dateStyle: "medium",
+          timeStyle: "short",
+        })
+      : "—";
+  const inApp = !!androidBridge();
+  let body;
+  if (!info) body = h("p", { className: "applock-note" }, B("તપાસી રહ્યા છીએ…", "Checking…"));
+  else if (!info.configured)
+    body = h(
+      "p",
+      { className: "applock-note" },
+      B(
+        "સર્વર પર Google Drive બેકઅપ ગોઠવાયેલું નથી (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, BACKUP_PASSPHRASE, PUBLIC_URL).",
+        "Google Drive backup is not set up on the server (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, BACKUP_PASSPHRASE, PUBLIC_URL).",
+      ),
+    );
+  else if (!info.connected)
+    body = [
+      h(
+        "p",
+        { key: "n", className: "applock-note" },
+        inApp
+          ? B(
+              "Google Drive એકવાર જોડવા માટે આ સાઇટ કમ્પ્યુટર કે ફોનના Chrome બ્રાઉઝરમાં ખોલો અને એડમિન તરીકે લોગિન કરો. એપની અંદર Google લોગિન શક્ય નથી.",
+              "To connect Google Drive once, open this site in Chrome (computer or phone) and sign in as administrator. Google sign-in is not possible inside the app.",
+            )
+          : B(
+              "દરરોજ રાત્રે ડેટાબેઝની એન્ક્રિપ્ટેડ નકલ તમારા Google Drive માં સચવાશે. એપ ફક્ત પોતે બનાવેલી ફાઇલો જ જોઈ શકે છે.",
+              "An encrypted copy of the database is saved to your Google Drive every night. The app can only see the files it creates.",
+            ),
+      ),
+      !inApp &&
+        h(
+          "div",
+          { key: "a", className: "workflow-actions" },
+          h(
+            "button",
+            { type: "button", className: "lq-primary", disabled: busy, onClick: () => run("admin/drive/connect") },
+            B("Google Drive જોડો", "Connect Google Drive"),
+          ),
+        ),
+    ];
+  else
+    body = [
+      h(
+        "p",
+        { key: "s", className: "applock-note" },
+        B("જોડાયેલ: ", "Connected: "),
+        h("strong", null, info.account || "Google Drive"),
+        h("br"),
+        B("છેલ્લું સફળ બેકઅપ: ", "Last successful backup: "),
+        when(info.lastSuccess),
+        h("br"),
+        B("છેલ્લી " + info.kept + " નકલો રાખવામાં આવે છે.", "The newest " + info.kept + " copies are kept."),
+      ),
+      info.lastError &&
+        h(
+          "p",
+          { key: "e", className: "rejected-before", role: "alert" },
+          B("છેલ્લો પ્રયાસ નિષ્ફળ: ", "Last attempt failed: "),
+          info.lastError,
+        ),
+      h(
+        "div",
+        { key: "a", className: "workflow-actions" },
+        h(
+          "button",
+          { type: "button", className: "lq-primary", disabled: busy, onClick: () => run("admin/drive/backup", B("બેકઅપ Google Drive માં સચવાયું.", "Backup saved to Google Drive.")) },
+          busy ? B("બેકઅપ થઈ રહ્યું છે…", "Backing up…") : B("હમણાં બેકઅપ લો", "Back up now"),
+        ),
+        h(
+          "button",
+          { type: "button", className: "lq-danger", disabled: busy, onClick: () => run("admin/drive/disconnect") },
+          B("Drive છૂટું કરો", "Disconnect Drive"),
+        ),
+      ),
+      info.cronCommand &&
+        h(
+          "details",
+          { key: "c" },
+          h("summary", null, B("રોજનું cPanel Cron Job", "Daily cPanel cron job")),
+          h(
+            "p",
+            { className: "applock-note" },
+            B("cPanel → Cron Jobs માં દિવસમાં એકવાર આ આદેશ ઉમેરો:", "Add this command in cPanel → Cron Jobs, once a day:"),
+          ),
+          h("code", { className: "drive-cron", style: { display: "block", overflowWrap: "anywhere", fontSize: "12px", userSelect: "all" } }, info.cronCommand),
+        ),
+    ];
+  return h(
+    "div",
+    { className: "applock-settings", "data-testid": "Drive backup" },
+    h("h3", { className: "settings-label" }, B("Google Drive બેકઅપ", "Google Drive backup")),
+    body,
+    msg && h("p", { role: "status", className: "applock-msg" }, msg),
+  );
+}

@@ -14,6 +14,7 @@ import {
   installNotificationRoutes,
 } from "./notify.mjs";
 import { installAppLock, lockView, touchLock } from "./app-lock.mjs";
+import { installDriveBackup } from "./drive-backup-routes.mjs";
 import express from "express";
 import ExcelJS from "exceljs";
 import { randomUUID, randomBytes } from "node:crypto";
@@ -48,6 +49,10 @@ export function createApp({
   requireAppLock = true,
   vapidSubject,
   staticDir = DIST,
+  // Google Drive backup settings (see server/drive-backup.mjs); tests pass
+  // their own environment and a fake Google endpoint.
+  driveEnv = process.env,
+  driveOptions = {},
 } = {}) {
   const store = new Store(dbPath),
     app = express();
@@ -153,6 +158,7 @@ export function createApp({
     req.isAdmin
       ? next()
       : res.status(403).json({ error: "Admin authentication required" });
+  installDriveBackup(app, store, { admin, rate, env: driveEnv, options: driveOptions });
   const member = (req) => {
     const m = store.all("members").find((m) => m.owner === req.session.owner);
     if (!m) fail("Admin approval required", 403);

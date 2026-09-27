@@ -97,6 +97,10 @@ export function auditTemplateLate(template) {
     '<sc-if value="{{ showPinSettings }}"><h3 class="settings-label">{{ copy.appLock }}</h3>{{ appLockPanel }}</sc-if><h3 class="settings-label">{{ copy.notifications }}</h3>{{ notificationPanel }}',
     "settings sections",
   );
+  // Admin Backup tab: automatic encrypted Google Drive backup panel.
+  const exportsGrid = /(<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">\s*<sc-for list="\{\{ exports \}\}")/;
+  if (!exportsGrid.test(template)) throw new Error("Audit design contract changed: backup exports grid");
+  template = template.replace(exportsGrid, '<div class="drive-backup-slot" data-glass="1" style="border-radius:24px;padding:16px;display:flex;flex-direction:column;gap:6px">{{ driveBackupPanel }}</div>$1');
   return template;
 }
 
