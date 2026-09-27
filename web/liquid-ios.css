@@ -1008,6 +1008,7 @@ body:has(.app.lq) {
   height: 5px;
   margin-left: -20px;
   border-radius: 999px;
+  background: rgba(120, 96, 88, 0.45);
   background: color-mix(in srgb, var(--ink2) 45%, transparent);
   display: block !important;
 }
@@ -1049,6 +1050,7 @@ body:has(.app.lq) {
   gap: 6px;
   padding: 6px 12px !important;
   border-radius: 999px;
+  background: rgba(196, 73, 47, 0.12);
   background: color-mix(in srgb, var(--lq-brand) 12%, transparent);
   color: var(--ind) !important;
   font-weight: 700;
@@ -1604,7 +1606,10 @@ body:has(.app.lq) {
   text-wrap: balance;
 }
 .app.lq .workflow-actions > button.lq-primary,
-.app.lq .workflow-panel .workflow-actions > button.lq-primary,
+.app.lq .workflow-panel .workflow-actions > button.lq-primary {
+  flex-basis: 100% !important;
+}
+/* (:has() kept in its own rule: older Android WebViews skip only this one.) */
 .app.lq .workflow-panel .workflow-actions:not(:has(> .lq-primary)):has(> button:nth-child(3)) > button {
   flex-basis: 100% !important;
 }
@@ -1612,7 +1617,9 @@ body:has(.app.lq) {
   .app.lq .workflow-panel .workflow-actions > button:not(.lq-primary) {
     flex: 1 1 0 !important;
   }
-  .app.lq .workflow-panel .workflow-actions > button.lq-primary,
+  .app.lq .workflow-panel .workflow-actions > button.lq-primary {
+    flex-basis: 100% !important;
+  }
   .app.lq .workflow-panel .workflow-actions:not(:has(> .lq-primary)):has(> button:nth-child(3)) > button {
     flex-basis: 100% !important;
   }
@@ -1692,6 +1699,7 @@ body:has(.app.lq) {
   color: var(--ink2) !important;
   text-shadow: none !important;
   border-color: var(--lq-hairline) !important;
+  background: rgba(120, 96, 88, 0.2) !important;
   background: color-mix(in srgb, var(--ink2) 13%, var(--lq-base)) !important;
   box-shadow: none !important;
   cursor: not-allowed;
@@ -1909,6 +1917,7 @@ body:has(.app.lq) {
   color: var(--ind) !important;
   border: 1px solid var(--lq-rim-b);
   border-color: var(--lq-rim-t) var(--lq-rim-r) var(--lq-rim-b) var(--lq-rim-l);
+  background: var(--lq-fill-strong) !important;
   background: color-mix(in srgb, var(--lq-brand) 10%, var(--lq-fill-strong)) !important;
   box-shadow: var(--lq-inner), 0 6px 14px -8px rgba(90, 44, 22, 0.45);
   box-sizing: border-box;

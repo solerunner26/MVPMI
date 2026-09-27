@@ -30,7 +30,8 @@ android {
         // CI passes a growing number (-PversionCode=<run number>) so every
         // new APK installs as an update.
         versionCode = providers.gradleProperty("versionCode").orElse("9").get().toInt()
-        versionName = "0.4.0"
+        // CI passes the release tag (v1.0.0 → 1.0.0).
+        versionName = providers.gradleProperty("versionName").orElse("1.0.0").get()
         buildConfigField("String", "COMMUNITY_URL", "\"${communityUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
     }
     signingConfigs {

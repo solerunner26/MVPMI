@@ -142,8 +142,6 @@ administrator.
   rejection events, archive numbers and per-person history; restores drop
   staged verifications so requests need fresh village review; the original
   seven villages must be present.
-- Demo data: `node scripts/seed-demo.mjs` (synthetic only, idempotent);
-  logins listed in [DEMO_LOGINS.md](DEMO_LOGINS.md).
 
 ## Verification
 

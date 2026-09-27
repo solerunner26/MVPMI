@@ -19,7 +19,7 @@ Outputs (all committed to git; regenerate after switching --source):
   android/app/src/main/res/mipmap-{mdpi..xxxhdpi}/ic_launcher_background.png  adaptive layer
   android/app/src/main/res/mipmap-{mdpi..xxxhdpi}/ic_launcher_foreground.png  adaptive layer
   android/app/src/main/res/mipmap-anydpi-v26/ic_launcher{,_round}.xml   adaptive definition
-  docs/modern-design/app-icon-options.png  side-by-side of both source options
+  docs/app-icon/app-icon-options.png  side-by-side of both source options
 
 Requires Python 3 with Pillow (pip install pillow). Node rebuild
 (npm run build) is needed afterwards so dist/brand picks up new files.
@@ -34,8 +34,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 SOURCES = {
     # key -> (filename, label)
-    "1": ("i0lkualxlp3e1.jpeg", "Option 1 - i0lkualxlp3e1.jpeg"),
-    "2": ("images.jpg", "Option 2 - images.jpg"),
+    "1": ("android/icon-source/icon-source-1.jpeg", "Option 1 - i0lkualxlp3e1.jpeg"),
+    "2": ("android/icon-source/icon-source-2.jpg", "Option 2 - images.jpg"),
 }
 
 # Brand palette (see web/modern-design.css --ind and the theme-color meta).
@@ -227,9 +227,9 @@ def build_preview(source_key, source):
                anchor="mm")
         x += 192 + pad
     d.text((pad, 8), label, fill=(255, 244, 230), anchor="lm")
-    out = os.path.join(ROOT, "docs", "modern-design",
+    out = os.path.join(ROOT, "docs", "app-icon",
                        "app-icon-%s.png" % source_key)
-    save(sheet.convert("RGB"), "docs", "modern-design",
+    save(sheet.convert("RGB"), "docs", "app-icon",
          "app-icon-%s.png" % source_key)
     return out
 
@@ -280,7 +280,7 @@ def options_sheet():
         d.text((tx + cell // 2, top + cell + 24), "Source image",
                font=fs, fill=(210, 198, 186), anchor="mm")
         x += cell * 3 + pad * 2
-    save(sheet, "docs", "modern-design", "app-icon-options.png")
+    save(sheet, "docs", "app-icon", "app-icon-options.png")
 
 
 def main():

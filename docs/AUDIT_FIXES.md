@@ -108,4 +108,4 @@ or signing in.
 
 Not possible in this sandbox (Google/Maven downloads are blocked here): compiling the
 Android app. GitHub Actions compiles, lints and unit-tests it on every push.
-Real-phone testing is still needed (checklist: `BETA_TEST_CHECKLIST.md`).
+Release testing: see `RELEASE_TESTING.md`.

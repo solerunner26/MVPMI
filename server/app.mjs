@@ -7,6 +7,8 @@ import {
 } from "./village-approval.mjs";
 import { isDeepStrictEqual } from "node:util";
 import { fileURLToPath } from "node:url";
+import { join } from "node:path";
+import { existsSync } from "node:fs";
 import { installSessions, clientKey, knownClient } from "./session.mjs";
 import {
   createNotifier,
@@ -15,6 +17,7 @@ import {
 } from "./notify.mjs";
 import { installAppLock, lockView, touchLock } from "./app-lock.mjs";
 import { installDriveBackup } from "./drive-backup-routes.mjs";
+import { installPublicPages } from "./public-pages.mjs";
 import express from "express";
 import ExcelJS from "exceljs";
 import { randomUUID, randomBytes } from "node:crypto";
@@ -53,6 +56,7 @@ export function createApp({
   // their own environment and a fake Google endpoint.
   driveEnv = process.env,
   driveOptions = {},
+  ...options
 } = {}) {
   const store = new Store(dbPath),
     app = express();
@@ -387,7 +391,7 @@ export function createApp({
         payload: p,
         createdAt: Date.now(),
         consentAt: Date.now(),
-        consentVersion: "development-disclosure-v1",
+        consentVersion: "member-consent-v1",
         ...(priorRejection
           ? {
               rejectedBefore: {
@@ -1232,13 +1236,43 @@ export function createApp({
     res.send("\uFEFF" + lines.map((r) => r.map(csvCell).join(",")).join("\r\n"));
   });
   app.use("/api", (req, res) => res.status(404).json({ error: "Not found" }));
+  installPublicPages(app, store, { env: driveEnv, ...(options.downloadDir ? { downloadDir: options.downloadDir } : {}) });
   // The service worker must be able to control the whole site.
   app.get("/sw.js", (req, res, next) => {
     res.set("Service-Worker-Allowed", "/");
     res.set("Cache-Control", "no-cache");
     next();
   });
-  app.use(express.static(staticDir, { index: "index.html" }));
+  // Pre-compressed Brotli/gzip copies written by the build (much smaller
+  // downloads on mobile data); versioned assets are cached for a year.
+  app.use((req, res, next) => {
+    if (req.method !== "GET" && req.method !== "HEAD") return next();
+    const path = req.path === "/" ? "/index.html" : req.path;
+    if (path.includes("..") || !/\.(html|css|js|webmanifest|svg|json)$/.test(path)) return next();
+    const accepts = String(req.get("accept-encoding") || "");
+    const type = { html: "text/html; charset=utf-8", css: "text/css; charset=utf-8", js: "text/javascript; charset=utf-8", webmanifest: "application/manifest+json", svg: "image/svg+xml", json: "application/json" }[path.split(".").pop()];
+    for (const [enc, ext] of [["br", ".br"], ["gzip", ".gz"]]) {
+      if (!new RegExp("\\b" + enc + "\\b").test(accepts)) continue;
+      const file = join(staticDir, path + ext);
+      if (!existsSync(file)) continue;
+      res.set("Content-Encoding", enc);
+      res.set("Content-Type", type);
+      res.vary("Accept-Encoding");
+      if (req.query.v) res.set("Cache-Control", "public, max-age=31536000, immutable");
+      else if (path === "/index.html" || path === "/sw.js") res.set("Cache-Control", "no-cache");
+      return res.sendFile(file, { headers: {}, lastModified: true, etag: true, cacheControl: false });
+    }
+    next();
+  });
+  app.use(
+    express.static(staticDir, {
+      index: "index.html",
+      setHeaders(res, file) {
+        if (/[\\/](vendor|brand)[\\/]/.test(file)) res.set("Cache-Control", "public, max-age=604800");
+        if (/index\.html$/.test(file)) res.set("Cache-Control", "no-cache");
+      },
+    }),
+  );
   app.use((err, req, res, next) => {
     if (!err.status)
       console.error(

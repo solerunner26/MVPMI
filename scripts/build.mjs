@@ -16,13 +16,18 @@ for (const [from, to] of [
   ["react-dom/umd/react-dom.production.min.js", "react-dom.js"],
 ])
   cpSync("node_modules/" + from, "dist/vendor/" + to);
-cpSync("node_modules/@phosphor-icons/web/src/duotone", "dist/vendor/icons", {
-  recursive: true,
-});
-for (const font of ["manrope", "noto-sans-gujarati"])
-  cpSync("node_modules/@fontsource/" + font, "dist/vendor/" + font, {
-    recursive: true,
-  });
+// Fonts: only the five weights the app uses (the browser then downloads just
+// the unicode subsets a page needs).
+const FONT_WEIGHTS = [400, 500, 600, 700, 800];
+for (const font of ["manrope", "noto-sans-gujarati"]) {
+  mkdirSync(`dist/vendor/${font}/files`, { recursive: true });
+  for (const w of FONT_WEIGHTS) {
+    const css = read(`node_modules/@fontsource/${font}/${w}.css`, "utf8");
+    write(`dist/vendor/${font}/${w}.css`, css);
+    for (const [, file] of css.matchAll(/url\(\.\/files\/([^)]+\.woff2)\)/g))
+      cpSync(`node_modules/@fontsource/${font}/files/${file}`, `dist/vendor/${font}/files/${file}`);
+  }
+}
 let helmet = source.slice(
   source.indexOf("<helmet>") + 8,
   source.indexOf("</helmet>"),
@@ -243,6 +248,29 @@ write(
 ${read("web/village-workflow.css", "utf8")}
 ${read("web/liquid-ios.css", "utf8")}</style></helmet>${template}</x-dc><script type="text/x-dc" data-dc-script>${logic}</script></body></html>`,
 );
+// Icons: keep only the Phosphor rules the app actually uses (the full sheet
+// lists 1,500 icons) and serve the WOFF2 font only.
+{
+  const used = new Set();
+  const sources = [
+    read("Community Directory.dc.html", "utf8"),
+    read("dist/index.html", "utf8"),
+  ];
+  for (const text of sources)
+    for (const [name] of text.matchAll(/ph-[a-z0-9-]+/g)) used.add(name);
+  const full = read("node_modules/@phosphor-icons/web/src/duotone/style.css", "utf8");
+  const kept = [];
+  for (const block of full.match(/[^{}]+\{[^{}]*\}/g) || []) {
+    const selector = block.slice(0, block.indexOf("{"));
+    const names = [...selector.matchAll(/\.(ph-[a-z0-9-]+)/g)].map((m) => m[1]).filter((n) => n !== "ph-duotone");
+    if (names.length === 0 || names.some((n) => used.has(n))) kept.push(block.trim());
+  }
+  let css = kept.join("\n").replace(/src:[^;]+;/, 'src: url("./Phosphor-Duotone.woff2") format("woff2");');
+  if (!/Phosphor-Duotone\.woff2/.test(css) || kept.length < 20) throw new Error("Icon subset failed");
+  mkdirSync("dist/vendor/icons", { recursive: true });
+  write("dist/vendor/icons/style.css", css);
+  cpSync("node_modules/@phosphor-icons/web/src/duotone/Phosphor-Duotone.woff2", "dist/vendor/icons/Phosphor-Duotone.woff2");
+}
 cpSync("support.js", "dist/support.js");
 // Installable home-screen app and Web Push service worker.
 cpSync("web/sw.js", "dist/sw.js");
@@ -250,6 +278,34 @@ cpSync("web/manifest.webmanifest", "dist/manifest.webmanifest");
 cpSync("web/brand", "dist/brand", { recursive: true });
 for (const file of ["SunMark.dc.html", "SunWait.dc.html"])
   cpSync(file, "dist/" + file);
+// Versioned asset links (long browser caching; a new build changes the link).
+{
+  const { createHash } = await import("node:crypto");
+  let html = read("dist/index.html", "utf8");
+  html = html.replace(/(href|src)="(\/(?:vendor|support\.js)[^"?]*)"/g, (m, attr, path) => {
+    const file = "dist" + path;
+    const v = createHash("sha256").update(read(file)).digest("hex").slice(0, 10);
+    return `${attr}="${path}?v=${v}"`;
+  });
+  write("dist/index.html", html);
+}
+// Pre-compressed copies (Brotli + gzip) so pages load fast on slow mobile data.
+{
+  const { brotliCompressSync, gzipSync, constants } = await import("node:zlib");
+  const { readdirSync, statSync } = await import("node:fs");
+  const walk = (dir) =>
+    readdirSync(dir).flatMap((n) => {
+      const f = dir + "/" + n;
+      return statSync(f).isDirectory() ? walk(f) : [f];
+    });
+  for (const file of walk("dist")) {
+    if (!/\.(html|css|js|webmanifest|svg|json)$/.test(file)) continue;
+    const data = read(file);
+    if (data.length < 1024) continue;
+    write(file + ".br", brotliCompressSync(data, { params: { [constants.BROTLI_PARAM_QUALITY]: 11 } }));
+    write(file + ".gz", gzipSync(data, { level: 9 }));
+  }
+}
 console.log(
   "Built modern community UI, preserving the original identity and server-backed workflows.",
 );

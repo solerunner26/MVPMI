@@ -115,4 +115,4 @@ The native server-selection/error screens and test banner are **debug tools** ar
 5. Build and test an actual release candidate on devices and Play testing tracks.
 6. Only then configure a permanent backend URL, production signing and a release AAB/APK, remove the reviewed release blockers, and publish.
 
-See `RELEASE_AUDIT.md` for the full remaining-work checklist. A debug APK is for testing; it is not deployment approval.
+A debug APK is for testing only; members install the signed release APK (see `ANDROID_RELEASE.md`).

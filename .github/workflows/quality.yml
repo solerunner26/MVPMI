@@ -15,7 +15,7 @@ permissions:
 jobs:
   server-and-browser:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -46,6 +46,8 @@ jobs:
     env:
       COMMUNITY_URL: ${{ inputs.community_url || vars.COMMUNITY_URL || vars.COMMUNITY_TEST_URL || 'https://example.invalid' }}
       VERSION_CODE: ${{ github.run_number }}
+      # v1.2.3 tags become versionName 1.2.3; other builds use the Gradle default.
+      VERSION_NAME: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-java@v5
@@ -95,9 +97,15 @@ jobs:
           fi
           echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/mvpmi-release.jks"
           export MVPMI_KEYSTORE_FILE="$RUNNER_TEMP/mvpmi-release.jks"
-          gradle -p android :app:assembleRelease "-PcommunityUrl=$COMMUNITY_URL" "-PversionCode=$((VERSION_CODE + 100))" --console=plain
+          NAME_ARG=""
+          if [ -n "$VERSION_NAME" ]; then NAME_ARG="-PversionName=${VERSION_NAME#v}"; fi
+          # APK for sharing by link; AAB (Android App Bundle) for Google Play.
+          gradle -p android :app:assembleRelease :app:bundleRelease "-PcommunityUrl=$COMMUNITY_URL" "-PversionCode=$((VERSION_CODE + 100))" $NAME_ARG --console=plain
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs android/app/build/outputs/apk/release/app-release.apk
-          cp android/app/build/outputs/apk/release/app-release.apk android/app/build/outputs/apk/release/mvpmi.apk
+          mkdir -p release-out
+          cp android/app/build/outputs/apk/release/app-release.apk release-out/mvpmi.apk
+          cp android/app/build/outputs/bundle/release/app-release.aab release-out/mvpmi-play.aab
+          (cd release-out && sha256sum mvpmi.apk mvpmi-play.aab > SHA256SUMS.txt)
           rm -f "$RUNNER_TEMP/mvpmi-release.jks"
           echo "built=true" >> "$GITHUB_OUTPUT"
       - name: Upload the release APK
@@ -105,8 +113,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: mvpmi-release-apk
-          path: android/app/build/outputs/apk/release/mvpmi.apk
-          retention-days: 30
+          path: release-out/
+          retention-days: 90
       - name: Verify APK signature and record checksum
         shell: bash
         run: |
@@ -156,8 +164,9 @@ jobs:
           if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY"; then
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" \
               --title "MVPMI $TAG" \
-              --notes-file .github/release-notes-debug.md
+              --notes-file .github/release-notes.md
           fi
-          files=$(find apk -type f \( -path 'apk/mvpmi-release-apk/*' -o -path 'apk/mvpmi-debug-apk/*' \) || true)
-          [ -n "$files" ] || { echo "No APKs were built"; exit 1; }
+          # Members install mvpmi.apk; mvpmi-play.aab is for Google Play.
+          files=$(find apk/mvpmi-release-apk -type f 2>/dev/null || true)
+          [ -n "$files" ] || { echo "Release build missing: add the signing secrets and COMMUNITY_URL (docs/ANDROID_RELEASE.md)"; exit 1; }
           gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" $files --clobber

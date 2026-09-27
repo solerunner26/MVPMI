@@ -136,7 +136,7 @@ test("approval carries consent evidence and rejects double approval", async (t) 
   });
   await admin("admin/requests/" + r.id + "/approve", {});
   const m = store.all("members").find((x) => x.phone === example.phone);
-  assert.equal(m.consentVersion, "development-disclosure-v1");
+  assert.equal(m.consentVersion, "member-consent-v1");
   assert.ok(m.consentAt);
   assert.ok(m.createdAt);
   assert.ok(m.approvedBy);

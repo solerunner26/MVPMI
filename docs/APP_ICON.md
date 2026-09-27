@@ -6,13 +6,13 @@ the generator can build the complete icon set from either one:
 
 | Option | File | Resolution |
 | --- | --- | --- |
-| 1 (active) | `i0lkualxlp3e1.jpeg` | 736 × 1251 |
-| 2 | `images.jpg` | 335 × 597 |
+| 1 (active) | `android/icon-source/icon-source-1.jpeg` | 736 × 1251 |
+| 2 | `android/icon-source/icon-source-2.jpg` | 335 × 597 |
 
 Option 1 is active because it has the higher resolution. A side-by-side of
 both options rendered as icons is committed at
-`docs/modern-design/app-icon-options.png` (per-option strips:
-`docs/modern-design/app-icon-1.png`, `app-icon-2.png`).
+`docs/app-icon/app-icon-options.png` (per-option strips:
+`docs/app-icon/app-icon-1.png`, `app-icon-2.png`).
 
 ## Treatment
 
@@ -44,7 +44,7 @@ soft drop shadow for depth. Rounding is applied per surface:
 
 ```
 python3 scripts/generate-app-icons.py                # option 1 (default)
-python3 scripts/generate-app-icons.py --source 2     # option 2 (images.jpg)
+python3 scripts/generate-app-icons.py --source 2     # option 2 (icon-source-2.jpg)
 npm run build                                        # refresh dist/brand
 ```
 

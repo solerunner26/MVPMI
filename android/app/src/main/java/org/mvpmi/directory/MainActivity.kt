@@ -157,6 +157,14 @@ class MainActivity : Activity() {
                 if (request.isForMainFrame && response.statusCode >= 500)
                     showConnectionError("સર્વર થોડી વાર માટે ઉપલબ્ધ નથી. થોડી મિનિટ પછી ફરી પ્રયાસ કરો.\nThe server is busy or restarting. Please try again in a few minutes.")
             }
+            // Android may stop the WebView's renderer under memory pressure;
+            // start the screen again instead of crashing the app.
+            @TargetApi(26)
+            override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
+                content.removeView(view)
+                recreate() // onDestroy() destroys the old WebView
+                return true
+            }
             override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: android.net.http.SslError) {
                 handler.cancel()
                 showConnectionError("The server certificate is not trusted. Use a valid HTTPS server or the debug-only local computer address.")
