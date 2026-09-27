@@ -1,0 +1,25 @@
+#cloud-config
+# Paste into Oracle Cloud → Create instance → Advanced options →
+# Management → "Paste cloud-init script". Replace every CHANGE_ME.
+write_files:
+  - path: /etc/mvpmi.env
+    permissions: "0640"
+    content: |
+      NODE_ENV=production
+      DEVELOPMENT_MODE=false
+      COOKIE_SECURE=true
+      TRUST_PROXY=1
+      HOST=127.0.0.1
+      PORT=3000
+      DB_PATH=/var/lib/mvpmi/community.sqlite
+      DOWNLOAD_DIR=/var/lib/mvpmi/downloads
+      PUBLIC_URL=https://samaj.kavigsv.com
+      VAPID_SUBJECT=https://samaj.kavigsv.com
+      ADMIN_PASSWORD=CHANGE_ME
+      ADMIN_GATE_CODE=CHANGE_ME
+      GOOGLE_CLIENT_ID=CHANGE_ME
+      GOOGLE_CLIENT_SECRET=CHANGE_ME
+      BACKUP_PASSPHRASE=CHANGE_ME
+      PRIVACY_CONTACT_EMAIL=
+runcmd:
+  - [bash, -c, "curl -fsSL https://raw.githubusercontent.com/solerunner26/MVPMI/main/deploy/oracle/install.sh -o /root/mvpmi-install.sh && APP_DOMAIN=samaj.kavigsv.com bash /root/mvpmi-install.sh > /var/log/mvpmi-install.log 2>&1"]
