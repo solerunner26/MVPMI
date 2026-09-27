@@ -45,13 +45,13 @@ test("static site: Brotli/gzip copies, versioned assets cached, HTML revalidated
   assert.equal(home.headers.get("content-encoding"), "br");
   assert.equal(home.headers.get("cache-control"), "no-cache");
   const html = await home.text();
-  const css = /href="(\/vendor\/icons\/style\.css\?v=[a-f0-9]{10})"/.exec(html);
-  assert.ok(css, "icon sheet link is versioned");
+  const css = /href="(\/vendor\/app-fonts\.css\?v=[a-f0-9]{10})"/.exec(html);
+  assert.ok(css, "font and icon sheet link is versioned");
   const asset = await fetch(url + css[1], { headers: { "accept-encoding": "gzip" } });
   assert.equal(asset.headers.get("content-encoding"), "gzip");
   assert.match(asset.headers.get("cache-control"), /immutable/);
   const text = await asset.text();
-  assert.ok(text.length < 40000, "icon sheet is subset to the icons in use");
+  assert.ok(text.length < 60000, "icon rules are subset to the icons in use");
   assert.match(text, /ph-lock-key/);
   assert.equal((await fetch(url + "/vendor/icons/Phosphor-Duotone.svg")).status, 404, "legacy font formats are not shipped");
   assert.equal((await fetch(url + "/api/nothing")).headers.get("cache-control"), "no-store");
