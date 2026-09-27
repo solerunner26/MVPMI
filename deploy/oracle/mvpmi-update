@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# Update MVPMI on the server.
+#   mvpmi-update latest     newest GitHub release (used by the hourly timer)
+#   mvpmi-update v1.2.0     a specific release tag (also used to go back)
+#   mvpmi-update apk-only   only refresh the downloadable APK
+# Before every update the database is copied to /var/lib/mvpmi/backups.
+# If the new version does not start, the previous version is restored.
+set -euo pipefail
+APP=/opt/mvpmi/app
+DATA=/var/lib/mvpmi
+REPO_API=https://api.github.com/repos/solerunner26/MVPMI
+TARGET="${1:-latest}"
+exec 9>/run/mvpmi-update.lock
+flock -n 9 || { echo "another update is running"; exit 0; }
+as() { sudo -u mvpmi -H "$@"; }
+latest_tag() { curl -fsS "$REPO_API/releases/latest" | jq -r '.tag_name // empty'; }
+
+fetch_apk() {
+  local tag="$1" tmp
+  tmp=$(mktemp -p "$DATA/downloads" .apk.XXXXXX)
+  if curl -fsSL "https://github.com/solerunner26/MVPMI/releases/download/$tag/mvpmi.apk" -o "$tmp"; then
+    chown mvpmi:mvpmi "$tmp"; chmod 644 "$tmp"
+    mv -f "$tmp" "$DATA/downloads/mvpmi.apk"
+    echo "$tag" > "$DATA/downloads/VERSION"
+    echo "APK $tag ready at /download"
+  else
+    rm -f "$tmp"
+  fi
+}
+
+if [ "$TARGET" = "apk-only" ]; then
+  tag=$(latest_tag || true)
+  [ -n "$tag" ] && [ "$(cat "$DATA/downloads/VERSION" 2>/dev/null)" != "$tag" ] && fetch_apk "$tag"
+  exit 0
+fi
+if [ "$TARGET" = "latest" ]; then
+  TARGET=$(latest_tag || true)
+  [ -n "$TARGET" ] || { echo "no GitHub release yet"; exit 0; }
+fi
+cd "$APP"
+current=$(as git describe --tags --exact-match 2>/dev/null || as git rev-parse --short HEAD)
+if [ "$current" = "$TARGET" ]; then
+  [ "$(cat "$DATA/downloads/VERSION" 2>/dev/null)" != "$TARGET" ] && fetch_apk "$TARGET"
+  exit 0
+fi
+echo "updating $current -> $TARGET"
+DB_PATH=$(sed -n 's/^DB_PATH=//p' /etc/mvpmi.env | tail -1)
+sqlite3 "${DB_PATH:-$DATA/community.sqlite}" ".backup '$DATA/backups/before-$TARGET-$(date +%Y%m%d-%H%M).sqlite'"
+chown mvpmi:mvpmi "$DATA"/backups/*.sqlite
+previous=$(as git rev-parse HEAD)
+rollback() {
+  echo "update failed; going back to $current"
+  as git checkout -f "$previous"
+  as npm ci --omit=dev --no-audit --no-fund && as npm run build
+  systemctl restart mvpmi
+  exit 1
+}
+as git fetch --tags --force origin
+as git checkout -f "$TARGET" || rollback
+as npm ci --omit=dev --no-audit --no-fund || rollback
+as npm run build || rollback
+[ -f deploy/oracle/mvpmi-update ] && install -m 755 deploy/oracle/mvpmi-update /usr/local/sbin/mvpmi-update
+systemctl restart mvpmi
+for _ in $(seq 1 20); do
+  sleep 2
+  if curl -fsS http://127.0.0.1:3000/api/health >/dev/null; then
+    echo "running $TARGET"
+    fetch_apk "$TARGET" || true
+    exit 0
+  fi
+done
+rollback

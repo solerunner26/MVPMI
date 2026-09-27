@@ -1,136 +1,67 @@
-# MVPMl — Community Directory
+# MVPMI — મહુવા ક્ષત્રિય રાજપૂત સમાજ · Community Directory
 
-Development implementation of the supplied Gujarati/English community-directory design.
+A private, bilingual (Gujarati / English) phone directory for the Mahuva
+Kshatriya Rajput Samaj. Members apply once; their **village administrator**
+verifies them and the **main administrator** approves. Approved members can
+search the directory and call or WhatsApp other members. The directory is
+locked with a PIN.
 
-**v0.6.0 — iOS-style Liquid Glass design in light and dark, precision pass: no clipped or overlapping text, uniform controls ([docs/LIQUID_GLASS_V2.md](docs/LIQUID_GLASS_V2.md)); functionality unchanged.**
+- **Live site:** https://samaj.kavigsv.com (app download: `/download`)
+- **Android app:** built and signed automatically by GitHub Actions for each
+  release (`mvpmi.apk` to share, `mvpmi-play.aab` for Google Play).
+- **Version:** 1.0.0 (first public release).
 
-**Status (v0.4.0, 23 September 2026): ready to put online.** A full audit fixed
-27 reported problems and added free system notifications — see
-[docs/AUDIT_FIXES.md](docs/AUDIT_FIXES.md). Checkpoint before those changes:
-tag `Pre-Full-Audit-Fix`.
+## Roles
 
-- **Go live on GoDaddy (free):** [docs/DEPLOY_GODADDY.md](docs/DEPLOY_GODADDY.md)
-- **Shareable Android app:** [docs/ANDROID_RELEASE.md](docs/ANDROID_RELEASE.md)
-- Still recommended before inviting everyone: a short test with 5–10 real
-  phones ([docs/BETA_TEST_CHECKLIST.md](docs/BETA_TEST_CHECKLIST.md)) and a
-  one-page privacy note for members.
+| Role | Can do |
+|---|---|
+| Member | Apply (first, father's and surname, one of 7 villages, mobile, optional second number and current location), then view the directory, call/WhatsApp, edit own details (re-verified), request removal |
+| Village administrator | Separate phone + password sign-in; verifies applicants of **their own village only** and forwards them; proposes changes/removals; gives PIN reset codes |
+| Main administrator | Hidden entrance (tap the sun logo 5 times + 4-digit code + password); enrolls village administrators; final approval; approves mobile-number changes; removes members; reports (PDF, Excel, CSV); backups |
 
-## Modern redesign review — 17 September 2026
+## Where things are
 
-The whole-app redesign is implemented: **no permanent bottom settings bar**; a compact global header and preferences sheet; connected language/theme segments; a search-led directory with illustrated village tiles; labelled Call/WhatsApp actions; and coordinated forms, profile, dialogs and eight-card admin dashboard. Gujarati-first visible bilingual content and the 85–165% slider remain.
+| Path | What |
+|---|---|
+| `server/` | Node.js 22 + Express 5 server, SQLite database (`node:sqlite`) |
+| `web/` | App logic, design layer (`liquid-ios.css`) and components |
+| `Community Directory.dc.html` | Original design source; `npm run build` turns it into `dist/` |
+| `android/` | Android app (Kotlin WebView host, notifications, save/print bridges) |
+| `deploy/oracle/` | Server installer, automatic updater, settings template |
+| `tests/`, `scripts/*-test.mjs` | Unit, API, browser, accessibility and layout tests |
+| `docs/` | Deployment, Android release, design system, testing report |
 
-See the [before/after review, screenshots, test evidence and limits](docs/MODERN_REDESIGN.md). `npm run check` passes **92 Node tests** and all browser/contact/embedded/village/language/material suites. App accessibility has zero reported violations; four modal contrast uncertainties receive independent checks with raw axe results retained (details in the report). Physical-device and visual acceptance are not claimed.
+## Documents
 
-**Pre-edit checkpoint:** `Pre-Modern-Redesign` → `6812495`. Earlier checkpoints and original assets are unchanged. Open preferences using the sliders control at the top right; language also has a direct header control.
+- **Put the server online / maintain it:** [docs/DEPLOY.md](docs/DEPLOY.md)
+- **Release a new Android version (APK + Play Store):** [docs/ANDROID_RELEASE.md](docs/ANDROID_RELEASE.md)
+- **Release testing report:** [docs/RELEASE_TESTING.md](docs/RELEASE_TESTING.md)
+- **Design system (Liquid Glass, light & dark):** [docs/LIQUID_GLASS_V2.md](docs/LIQUID_GLASS_V2.md)
+- **Village verification flow:** [docs/VILLAGE_APPROVAL.md](docs/VILLAGE_APPROVAL.md)
+- **Security audit history:** [docs/AUDIT_FIXES.md](docs/AUDIT_FIXES.md)
+- **Test the debug app on a phone:** [docs/PHONE_TESTING.md](docs/PHONE_TESTING.md)
+- **Change history:** [CHANGELOG.md](CHANGELOG.md)
 
-## Village verification and management — 20 September 2026
+## Develop
 
-Each community village has its own administrator with a **separate phone+password sign-in**; the hidden sun-tap entrance stays with the main administrator. The main administrator enrolls each village's administrator first — community applications stay closed for a village until its administrator exists. Applications wait for village verification, are forwarded with a mandatory reason, and receive directory access only after main-administrator approval. Village administrators can also propose member changes/removals, but every proposal needs the main administrator's final decision. Rejected/closed applications are kept in a separate admin-only ledger (distinct from the removed-member archive), villages are managed by the main administrator (seeded with the original seven), an optional **હાલ :** current-location field joins the form, language/theme are header-only controls, and access-code recovery is retired in favour of identity-checked reapplication. See the [full flow, data model, evidence and limits](docs/VILLAGE_APPROVAL.md); demo logins are in [DEMO_LOGINS.md](docs/DEMO_LOGINS.md).
-
-**Pre-edit checkpoints:** `Pre-Village-Approval` (tag) and commit `9111cc7`.
-
-## Previous Liquid Glass review (superseded presentation)
-
-The previous review added a restrained material layer, Gujarati-first **visible bilingual pairs**, a continuous **85–165% slider**, and explicit reduced-effects fallbacks. Existing navigation and server-backed workflows remain. See the [upgrade comparison, evidence and remaining risks](docs/LIQUID_GLASS_UPGRADE.md).
-
-**Exact pre-upgrade source checkpoint:** `Pre-LiquidGlass-Upgrade` at `3179e92`. cp001/cp002 and the original design assets remain unchanged. “UNDO” targets that pre-upgrade tree, not a replacement theme.
-
-That checkpoint’s validation included 80 Node tests, browser/contact/recovery/embedded flows, 29 app accessibility states and 20 material states. Real-device Android, TalkBack, performance and visual acceptance remain outstanding. This is not native refractive glass or a production release. See the [release audit](docs/RELEASE_AUDIT.md) for the separate publishing blockers.
-
-## Historical changes after cp001 (superseded presentation)
-
-The following describes the earlier checkpoint, not the current bilingual/slider design. Gujarati is the default UI language; switching shows only the chosen language. Reading settings are available before enrollment, and language/theme/help controls use a reserved toolbar. The revision also adds accessible village reordering, short-name search, full-width phone values, clearer approval/confirmation copy and a wider desktop admin view. User-entered names are not automatically translated. Administrator-assisted member recovery was added at that checkpoint; access codes were later retired in favour of two-stage reapplication (see [the village verification guide](docs/VILLAGE_APPROVAL.md)). SMS phone-ownership verification and production release requirements remain separate. The source checkpoint `cp001` is unchanged.
-
-The development preview now uses an expiring, tab-scoped session transport so cookie-blocking browsers can sign in. It still requires the gate and admin password; the transport is disabled outside development. If all browser storage is blocked, it persists only until the page reloads.
-
-## Run locally
-
-Requires **Node 22.13+** (uses the built-in experimental `node:sqlite` API).
-
-```sh
-npm ci
-npm run build
-cp .env.example .env
-# Edit .env with your own development admin password and access code.
-node --env-file=.env server/index.mjs
+```bash
+npm install
+npm run dev            # http://localhost:3000 (DEVELOPMENT_MODE=true in .env)
+npm test               # unit + API tests
+npm run check          # everything: unit, browser, accessibility, languages, materials, audit
 ```
 
-Open `http://localhost:3000`. The server binds to `0.0.0.0`; the UI calls same-origin `/api` endpoints, so hosted previews do not call the viewer's localhost.
+Windows/Mac helpers: `START-TEST-SERVER-WINDOWS.cmd`, `START-TEST-SERVER-MAC.command`.
 
-- The database starts empty. Use **synthetic test contacts only**.
-- Submit a profile in one browser. Open an **incognito/private browser** to act as a separate administrator.
-- Tap the sun logo **5 times within 2.5 seconds**, enter your configured four-digit gate code, then sign in as `admin` with your configured password.
-- Approve the request. The member browser discovers approval within 8 seconds or on reload.
-- `ADMIN_PASSWORD` and `ADMIN_GATE_CODE` only initialize a **new database**; changing the environment does not overwrite stored credentials.
-- No prototype password or access code is embedded in the generated client.
+## Release a new version
 
-## Implemented and verified
+1. Make changes on a branch, run `npm run check`, merge to `main`.
+2. Update `CHANGELOG.md`, then create a GitHub release with a new tag
+   (`v1.0.1`, `v1.1.0`, …).
+3. GitHub Actions runs every test, then builds the signed APK and AAB and
+   attaches them to the release.
+4. Within an hour the server updates itself to that release (with a
+   database backup first and automatic roll-back if it does not start), and
+   `/download` serves the new APK. Upload `mvpmi-play.aab` to Google Play.
 
-- Persistent SQLite member, request, archive, session, security-alert and audit tables.
-- Server-enforced directory access: guests and pending members receive **no directory records**.
-- Enrollment, request editing/replacement (archives old payload), withdrawal, approval and rejection.
-- Member profile edits remain pending until approval. Delete requests preserve access until approved.
-- Direct admin edits/deletes; dependent request cleanup; stale-update and duplicate-phone checks.
-- Village tiles seeded with the original seven villages, all-member list, bilingual name/number search, optional second number and optional current location (હાલ :), live counts and statistics. The main administrator can add villages at runtime.
-- Two-stage approval: village-administrator verification and forwarding, then main-administrator approval. Mandatory reasons and categories; separate rejection ledger for non-community/incomplete applications; archived removed members keep one unique identity and number set.
-- Separate village-administrator sign-in (phone + password, 12 hours, village-scoped); the sun-tap gate and main password remain main-administrator-only. Joining a village is closed until its administrator is enrolled. Village-administrator change/removal proposals always await the main administrator's decision. Demo data: `node scripts/seed-demo.mjs`.
-- Header-only language and dark/light theme controls; reading settings keep the 85–165% slider and other preferences.
-- Original light/dark styling, sun and waiting animations, Gujarati/English language switching, four text-size presets (Default, Big, Bigger, Biggest); preferences persist without persisting the directory in localStorage.
-- Browser dialer links (not automatic calls), clipboard copy where supported, and WhatsApp chat URLs.
-- Hidden admin gate, scrypt password hashes, opaque HttpOnly session cookies, 30-minute admin sessions, server-side attempt limits, security alerts, session blocking, and sign-out.
-- Admin password recovery uses an **offline recovery code** (no SMS, no OTP, no per-message cost): a 16-character code is issued once at the first sign-in, rotated on every use, and can be regenerated from the Security tab. Stored scrypt-hashed; five wrong attempts lock reset for 15 minutes; a successful reset revokes every admin session. A 60-day password reminder is shown when due.
-- Real `.xlsx` export; print-ready browser PDF/Save-as-PDF workflow; Web Share file sharing where supported, with a download fallback.
-- Versioned directory-data JSON export and validated, confirmed, transactional restore. Includes members, open request queues and archive, **not authentication credentials, sessions or security/audit history**.
-- Basic loading, connection/retry and operation-failure states; reduced-motion support and scroll-layout fix so profile settings do not collapse on short screens.
-
-## Tests
-
-```sh
-npm test          # API authorization and lifecycle tests, in-memory and disk SQLite
-npm run test:ui   # browser flow through the actual design, using separate member/admin contexts
-npm run test:embedded     # normal, blocked-cookie and blocked-storage iframe login
-npm run test:accessibility # automated axe scans, keyboard focus and Back-handler checks
-npm run test:coverage      # server coverage, not Android coverage
-npm run check              # all runnable quality checks and dependency audit
-```
-
-UI tests cover enrollment, pending state after reload, hidden admin login, approval, directory search, approved profile changes, language/theme persistence and horizontal overflow. Browser screenshots are saved to ignored `test-results/`.
-
-The Linux UI harness uses an npm-distributed Chromium and extracts its bundled runtime libraries into the OS temporary directory; no browser binaries or generated screenshots are tracked in Git.
-
-## Phone / emulator test APK
-
-[Download the APK ZIP from GitHub Actions](https://github.com/solerunner26/MVPMI/actions/runs/35010521845/artifacts/10413323453) (GitHub sign-in may be required; artifact retention is 14 days). Extract `app-debug.apk` from it. Kotlin compilation, Android lint, unit tests, APK assembly and signature verification passed in [build 35010521845](https://github.com/solerunner26/MVPMI/actions/runs/35010521845), source commit `076ed80`. Actual device/emulator installation remains to be tested.
-
-**Read [the step-by-step phone testing guide](docs/PHONE_TESTING.md).** Install Node.js LTS on your computer, extract this source folder, and open `START-TEST-SERVER-WINDOWS.cmd` or `START-TEST-SERVER-MAC.command`. Leave the server window open. Its credentials/database are separate from the Arena preview. Use the emulator address `http://10.0.2.2:3000`, or the printed computer Wi-Fi address on your phone. Do not use the Arena preview URL as the APK backend.
-
-## Android source
-
-`android/` contains an **online Kotlin WebView host scaffold**, not a complete native Kotlin/Room implementation. It preserves the HTML design while providing Android `ACTION_DIAL`, clipboard, WhatsApp `ACTION_VIEW`, HTTPS first-party navigation (debug builds additionally allow private-network HTTP for local testing) and a Storage Access Framework file picker. No direct-call, contacts or broad storage permission is requested.
-
-Open `android/` in Android Studio with JDK 17, Android SDK 36 and Gradle 8.11.1. Supply the hosted backend URL as a Gradle property:
-
-```sh
-cd android
-gradle assembleDebug -PcommunityUrl=https://your-development-host.example
-```
-
-**The debug APK was built, linted, unit-tested and signature-verified in GitHub Actions. It has not yet been installed/tested on an emulator or phone.** The local sandbox still lacks an Android SDK/JDK. `minSdk = 21` is a packaging target, not a claim that this web renderer works on Android 5. The current JS/CSS require a modern WebView. Native/offline rendering, legacy WebView fallbacks, device testing, download/print/share integration, native Back integration testing and release signing remain work. Use the browser preview to test exports for now.
-
-## How identity, privacy and delivery work (v0.4.0)
-
-1. **Identity:** the village administrator, who knows the family, verifies
-   every applicant and every mobile-number change; the main administrator
-   gives final approval. No SMS/OTP cost.
-2. **App lock:** a mandatory four-digit PIN, checked on the server; while
-   locked the server sends no directory records.
-3. **Notifications:** Android background check (no Firebase) and browser
-   Web Push; names only, never numbers.
-4. **Live mode:** `DEVELOPMENT_MODE=false` requires HTTPS
-   (`COOKIE_SECURE=true`); run behind cPanel/Passenger with `app.cjs`.
-5. **Android:** release APK signed with one permanent key through GitHub
-   Actions; screenshots blocked; no cloud backup of app data.
-6. **Backups:** `scripts/backup-db.mjs` (daily cron) plus JSON export in the
-   admin panel.
-7. **Remaining owner decisions:** retention period for removed members, a
-   privacy note, and real-phone testing.
+Git tags `Pre-*` are checkpoints taken before each major change.

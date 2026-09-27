@@ -47,6 +47,8 @@ const { app } = createApp({
     .filter(Boolean),
   requireAppLock: process.env.REQUIRE_APP_LOCK !== "false",
   vapidSubject: process.env.VAPID_SUBJECT || undefined,
+  // Where the shared Android APK is kept (served at /download).
+  ...(process.env.DOWNLOAD_DIR ? { downloadDir: resolve(root, process.env.DOWNLOAD_DIR) } : {}),
 });
 
 // PORT can be a number or (for some hosting proxies) a socket path.
@@ -62,5 +64,5 @@ const onListen = () => {
 };
 server =
   typeof port === "number"
-    ? app.listen(port, "0.0.0.0", onListen)
+    ? app.listen(port, process.env.HOST || "0.0.0.0", onListen)
     : app.listen(port, onListen);
