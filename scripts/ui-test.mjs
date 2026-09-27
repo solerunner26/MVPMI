@@ -107,7 +107,7 @@ try {
   await panel.locator("input[type=password]").fill("TestPreview@2026");
   // The brown ADMIN PANEL card now carries the community emblem, and it
   // must actually load inside the card.
-  const emblem = panel.locator('img[src="/brand/admin-emblem.png"]');
+  const emblem = panel.locator('img[src="/brand/admin-emblem.webp"]');
   assert.equal(await emblem.count(), 1, "admin-panel emblem present");
   assert.ok(
     (await emblem.evaluate((el) => el.naturalWidth)) > 0,

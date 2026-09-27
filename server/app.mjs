@@ -1268,7 +1268,7 @@ export function createApp({
     express.static(staticDir, {
       index: "index.html",
       setHeaders(res, file) {
-        if (/[\\/](vendor|brand)[\\/]/.test(file)) res.set("Cache-Control", "public, max-age=604800");
+        if (/[\\/](vendor|brand)[\\/]/.test(file)) res.set("Cache-Control", "public, max-age=2592000");
         if (/index\.html$/.test(file)) res.set("Cache-Control", "no-cache");
       },
     }),
