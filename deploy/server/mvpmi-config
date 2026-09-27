@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Change a server setting safely (value is typed hidden, never echoed).
+#   sudo mvpmi-config set GOOGLE_CLIENT_SECRET     # asks for the value
+#   sudo mvpmi-config set PRIVACY_CONTACT_EMAIL    # asks for the value
+#   sudo mvpmi-config first-login                  # shows the first admin password, access code and backup passphrase
+#   sudo mvpmi-config list                         # setting names only (no values)
+set -euo pipefail
+ENV=/etc/mvpmi.env
+case "${1:-}" in
+  set)
+    key="${2:?setting name}"
+    [[ "$key" =~ ^[A-Z_][A-Z0-9_]*$ ]] || { echo "bad name"; exit 1; }
+    read -r -s -p "New value for $key: " value; echo
+    [[ "$value" != *$'\n'* ]] || { echo "one line only"; exit 1; }
+    tmp=$(mktemp)
+    grep -v "^$key=" "$ENV" > "$tmp" || true
+    printf '%s=%s\n' "$key" "$value" >> "$tmp"
+    install -m 640 -o root -g mvpmi "$tmp" "$ENV"; rm -f "$tmp"
+    systemctl restart mvpmi
+    echo "$key saved; app restarted."
+    ;;
+  first-login)
+    cat /root/mvpmi-first-login.txt
+    echo "Main admin user name: admin  (tap the sun logo 5 times, then the access code)"
+    ;;
+  list) cut -d= -f1 "$ENV" ;;
+  *) sed -n '2,7p' "$0" ;;
+esac

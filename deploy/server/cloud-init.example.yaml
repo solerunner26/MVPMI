@@ -1,0 +1,13 @@
+#cloud-config
+# Google Cloud: Compute Engine → Create instance → Advanced → Metadata →
+# key "user-data", value = this file. (Oracle Cloud: "Initialization script".)
+# No secrets here: the installer creates them on the server.
+# Read them once with:  sudo mvpmi-config first-login
+write_files:
+  - path: /etc/mvpmi.env
+    permissions: "0640"
+    content: |
+      PUBLIC_URL=https://samaj.kavigsv.com
+      GOOGLE_CLIENT_ID=811611397378-hvk8a4cll9jv9gv500agj9ji8m8a340r.apps.googleusercontent.com
+runcmd:
+  - [bash, -c, "curl -fsSL https://raw.githubusercontent.com/solerunner26/MVPMI/main/deploy/server/install.sh -o /root/mvpmi-install.sh && APP_DOMAIN=samaj.kavigsv.com bash /root/mvpmi-install.sh > /var/log/mvpmi-install.log 2>&1"]

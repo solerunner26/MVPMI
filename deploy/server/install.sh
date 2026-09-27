@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# MVPMI server installer for a fresh Ubuntu 22.04/24.04 VM (Oracle Cloud
-# Always Free, or any similar Linux server). Safe to run again.
+# MVPMI server installer for a fresh Ubuntu 22.04/24.04 VM (Google Cloud,
+# Oracle Cloud or any similar Linux server). Safe to run again.
 #
 #   sudo APP_DOMAIN=samaj.example.com bash install.sh
 #
-# Expects /etc/mvpmi.env (settings and secrets, see mvpmi.env.example).
+# Settings live in /etc/mvpmi.env (see mvpmi.env.example); missing
+# secrets are generated here on first run.
 # Installs: Node.js 22, Caddy (automatic HTTPS), the app as a systemd
 # service, nightly backups and hourly automatic updates to the newest
 # GitHub release (a release exists only after all tests have passed).
@@ -17,7 +18,29 @@ DATA=/var/lib/mvpmi
 export DEBIAN_FRONTEND=noninteractive
 
 log() { echo "[mvpmi-install] $*"; }
-[ -f /etc/mvpmi.env ] || { echo "/etc/mvpmi.env is missing"; exit 1; }
+touch /etc/mvpmi.env
+# Secrets are created on the server itself (never typed or sent anywhere).
+# Read them once with:  sudo mvpmi-config first-login
+gen() { LC_ALL=C tr -dc "$1" < /dev/urandom 2>/dev/null | head -c "$2" || true; }
+setdefault() { grep -q "^$1=." /etc/mvpmi.env || { sed -i "/^$1=/d" /etc/mvpmi.env; echo "$1=$2" >> /etc/mvpmi.env; }; }
+setdefault NODE_ENV production
+setdefault DEVELOPMENT_MODE false
+setdefault COOKIE_SECURE true
+setdefault TRUST_PROXY 1
+setdefault HOST 127.0.0.1
+setdefault PORT 3000
+setdefault DB_PATH /var/lib/mvpmi/community.sqlite
+setdefault DOWNLOAD_DIR /var/lib/mvpmi/downloads
+setdefault PUBLIC_URL "https://$APP_DOMAIN"
+setdefault VAPID_SUBJECT "https://$APP_DOMAIN"
+setdefault APK_URL "https://github.com/solerunner26/MVPMI/releases/latest/download/mvpmi.apk"
+if ! grep -q '^ADMIN_PASSWORD=.' /etc/mvpmi.env; then
+  setdefault ADMIN_PASSWORD "Mv$(gen 'A-HJ-NP-Za-km-z2-9' 12)@$(gen '2-9' 2)"
+  setdefault ADMIN_GATE_CODE "$(gen '0-9' 4)"
+  setdefault BACKUP_PASSPHRASE "$(gen 'A-Za-z0-9' 32)"
+  grep -E '^(ADMIN_PASSWORD|ADMIN_GATE_CODE|BACKUP_PASSPHRASE)=' /etc/mvpmi.env > /root/mvpmi-first-login.txt
+  chmod 600 /root/mvpmi-first-login.txt
+fi
 
 # 1 GB machines need swap for npm.
 if ! swapon --show | grep -q /swapfile; then
@@ -73,7 +96,8 @@ cd "$APP"
 sudo -u mvpmi -H npm ci --omit=dev --no-audit --no-fund
 sudo -u mvpmi -H npm run build
 
-install -m 755 deploy/oracle/mvpmi-update /usr/local/sbin/mvpmi-update
+install -m 755 deploy/server/mvpmi-update /usr/local/sbin/mvpmi-update
+install -m 755 deploy/server/mvpmi-config /usr/local/sbin/mvpmi-config
 
 cat > /etc/systemd/system/mvpmi.service <<EOF
 [Unit]

@@ -27,7 +27,7 @@ locked with a PIN.
 | `web/` | App logic, design layer (`liquid-ios.css`) and components |
 | `Community Directory.dc.html` | Original design source; `npm run build` turns it into `dist/` |
 | `android/` | Android app (Kotlin WebView host, notifications, save/print bridges) |
-| `deploy/oracle/` | Server installer, automatic updater, settings template |
+| `deploy/server/` | Server installer, automatic updater, settings template |
 | `tests/`, `scripts/*-test.mjs` | Unit, API, browser, accessibility and layout tests |
 | `docs/` | Deployment, Android release, design system, testing report |
 

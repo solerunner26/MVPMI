@@ -2,7 +2,7 @@
 
 ## 1.0.0 — 27 September 2026 (first public release)
 
-- Live server on Oracle Cloud Always Free with automatic HTTPS, nightly
+- Live server on a Google Cloud e2-micro VM with automatic HTTPS, nightly
   backups (local + encrypted Google Drive copy) and automatic updates to
   tested GitHub releases.
 - Google Drive backup: admin → Backup & export → Connect Google Drive.

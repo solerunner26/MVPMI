@@ -89,10 +89,14 @@ export function installPublicPages(app, store, { env = process.env, downloadDir 
     ),
   );
 
+  // APK_URL (e.g. the GitHub release asset) keeps large downloads off the
+  // server; a local file in downloadDir is used when APK_URL is not set.
+  const apkUrl = String(env.APK_URL || "").trim();
   app.get(["/download", "/app"], (req, res) => {
     const apk = join(downloadDir, "mvpmi.apk");
-    const has = existsSync(apk);
-    const size = has ? (statSync(apk).size / 1048576).toFixed(1) + " MB" : "";
+    const local = existsSync(apk);
+    const has = local || /^https:\/\//.test(apkUrl);
+    const size = local ? " (" + (statSync(apk).size / 1048576).toFixed(1) + " MB)" : "";
     send(
       res,
       page(
@@ -100,7 +104,7 @@ export function installPublicPages(app, store, { env = process.env, downloadDir 
         `<h1>${community.gu}<br><span class="en">${community.en} · Android app</span></h1>
 ${
   has
-    ? `<p><a class="btn" href="/download/mvpmi.apk" download>એપ ડાઉનલોડ કરો · Download app (${size})</a></p>
+    ? `<p><a class="btn" href="/download/mvpmi.apk" download>એપ ડાઉનલોડ કરો · Download app${size}</a></p>
 <div class="card"><ol><li>ડાઉનલોડ પૂરું થાય પછી ફાઇલ ખોલો. <span class="en">Open the file when the download finishes.</span></li>
 <li>ફોન પૂછે તો «આ સ્રોતમાંથી મંજૂરી આપો» ચાલુ કરો. <span class="en">If asked, allow installing from this source (Chrome).</span></li>
 <li>«ઇન્સ્ટોલ» દબાવો અને એપ ખોલો. <span class="en">Tap Install, then open the app.</span></li></ol></div>`
@@ -113,7 +117,7 @@ ${
   // The APK is served with the right type so phones offer to install it.
   app.get("/download/mvpmi.apk", (req, res, next) => {
     const apk = join(downloadDir, "mvpmi.apk");
-    if (!existsSync(apk)) return next();
+    if (!existsSync(apk)) return /^https:\/\//.test(apkUrl) ? res.redirect(302, apkUrl) : next();
     res.set("Content-Type", "application/vnd.android.package-archive");
     res.set("Cache-Control", "no-cache");
     res.download(apk, "mvpmi.apk");

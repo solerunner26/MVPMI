@@ -17,6 +17,8 @@ latest_tag() { curl -fsS "$REPO_API/releases/latest" | jq -r '.tag_name // empty
 
 fetch_apk() {
   local tag="$1" tmp
+  # With APK_URL set, members download from GitHub directly (no server traffic).
+  grep -q '^APK_URL=https' /etc/mvpmi.env 2>/dev/null && return 0
   tmp=$(mktemp -p "$DATA/downloads" .apk.XXXXXX)
   if curl -fsSL "https://github.com/solerunner26/MVPMI/releases/download/$tag/mvpmi.apk" -o "$tmp"; then
     chown mvpmi:mvpmi "$tmp"; chmod 644 "$tmp"
@@ -59,7 +61,7 @@ as git fetch --tags --force origin
 as git checkout -f "$TARGET" || rollback
 as npm ci --omit=dev --no-audit --no-fund || rollback
 as npm run build || rollback
-[ -f deploy/oracle/mvpmi-update ] && install -m 755 deploy/oracle/mvpmi-update /usr/local/sbin/mvpmi-update
+[ -f deploy/server/mvpmi-update ] && install -m 755 deploy/server/mvpmi-update /usr/local/sbin/mvpmi-update
 systemctl restart mvpmi
 for _ in $(seq 1 20); do
   sleep 2

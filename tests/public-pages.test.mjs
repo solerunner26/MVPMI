@@ -56,3 +56,14 @@ test("static site: Brotli/gzip copies, versioned assets cached, HTML revalidated
   assert.equal((await fetch(url + "/vendor/icons/Phosphor-Duotone.svg")).status, 404, "legacy font formats are not shipped");
   assert.equal((await fetch(url + "/api/nothing")).headers.get("cache-control"), "no-store");
 });
+
+test("download page can send members to the GitHub release APK", async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "mvpmi-dl-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const url0 = "https://github.com/solerunner26/MVPMI/releases/latest/download/mvpmi.apk";
+  const { url } = await start(t, { downloadDir: dir, driveEnv: { APK_URL: url0 } });
+  assert.match(await (await fetch(url + "/download")).text(), /href="\/download\/mvpmi\.apk"/);
+  const r = await fetch(url + "/download/mvpmi.apk", { redirect: "manual" });
+  assert.equal(r.status, 302);
+  assert.equal(r.headers.get("location"), url0);
+});
