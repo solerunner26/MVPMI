@@ -37,7 +37,7 @@ case "${1:-}" in
     printf 'MAIN_ADMIN_PASSWORD=%s\n' "$value" >> "$tmp"
     install -m 640 -o root -g mvpmi "$tmp" "$ENV"; rm -f "$tmp"
     systemctl restart mvpmi
-    echo "Main Admin saved; app restarted. Log in with the mobile number and 'Main Admin? Log in with password'."
+    echo "Main Admin saved; app restarted. Log in with the mobile number and 'Main Admin? Log in with password'. That password works once: the app then asks for a new one."
     ;;
   reset-main-admin)
     cd /opt/mvpmi/app && sudo -u mvpmi env "$(grep '^DB_PATH=' "$ENV")" node scripts/reset-main-admin.js
