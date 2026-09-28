@@ -29,7 +29,10 @@ small{color:var(--ink2)}</style></head><body><main>${body}</main></body></html>`
 export function installPublicPages(app, store, { env = process.env, downloadDir = DOWNLOADS } = {}) {
   const community = { gu: "મહુવા ક્ષત્રિય રાજપૂત સમાજ", en: "Mahuva Kshatriya Rajput Samaj" };
   const contact = () => {
-    const c = store.get("config", "main-admin-contact");
+    // The Main Admin's name and number, exactly as on the "All admins" page.
+    const id = store.get("config", "main-admin")?.memberId;
+    const m = id ? store.get("members", id) : null;
+    const c = m ? { name: m.nameGu || m.name, phone: m.phone } : null;
     const email = String(env.PRIVACY_CONTACT_EMAIL || "").trim();
     const lines = [];
     if (c?.phone) lines.push(`${esc(c.name || "મુખ્ય એડમિન")} · <a href="tel:+91${esc(c.phone)}">+91 ${esc(c.phone)}</a>`);
@@ -62,7 +65,7 @@ export function installPublicPages(app, store, { env = process.env, downloadDir 
 <p class="en">All traffic is encrypted (HTTPS). The directory is PIN-locked, screenshots are blocked in the app, and server backups are encrypted before they are stored in the administrator's Google Drive.</p>
 <h2>માહિતી કાઢવી · Deleting your data</h2>
 <p>એપમાં «મારી પ્રોફાઇલ → યાદીમાંથી મારી માહિતી કાઢવા વિનંતી» વાપરો, અથવા નીચેના સંપર્ક પર જણાવો. વિગતો: <a href="/delete-account">/delete-account</a>.</p>
-<p class="en">Use “My profile → Request removal from directory” in the app, or contact us below. Details: <a href="/delete-account">/delete-account</a>.</p>
+<p class="en">Use “Settings → Request removal from directory” in the app, or contact us below. Details: <a href="/delete-account">/delete-account</a>.</p>
 <h2>સંપર્ક · Contact</h2><div class="card">${contact()}</div>`,
       ),
     ),

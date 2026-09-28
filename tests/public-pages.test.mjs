@@ -1,4 +1,5 @@
 import test from "node:test";
+import { MAIN } from "./helpers.mjs";
 import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -6,7 +7,7 @@ import { join } from "node:path";
 import { createApp } from "../server/app.mjs";
 
 async function start(t, extra = {}) {
-  const { app, store } = createApp({ dbPath: ":memory:", adminPassword: "Testing@2026!", gateCode: "5831", driveEnv: {}, ...extra });
+  const { app, store } = createApp({ dbPath: ":memory:", mainAdmin: MAIN, driveEnv: {}, ...extra });
   const server = app.listen(0, "127.0.0.1");
   await new Promise((r) => server.once("listening", r));
   t.after(async () => {
@@ -22,11 +23,11 @@ test("privacy, account-deletion and download pages use live contact details only
   const { url, store } = await start(t, { downloadDir: dir });
   let html = await (await fetch(url + "/privacy")).text();
   assert.match(html, /Privacy policy/);
-  assert.match(html, /All admins/, "no contact configured yet: points to the in-app list");
+  // The contact is the seeded Main Admin (the same one "All admins" shows).
+  assert.match(html, new RegExp("\\+91 " + MAIN.mobile));
   assert.doesNotMatch(html, /9000000000|example\.org/);
-  store.put("config", { id: "main-admin-contact", name: "મુખ્ય એડમિન", phone: "9876543210" });
   html = await (await fetch(url + "/delete-account")).text();
-  assert.match(html, /\+91 9876543210/);
+  assert.match(html, new RegExp("\\+91 " + MAIN.mobile));
   assert.match(html, /Request removal from directory/);
   html = await (await fetch(url + "/download")).text();
   assert.match(html, /available soon/);
