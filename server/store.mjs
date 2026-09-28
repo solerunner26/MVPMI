@@ -58,8 +58,14 @@ export function strong(p) {
     /[^a-zA-Z0-9]/.test(p)
   );
 }
-export function fail(message, status = 400) {
-  throw Object.assign(new Error(message), { status });
+// Errors carry an optional machine-readable code (see web/strings.mjs "err.*")
+// and extra fields (for example the lockout end time).
+export function fail(message, status = 400, code, extra) {
+  throw Object.assign(new Error(message), {
+    status,
+    ...(code ? { code } : {}),
+    ...(extra || {}),
+  });
 }
 export const isRecord = (p) =>
   p !== null && typeof p === "object" && !Array.isArray(p);

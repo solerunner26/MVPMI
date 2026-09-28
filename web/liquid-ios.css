@@ -1109,7 +1109,7 @@ body:has(.app.lq) {
   --lq-fill: color-mix(in srgb, var(--lq-brand) 12%, var(--lq-fill-strong));
 }
 
-/* ---------- 14. Keypads (gate & app lock): iOS passcode keys ------------ */
+/* ---------- 14. Keypads (gate & app lock): iOS PIN keys ------------ */
 .app.lq .access-keypad {
   gap: 16px 22px !important;
   grid-template-columns: repeat(3, 76px) !important;
@@ -1894,7 +1894,7 @@ body:has(.app.lq) {
   min-height: 50px !important;
 }
 
-/* 20.14 Passcode keypads are centred exactly (gate and app lock). */
+/* 20.14 PIN keypads are centred exactly (gate and app lock). */
 .app.lq .access-keypad {
   justify-content: center !important;
   justify-self: center;

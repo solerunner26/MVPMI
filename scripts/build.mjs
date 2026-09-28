@@ -229,6 +229,7 @@ logic +=
   );
 logic += "\n" + read("web/text-size.mjs", "utf8").replaceAll("export ", "");
 logic += "\n" + read("web/ui-copy.mjs", "utf8").replaceAll("export ", "");
+logic += "\n" + read("web/strings.mjs", "utf8").replaceAll("export ", "");
 logic +=
   "\n" + read("web/print-document.mjs", "utf8").replaceAll("export ", "");
 logic += "\n" + read("web/save-file.mjs", "utf8").replaceAll("export ", "");

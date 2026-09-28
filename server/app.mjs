@@ -1283,6 +1283,8 @@ export function createApp({
       );
     const status = err.status || 500;
     res.status(status).json({
+      ...(err.code && status < 500 ? { code: err.code } : {}),
+      ...(err.until && status < 500 ? { until: err.until } : {}),
       error:
         err.type === "entity.parse.failed"
           ? "Invalid JSON"

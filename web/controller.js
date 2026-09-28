@@ -475,11 +475,22 @@ class Component extends DesignComponent {
     return response;
   }
   async api(path, body) {
-    const response = await this.request(path, body);
-    const value = await response.json();
+    let response, value;
+    try {
+      response = await this.request(path, body);
+      value = await response.json();
+    } catch (e) {
+      // No internet, server unreachable or a non-JSON proxy page.
+      throw Object.assign(new Error(e?.message || "Network error"), {
+        network: true,
+        status: 0,
+      });
+    }
     if (!response.ok)
       throw Object.assign(new Error(value.error || "Request failed"), {
         status: response.status,
+        code: value.code,
+        until: value.until,
       });
     return value;
   }
