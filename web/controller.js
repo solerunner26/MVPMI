@@ -73,13 +73,7 @@ class Component extends DesignComponent {
         theme: p.theme === "dark" ? "dark" : "light",
         fsPct: normalizeTextSize(p.fsPct),
         effects: p.effects !== false,
-        tileOrder:
-          Array.isArray(p.tileOrder) &&
-          p.tileOrder.length <= 1000 &&
-          new Set(p.tileOrder).size === p.tileOrder.length &&
-          p.tileOrder.every((g) => typeof g === "string" && g.length <= 80)
-            ? p.tileOrder
-            : null,
+        chipsVisible: p.chipsVisible !== false,
       });
     } catch {}
     this._materialQueries = [
@@ -94,17 +88,18 @@ class Component extends DesignComponent {
       else q.addListener(this._materialChanged);
     }
     this._onKey = (e) => {
-      const dialog = document.querySelector('.app [role="dialog"]');
-      if (!dialog) return;
+      // The topmost (last) dialog is the active one.
+    const dialog = [...document.querySelectorAll('.app [role="dialog"]')].pop() || null;
       if (e.key === "Escape") {
-        e.preventDefault();
-        this.handleBack();
+        // Escape behaves like the phone's Back button everywhere.
+        if (this.handleBack()) e.preventDefault();
         return;
       }
+      if (!dialog) return;
       if (e.key === "Tab") {
         const items = [
           ...dialog.querySelectorAll(
-            'button,input,select,a[href],[tabindex="0"]',
+            'button,input,select,textarea,a[href],[tabindex="0"]',
           ),
         ].filter((el) => !el.disabled && el.getClientRects().length);
         const first = items[0],
@@ -142,22 +137,27 @@ class Component extends DesignComponent {
         else this.flash("Google Drive જોડાઈ શક્યું નહીં. ફરી પ્રયાસ કરો.", "Google Drive could not be connected. Please try again.");
       }
     } catch {}
+    // The Android app asks the page first when the phone's Back is pressed.
     window.mvpmiBack = () => this.handleBack();
-    // The PIN now lives on the server; remove any old on-device PIN record.
+    // Fingerprint results from the Android app (see MainActivity.Bridge).
+    window.mvpmiBiometricResult = (kind, key) => this._biometricResult(kind, key);
+    // Old on-device lock records from earlier versions are removed.
     clearAppLock();
-    // Lock after 30 seconds in the background…
-    // The server applies the same 30-second rule even if the app is closed
-    // or killed in the background and never comes back.
+    // Section 5: the lock closes when the app comes back after 1 minute or
+    // more in the background (the server applies the same rule on its own).
     this._onVisibility = () => {
       if (document.hidden) {
         this._hiddenAt = Date.now();
         if (this._lockable()) this._lockSignal("lock/hidden");
-      } else if (Date.now() - (this._hiddenAt || Date.now()) > 30000)
+      } else if (this._hiddenAt && Date.now() - this._hiddenAt >= 60000) {
+        this._hiddenAt = 0;
         this._engageLock();
-      else if (this._lockable()) this._lockSignal("lock/visible");
+      } else {
+        this._hiddenAt = 0;
+        if (this._lockable()) this._lockSignal("lock/visible");
+      }
     };
     document.addEventListener("visibilitychange", this._onVisibility);
-    // …and after 3 minutes without a touch or key press.
     this._lastActivity = Date.now();
     this._activity = () => {
       this._lastActivity = Date.now();
@@ -167,13 +167,8 @@ class Component extends DesignComponent {
         passive: true,
         capture: true,
       });
-    this._idle = setInterval(() => {
-      if (this._lockable() && Date.now() - this._lastActivity > 180000)
-        this._engageLock();
-    }, 15000);
-    // Installable home-screen app + Web Push (not needed inside the Android app).
-    // The service worker keeps the app itself available offline (inside the
-    // Android app too); Web Push is only used by ordinary browsers.
+    // Section 1: the service worker keeps the app itself available offline
+    // (inside the Android app too); Web Push is only used by browsers.
     try {
       if (window.isSecureContext && "serviceWorker" in navigator)
         navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {});
@@ -181,11 +176,10 @@ class Component extends DesignComponent {
     // Back online: load the directory again without restarting the app.
     this._onOnline = () => this.refresh();
     window.addEventListener("online", this._onOnline);
-    // Every app start begins locked (the server keeps the lock state).
+    // Every app start begins locked when the lock is on (server-enforced).
     this.api("lock/engage", {})
       .catch(() => {})
       .finally(() => this.refresh(true).then(() => this._afterState()));
-    this._clock = setInterval(() => this.forceUpdate(), 1000);
     this._poll = setInterval(() => {
       if (!document.hidden && !this._busy)
         this.refresh().then(() => this._afterState());
@@ -203,12 +197,11 @@ class Component extends DesignComponent {
     for (const type of ["pointerdown", "keydown", "touchstart", "wheel"])
       document.removeEventListener(type, this._activity, { capture: true });
     delete window.mvpmiBack;
+    delete window.mvpmiBiometricResult;
     this._lqCleanup?.();
     this._alive = false;
     clearInterval(this._poll);
-    clearInterval(this._idle);
-    clearInterval(this._clock);
-    super.componentWillUnmount();
+    clearTimeout(this._t);
   }
   // Fire-and-forget lock signal that survives the page being backgrounded.
   _lockSignal(path) {
@@ -224,131 +217,123 @@ class Component extends DesignComponent {
       }).catch(() => {});
     } catch {}
   }
-  // Only an unlocked member / village-administrator session can be locked.
+  // An open (unlocked) login whose app lock is on.
   _lockable() {
     const s = this.state;
-    return (
-      !!s.loaded &&
-      s.role !== "admin" &&
-      (!!s.meId || !!s.villageAdmin) &&
-      s.locked === false &&
-      !s.lockSetup
-    );
+    return !!s.loaded && !!s.account && !!s.account.lockOn && !s.locked && !s.account.mustSetPin;
   }
-  // Every overlay closes with the lock, so nothing (a Call sheet, a dialog, a
-  // panel) stays usable or readable underneath the lock screen.
+  // Every overlay closes with the lock, so nothing (a contact sheet, a
+  // dialog, a panel) stays usable or readable underneath the lock screen.
   _overlaysClosed() {
     return {
       confirm: null,
       picker: null,
       dial: null,
-      edit: null,
-      adminEditingId: null,
-      preferencesOpen: false,
+      alphaDialog: null,
+      contact: null,
       workflowOpen: false,
       allAdminsOpen: false,
-      villageLoginOpen: false,
-      recoveryOpen: false,
-      pinResetOpen: false,
+      searchOpen: false,
     };
   }
   _engageLock() {
     if (!this._lockable()) return;
     this._lockEngagedAt = Date.now();
+    this._resumeScreen = this.state.screen;
     this.setState({
       ...this._overlaysClosed(),
       locked: true,
       members: [],
-      screen: "applock",
-      appLockInput: "",
-      appLockFirst: "",
-      appLockError: null,
+      screen: "lock",
     });
     this.api("lock/engage", {})
       .then(() => this.refresh())
       .catch(() => {});
   }
+  // ---- Section 7: the phone's Back button ------------------------------
+  // Returns true when the app handled it; false lets Android close the app.
+  // There is no history stack to fall back through, so Back can never return
+  // to an admin screen after logout or to the Login screen after logging in.
   handleBack() {
-    if (this.state.locked || this.state.lockSetup) {
-      if (this.state.pinResetOpen) this.set("pinResetOpen", false);
-      return true;
-    }
-    if (this.state.workflowOpen) {
-      this.set("workflowOpen", false);
-      return true;
-    }
-    if (this.state.villageLoginOpen) {
-      this.set("villageLoginOpen", false);
-      return true;
-    }
-    if (this.state.allAdminsOpen) {
-      this.set("allAdminsOpen", false);
-      return true;
-    }
+    const s = this.state;
     if (this._busy) return true;
-    if (this.state.recoveryOpen || this.state.recoveryIssued) {
-      this.setState({
-        recoveryOpen: false,
-        recoveryIssued: null,
-        recoveryCode: "",
-        recoveryError: null,
-      });
+    if (s.alphaDialog) {
+      this.setState({ alphaDialog: null });
       return true;
     }
-    if (this.state.preferencesOpen) {
-      this.set("preferencesOpen", false);
+    if (s.issuedPin) {
+      this.setState({ issuedPin: null });
       return true;
     }
-    if (this.state.confirm || this.state.picker || this.state.dial) {
+    if (s.contact) {
+      this.setState({ contact: null });
+      return true;
+    }
+    if (s.confirm || s.picker || s.dial) {
       this.setState({ confirm: null, picker: null, dial: null });
       return true;
     }
+    if (s.allAdminsOpen) {
+      this.set("allAdminsOpen", false);
+      return true;
+    }
+    if (s.workflowOpen) {
+      this.setState({ workflowOpen: false, screen: s.role === "admin" ? s.screen : "directory" });
+      return true;
+    }
+    switch (s.screen) {
+      case "register":
+        this.setState({ screen: s.myRequest ? "pending" : "login" });
+        return true;
+      case "directory":
+        if (s.searchOpen) {
+          this.setState({ searchOpen: false, query: "" });
+          return true;
+        }
+        if (s.dirVillage) {
+          this.set("dirVillage", "");
+          return true;
+        }
+        return false;
+      case "settings":
+        this.set("screen", "directory");
+        return true;
+      case "profile":
+        this.set("screen", s.profileFrom === "admin" && s.role === "admin" ? "admin" : "settings");
+        return true;
+      case "edit":
+      case "adminedit":
+        this.leaveEdit();
+        return true;
+      case "admin":
+        if (s.tab !== "home") {
+          if (s.tab === "stats" && s.statsVillage) this.setState({ statsVillage: null });
+          else this.set("tab", "home");
+        } else this.set("screen", "directory");
+        return true;
+      default:
+        // login, pending, set PIN and lock: Back leaves the app.
+        return false;
+    }
+  }
+  // Leaving a form: asks "Discard changes?" when something was typed.
+  leaveEdit() {
     const s = this.state;
-    if (s.screen === "editprofile") {
-      this.setState({
-        screen: s.adminEditingId ? "admin" : "profile",
-        edit: null,
-        adminEditingId: null,
-      });
-      return true;
-    }
-    if (s.screen === "profile") {
-      this.set("screen", "directory");
-      return true;
-    }
-    if (s.screen === "admin" && s.tab !== "home") {
-      this.set("tab", "home");
-      return true;
-    }
-    if (s.screen === "adminforgot") {
-      this.set("screen", s.role === "admin" ? "admin" : "adminlogin");
-      return true;
-    }
-    if (s.screen === "adminlogin") {
-      this.setState({ screen: "gate", gateInput: "" });
-      return true;
-    }
-    if (s.screen === "gate") {
-      this.set("screen", this.home());
-      return true;
-    }
-    if (s.screen === "signup" && s.myRequest) {
-      this.setState({ screen: "pending", editingRequest: false });
-      return true;
-    }
-    if (s.screen === "directory" && (s.query || s.dirMode !== "all")) {
-      this.setState({ query: "", dirMode: "all" });
-      return true;
-    }
-    return false;
+    const back = () =>
+      this.setState(
+        s.screen === "adminedit"
+          ? { screen: "admin", tab: "stats", adminEditingId: null, editDirty: false, alphaDialog: null }
+          : { screen: "profile", editDirty: false, alphaDialog: null },
+      );
+    if (!s.editDirty) return back();
+    this.setState({ alphaDialog: { type: "discard", onDiscard: back } });
   }
   componentDidUpdate() {
     document.documentElement.lang = this.state.lang;
-    document.title = this.P(
-      "મહુવા ક્ષત્રિય રાજપૂત સમાજ · સમાજ સંપર્ક યાદી",
-      "મહુવા ક્ષત્રિય રાજપૂત સમાજ · Community Directory",
-    );
-    const dialog = document.querySelector('.app [role="dialog"]');
+    document.title =
+      t("app.community", this.state.lang) + " · " + t("app.title", this.state.lang);
+    // The topmost (last) dialog is the active one.
+    const dialog = [...document.querySelectorAll('.app [role="dialog"]')].pop() || null;
     // Restore background semantics before applying the current modal boundary.
     for (const [element, inert, hidden] of this._modalBackground || []) {
       element.inert = inert;
@@ -359,7 +344,8 @@ class Component extends DesignComponent {
     if (dialog && dialog !== this._dialog) {
       if (!this._dialog) this._returnFocus = document.activeElement;
       this._dialog = dialog;
-      (dialog.querySelector("button") || dialog).focus();
+      if (!dialog.contains(document.activeElement))
+        (dialog.querySelector("input,button") || dialog).focus();
     } else if (!dialog && this._dialog) {
       this._dialog = null;
       if (this._returnFocus?.isConnected) this._returnFocus.focus();
@@ -383,13 +369,19 @@ class Component extends DesignComponent {
         }
       }
     }
+    // A new screen starts at the top.
+    if (this._lastScreen !== this.state.screen) {
+      this._lastScreen = this.state.screen;
+      for (const el of document.querySelectorAll(".app .alpha-scroll, .app .alpha-list, .app .alpha-auth"))
+        el.scrollTop = 0;
+    }
     try {
       const preferences = JSON.stringify({
         lang: this.state.lang,
         theme: this.state.theme,
         fsPct: this.state.fsPct,
         effects: this.state.effects !== false,
-        tileOrder: this.state.tileOrder,
+        chipsVisible: this.state.chipsVisible !== false,
       });
       if (preferences !== this._lastPreferences) {
         localStorage.setItem("mvpmi-preferences", preferences);
@@ -445,13 +437,6 @@ class Component extends DesignComponent {
     const headers = { "X-MVPMI-Client": "1" };
     if (this._transport) headers["X-MVPMI-Session"] = this._transport;
     if (body !== undefined) headers["Content-Type"] = "application/json";
-    // Tells the server the person is really using the app (idle-lock timer).
-    if (
-      typeof document !== "undefined" &&
-      !document.hidden &&
-      Date.now() - (this._lastActivity || 0) < 60000
-    )
-      headers["X-MVPMI-Active"] = "1";
     const response = await fetch("/api/" + path, {
       method: body === undefined ? "GET" : "POST",
       credentials: "same-origin",
@@ -497,17 +482,35 @@ class Component extends DesignComponent {
         status: response.status,
         code: value.code,
         until: value.until,
+        field: value.field,
+        left: value.left,
       });
     return value;
   }
+  // ---- Which screen belongs to this server state --------------------------
   home(data = this.state) {
-    return data.role === "admin"
-      ? "admin"
-      : data.meId
-        ? "directory"
-        : data.myRequest
-          ? "pending"
-          : "signup";
+    const a = data.account;
+    if (a) {
+      if (a.mustSetPin) return "setpin";
+      if (data.locked) return "lock";
+      return "directory";
+    }
+    if (data.myRequest || data.approvedHere) return "pending";
+    if (data.lastDecision?.action === "reject" && !this._seenDecision) return "pending";
+    return "login";
+  }
+  // Screens a given state may show (Section 7: the directory is NEVER
+  // visible without an approved login).
+  allowedScreen(screen, data) {
+    const a = data.account;
+    if (!a) {
+      if (screen === "pending") return !!(data.myRequest || data.approvedHere || data.lastDecision);
+      return screen === "login" || screen === "register";
+    }
+    if (a.mustSetPin) return screen === "setpin";
+    if (data.locked) return screen === "lock";
+    if (screen === "admin" || screen === "adminedit") return data.role === "admin";
+    return ["directory", "settings", "profile", "edit"].includes(screen);
   }
   apply(data, initial = false, screen) {
     if (!this._alive) return;
@@ -522,88 +525,70 @@ class Component extends DesignComponent {
         VILLAGES.length,
         ...data.villages.map((v) => [v.en, v.gu, TEHSIL_EN, TEHSIL_GU]),
       );
-      const order = (this.state.tileOrder || []).filter((g) =>
-        data.villages.some((v) => v.gu === g),
-      );
-      data.tileOrder = [
-        ...order,
-        ...data.villages.map((v) => v.gu).filter((g) => !order.includes(g)),
-      ];
     }
     const current = this.state;
+    const { issuedPin, ...rest } = data;
     const patch = {
-      ...data,
+      ...rest,
       connected: true,
       loaded: true,
+      offline: false,
       lastConfirmed: Date.now(),
     };
-    if (data.role !== "admin") {
-      patch.recoveryIssued = null;
-      patch.recoveryMember = null;
-      patch.recoveryMemberGu = null;
-      patch.recoveryMemberEn = null;
+    // A TEMP PIN is shown ONCE (Sections 3 and 5).
+    if (issuedPin) patch.issuedPin = issuedPin;
+    const accountChanged = (current.account?.id || null) !== (data.account?.id || null);
+    const roleChanged =
+      current.loaded &&
+      (current.role !== data.role || current.account?.role !== data.account?.role);
+    const wasLocked = current.screen === "lock";
+    const target = screen || current.screen;
+    if (initial || screen || accountChanged || !this.allowedScreen(target, data)) {
+      let next = screen && this.allowedScreen(screen, data) ? screen : this.home(data);
+      // Back from the lock screen to where the person was.
+      if (wasLocked && next === "directory" && this._resumeScreen && this.allowedScreen(this._resumeScreen, data))
+        next = this._resumeScreen;
+      patch.screen = next;
     }
-    if (
-      data.myRequest &&
-      (!current.loaded || current.myRequest?.id !== data.myRequest.id)
-    ) {
-      patch.form = { ...data.myRequest };
-      patch.showPhone2 = !!data.myRequest.phone2;
+    if (accountChanged || roleChanged) {
+      // Login, logout and role changes clear everything that was open.
+      Object.assign(patch, this._overlaysClosed(), { adminEditingId: null, editDirty: false, tab: "home", statsVillage: null });
+      if (!data.account) Object.assign(patch, { query: "", dirVillage: "" });
     }
-    const restricted =
-      ["directory", "profile", "editprofile"].includes(current.screen) &&
-      !data.meId &&
-      data.role !== "admin";
-    const roleChanged = current.loaded && current.role !== data.role;
-    if (
-      initial ||
-      screen ||
-      restricted ||
-      roleChanged ||
-      (current.screen === "admin" && data.role !== "admin")
-    ) {
-      patch.screen = screen || this.home(data);
-      patch.editingRequest = false;
-      patch.edit = null;
-      patch.adminEditingId = null;
-      patch.confirm = null;
-      patch.dial = null;
+    if (!data.villageAdmin && data.role !== "admin" && current.workflowOpen) patch.workflowOpen = false;
+    if (data.locked) {
+      if (!wasLocked) this._resumeScreen = current.screen;
+      Object.assign(patch, this._overlaysClosed(), { screen: "lock", issuedPin: null });
     }
-    // While locked (or before a PIN exists) the app shows only the lock
-    // screen; the server sends no directory records in that state.
-    if (data.locked || data.lockSetup) {
-      Object.assign(patch, this._overlaysClosed(), { screen: "applock" });
-      if (current.screen !== "applock") {
-        patch.appLockInput = "";
-        patch.appLockFirst = "";
-        patch.appLockError = null;
-      }
-    } else if (current.screen === "applock" || patch.screen === "applock")
-      patch.screen = this.home(data);
-    patch.offline = false;
     this.setState(patch);
     this.persistOffline(data);
+    // One-time notices for the member (approved, change approved …).
+    if (data.account?.notice && this._noticeShown !== data.account.notice.at) {
+      this._noticeShown = data.account.notice.at;
+      if (data.account.notice.kind === "approved") this.flashKey("pending.approved");
+    }
   }
   // Keep the offline copy in step with what the server just said.
   persistOffline(data) {
     try {
-      if (!data.meId) {
+      if (!data.account) {
         // Not logged in (signed out, removed or never approved): nothing of
         // the directory may stay on this phone.
-        if (!data.locked && !data.lockSetup) clearOffline();
+        clearOffline();
         return;
       }
-      if (data.locked || data.lockSetup || !data.members?.length) return;
-      const me = data.members.find((m) => m.id === data.meId) || {};
+      if (data.account.mustSetPin) return;
+      updateOfflineAccount({ lockOn: !!data.account.lockOn, role: data.account.role });
+      if (data.locked || !data.members?.length) return;
       saveOffline({
         account: {
-          id: data.meId,
-          role: data.account?.role || "MEMBER",
-          name: me.name,
-          nameGu: me.nameGu,
-          phone: me.phone,
-          village: me.village,
-          lockOn: !!data.account?.lockOn,
+          id: data.account.id,
+          role: data.account.role,
+          name: data.account.name,
+          nameGu: data.account.nameGu,
+          phone: data.account.phone,
+          village: data.account.village,
+          lockOn: !!data.account.lockOn,
         },
         members: data.members,
         villages: data.villages,
@@ -614,32 +599,27 @@ class Component extends DesignComponent {
     if (!this._alive) return;
     clearOffline();
     this.setState({
-      recoveryIssued: null,
-      recoveryMember: null,
-      recoveryMemberGu: null,
-      recoveryMemberEn: null,
       ...clone(SEED),
+      ...this._overlaysClosed(),
       meId: null,
       myRequest: null,
+      account: null,
       role: "guest",
       villageAdmin: false,
-      allAdminsOpen: false,
-      villageLoginOpen: false,
       reviewQueue: [],
       villageAssignments: [],
+      pinResetRequests: [],
       rejectedApplications: [],
-      workflowOpen: false,
       locked: false,
-      lockSetup: false,
-      pinResetOpen: false,
-      screen: "signup",
-      confirm: null,
-      dial: null,
+      issuedPin: null,
+      screen: "login",
+      query: "",
+      dirVillage: "",
       edit: null,
-      preferencesOpen: false,
-      recoveryOpen: false,
+      adminEditingId: null,
+      editDirty: false,
       lastConfirmed: null,
-      connected: false,
+      connected: true,
       loaded: true,
     });
   }
@@ -680,7 +660,7 @@ class Component extends DesignComponent {
     }
   }
   // Offered right after an action that will later produce a notification
-  // (sending an application, signing in as an administrator).
+  // (sending an application, logging in as an administrator).
   offerNotifications() {
     if (androidBridge() || !pushSupported() || Notification.permission !== "default")
       return;
@@ -705,7 +685,7 @@ class Component extends DesignComponent {
     try {
       const data = await this.api("state");
       // A poll that left before the lock engaged must not re-open the list.
-      if (this._lockEngagedAt > started && !data.locked && !data.lockSetup) return;
+      if (this._lockEngagedAt > started && !data.locked) return;
       this.apply(data, initial);
     } catch (e) {
       if (this._alive) {
@@ -714,7 +694,7 @@ class Component extends DesignComponent {
           this.flash(errorText(e.message, "gu"), errorText(e.message, "en"));
         } else if (!this.state.lastConfirmed && this.applyOffline()) {
           // Cold start without internet: show the saved directory copy.
-        } else this.setState({ connected: false, loaded: true });
+        } else this.setState({ connected: false, loaded: true, offline: !!this.state.account });
       }
     }
   }
@@ -732,14 +712,14 @@ class Component extends DesignComponent {
       offlineMembers: saved.members,
       meId: saved.account.id,
       role: "member",
-      account: saved.account,
+      villageAdmin: false,
+      account: { ...saved.account, adminMode: false, mustSetPin: false, lockForced: false },
       offline: true,
       connected: false,
       loaded: true,
       lastConfirmed: saved.at,
       locked,
-      lockSetup: false,
-      screen: locked ? "applock" : "directory",
+      screen: locked ? "lock" : "directory",
     });
     return true;
   }
@@ -750,8 +730,8 @@ class Component extends DesignComponent {
     try {
       await fn();
     } catch (e) {
-      this.flash(errorText(e.message, "gu"), errorText(e.message, "en"));
-      if (/authentication|approval|blocked/i.test(e.message))
+      this.flash(errorMessage(e, "gu"), errorMessage(e, "en"));
+      if (/authentication|approval|blocked/i.test(e.message) || e.code === "SESSION" || e.code === "LOCKED")
         await this.refresh();
     } finally {
       this._busy = false;
@@ -764,6 +744,9 @@ class Component extends DesignComponent {
       this.setState({ confirm: null, submitted: false });
       this.flash("કાર્ય પૂર્ણ થયું.", "Saved successfully.");
     });
+  }
+  flashKey(key, vars) {
+    this.flash(t(key, "gu", vars), t(key, "en", vars));
   }
   confirmAction(
     gu,
@@ -845,22 +828,496 @@ class Component extends DesignComponent {
       });
     input.click();
   }
+  // ---- Alpha screens: actions ---------------------------------------------
+  alphaApi() {
+    return (path, body) => this.api(path, body);
+  }
+  // Login succeeded (Section 2): land on the Member Directory (or "Set new
+  // PIN" after a TEMP PIN) with a clean slate.
+  onLoggedIn(data, secret) {
+    this._resumeScreen = null;
+    this.apply(data, false, this.home(data));
+    if (data.account && !data.account.mustSetPin) {
+      rememberOfflineUnlock(data.account.id, secret);
+      if (data.account.adminMode) this.offerNotifications();
+    }
+    this._afterState();
+  }
+  async unlock(secret) {
+    const s = this.state;
+    if (s.offline) {
+      // Section 1 + 5: offline, the lock opens with the verifier saved on
+      // this phone at the last online login/unlock (5 wrong → 5 minutes).
+      const now = Date.now();
+      if (this._offlineUntil > now)
+        throw Object.assign(new Error("locked"), { code: "LOCKED_OUT", until: this._offlineUntil });
+      if (!loadOffline()?.unlock) throw Object.assign(new Error("offline"), { network: true });
+      if (!verifyOfflineUnlock(secret)) {
+        this._offlineFails = (this._offlineFails || 0) + 1;
+        if (this._offlineFails >= 5) {
+          this._offlineFails = 0;
+          this._offlineUntil = now + 5 * 60000;
+          throw Object.assign(new Error("locked"), { code: "LOCKED_OUT", until: this._offlineUntil });
+        }
+        throw Object.assign(new Error("wrong"), {
+          code: s.account?.role === "MAIN_ADMIN" ? "WRONG_PASSWORD" : "WRONG_PIN",
+          left: 5 - this._offlineFails,
+        });
+      }
+      this._offlineFails = 0;
+      this.setState({ locked: false, members: s.offlineMembers || [], screen: this._resumeScreen && this._resumeScreen !== "lock" ? this._resumeScreen : "directory" });
+      return;
+    }
+    await this.api("lock/unlock", { secret });
+    rememberOfflineUnlock(s.account?.id, secret);
+    this._lockEngagedAt = 0;
+    await this.refresh();
+  }
+  // Fingerprint (Section 5): the Android app shows the phone's own biometric
+  // prompt and hands back a random device key it keeps for this app.
+  biometricAvailable() {
+    try {
+      return !!androidBridge()?.biometricAvailable?.();
+    } catch {
+      return false;
+    }
+  }
+  _biometricResult(kind, key) {
+    const pending = this._biometricPending;
+    this._biometricPending = null;
+    if (!pending) return;
+    if (!key || !/^[a-f0-9]{64}$/.test(key)) {
+      if (kind !== "cancel") this.flashKey("err.BIOMETRIC_FAILED");
+      return;
+    }
+    pending(key);
+  }
+  biometricPrompt(mode) {
+    return new Promise((resolve) => {
+      this._biometricPending = resolve;
+      try {
+        const bridge = androidBridge();
+        if (mode === "enroll") bridge.biometricEnroll(t("lock.fingerprint", this.state.lang), t("common.cancel", this.state.lang));
+        else bridge.biometricUnlock(t("lock.fingerprint", this.state.lang), t("common.cancel", this.state.lang));
+      } catch {
+        this._biometricPending = null;
+        this.flashKey("err.BIOMETRIC_FAILED");
+      }
+    });
+  }
+  unlockWithFingerprint() {
+    this.biometricPrompt("unlock").then((key) =>
+      this.run(async () => {
+        await this.api("lock/unlock", { biometric: key });
+        this._lockEngagedAt = 0;
+        await this.refresh();
+      }),
+    );
+  }
+  toggleBiometric() {
+    const on = !!this.state.account?.biometricOn;
+    if (on) {
+      this.run(async () => {
+        await this.api("lock/biometric", { on: false });
+        try {
+          androidBridge()?.biometricForget?.();
+        } catch {}
+        await this.refresh();
+        this.flashKey("settings.fingerprintOff");
+      });
+      return;
+    }
+    this.biometricPrompt("enroll").then((key) =>
+      this.run(async () => {
+        await this.api("lock/biometric", { key });
+        await this.refresh();
+        this.flashKey("settings.fingerprintOn");
+      }),
+    );
+  }
+  toggleLock() {
+    const a = this.state.account;
+    if (!a || a.lockForced) return;
+    this.run(async () => {
+      await this.api("lock/preference", { on: !a.lockOn });
+      await this.refresh();
+      this.flashKey(a.lockOn ? "settings.lockOffDone" : "settings.lockOn");
+    });
+  }
+  signOutOfPhone() {
+    this.setState({
+      alphaDialog: {
+        type: "confirm",
+        title: t("settings.signout", this.state.lang),
+        body: t("settings.signoutConfirm", this.state.lang),
+        yes: t("settings.signout", this.state.lang),
+        danger: true,
+        onYes: () =>
+          this.run(async () => {
+            try {
+              await this.api("logout", {});
+            } catch (e) {
+              if (!e.network) throw e;
+            }
+            try {
+              androidBridge()?.biometricForget?.();
+            } catch {}
+            // The old session no longer exists: start a fresh one.
+            this._transport = null;
+            this._transportPromise = null;
+            try {
+              sessionStorage.removeItem("mvpmi-preview-session");
+            } catch {}
+            this._resumeScreen = null;
+            this.clearAccess();
+          }),
+      },
+    });
+  }
+  // Section 7: "Log out" in the admin tools ends ONLY the admin session.
+  adminLogout() {
+    this.run(async () => {
+      const data = await this.api("admin/logout", {});
+      this.setState({ workflowOpen: false });
+      this.apply(data, false, "directory");
+      this.flashKey("nav.adminLoggedOut");
+    });
+  }
+  openAdmin() {
+    const s = this.state;
+    if (!s.account) return;
+    if (!s.account.adminMode) {
+      this.setState({ alphaDialog: { type: "adminEnter" } });
+      return;
+    }
+    // Always open the admin tools with the latest queue from the server.
+    this.run(async () => {
+      this.apply(await this.api("state"));
+      if (s.account.role === "MAIN_ADMIN") this.setState({ screen: "admin", tab: "home", statsVillage: null });
+      else this.setState({ workflowOpen: true, workflowTab: "requests" });
+    });
+  }
+  pendingAdminCount(s = this.state) {
+    if (s.role === "admin")
+      return (s.newRequests || []).length + (s.updateRequests || []).length + (s.deleteRequests || []).length + (s.pinResetRequests || []).length;
+    if (s.villageAdmin) return (s.reviewQueue || []).length + (s.pinResetRequests || []).length;
+    return 0;
+  }
+  myMember(s = this.state) {
+    return (s.members || []).find((m) => m.id === s.account?.id) || null;
+  }
+  // ---- Alpha screens: rendering -------------------------------------------
+  renderAppScreen() {
+    const s = this.state,
+      lang = s.lang,
+      api = this.alphaApi(),
+      h = React.createElement;
+    const onLang = (value) => this.set("lang", value);
+    const goAdmins = () => this.setState({ allAdminsOpen: true });
+    if (!s.loaded) return null;
+    switch (s.screen) {
+      case "login":
+        return h(ALoginScreen, {
+          key: "login",
+          lang,
+          onLang,
+          api,
+          initialMobile: s.loginMobile || "",
+          approvedNotice: !!s.approvedHere,
+          offline: s.connected === false,
+          onRetry: () => this.refresh(),
+          onLoggedIn: (data, secret) => this.onLoggedIn(data, secret),
+          onRegister: () => this.setState({ screen: "register", registerEditing: false }),
+          onAdmins: goAdmins,
+        });
+      case "register":
+        return h(ARegisterScreen, {
+          key: "register" + (s.registerEditing ? "-edit" : ""),
+          lang,
+          onLang,
+          api,
+          villages: s.villages || VILLAGE_LIST,
+          editing: !!s.registerEditing,
+          initial: s.registerEditing && s.myRequest ? s.myRequest : null,
+          onBack: () => this.handleBack(),
+          onSubmitted: (data) => {
+            this.apply(data, false, "pending");
+            this.flashKey("pending.sent");
+            this.offerNotifications();
+          },
+          onGoLogin: (mobile) => this.setState({ screen: "login", loginMobile: mobile }),
+          onForgot: (mobile) => this.setState({ screen: "login", loginMobile: mobile, alphaDialog: { type: "forgot", mobile } }),
+        });
+      case "pending":
+        return h(APendingScreen, {
+          key: "pending",
+          lang,
+          onLang,
+          data: s,
+          offline: s.connected === false,
+          onRetry: () => this.refresh(),
+          onEdit: () => this.setState({ screen: "register", registerEditing: true }),
+          onWithdraw: () =>
+            this.setState({
+              alphaDialog: {
+                type: "confirm",
+                title: t("pending.withdraw", lang),
+                body: t("pending.withdrawConfirm", lang),
+                yes: t("pending.withdraw", lang),
+                danger: true,
+                onYes: () =>
+                  this.run(async () => {
+                    const data = await this.api("enrollment/withdraw", {});
+                    this.apply(data, false, "login");
+                    this.flashKey("pending.withdrawn");
+                  }),
+              },
+            }),
+          onGoLogin: () => {
+            this._seenDecision = true;
+            this.setState({ screen: "login", loginMobile: s.myRequest?.phone || "" });
+          },
+          onAdmins: goAdmins,
+        });
+      case "setpin":
+        return h(ASetPinScreen, {
+          key: "setpin",
+          lang,
+          onLang,
+          api,
+          account: s.account,
+          onDone: (data, pin) => {
+            this.apply(data, false, "directory");
+            rememberOfflineUnlock(data.account?.id, pin);
+            this.flashKey("setpin.done");
+          },
+          onSignOut: () => this.signOutOfPhone(),
+        });
+      case "lock":
+        return h(ALockScreen, {
+          key: "lock",
+          lang,
+          onLang,
+          account: s.account,
+          offline: !!s.offline,
+          unlock: (secret) => this.unlock(secret),
+          biometricAvailable: !s.offline && !!s.account?.biometricOn && this.biometricAvailable(),
+          onBiometric: () => this.unlockWithFingerprint(),
+          onForgot: () => this.signOutOfPhone(),
+        });
+      case "settings":
+        return h(ASettingsScreen, {
+          key: "settings",
+          lang,
+          account: s.account,
+          offline: !!s.offline,
+          theme: s.theme,
+          fsPct: s.fsPct,
+          pendingChange: (s.updateRequests || []).some((u) => u.memberId === s.account.id),
+          pendingRemoval: (s.deleteRequests || []).some((u) => u.memberId === s.account.id),
+          biometricAvailable: this.biometricAvailable(),
+          notificationPanel: s.offline ? null : h(NotificationSettings, { lang, api }),
+          version: this.appVersion(),
+          onBack: () => this.handleBack(),
+          onLang,
+          onTheme: (value) => this.set("theme", value),
+          onFs: (value) => this.set("fsPct", normalizeTextSize(value)),
+          onProfile: () => this.setState({ screen: "profile", profileFrom: "settings" }),
+          onRequestChange: () => this.openEditRequest(),
+          onRequestRemoval: () => this.askRemovalRequest(),
+          onChangePin: () => this.setState({ alphaDialog: { type: "changePin" } }),
+          onChangePassword: () => this.setState({ alphaDialog: { type: "changePassword" } }),
+          onToggleLock: () => this.toggleLock(),
+          onToggleBiometric: () => this.toggleBiometric(),
+          onAdmins: goAdmins,
+          onSignOut: () => this.signOutOfPhone(),
+        });
+      case "profile":
+        return h(AProfileScreen, {
+          key: "profile",
+          lang,
+          account: s.account,
+          member: this.myMember(),
+          pendingChange: (s.updateRequests || []).some((u) => u.memberId === s.account.id),
+          pendingRemoval: (s.deleteRequests || []).some((u) => u.memberId === s.account.id),
+          onBack: () => this.handleBack(),
+          onChangePin: () => this.setState({ alphaDialog: { type: "changePin" } }),
+          onChangePassword: () => this.setState({ alphaDialog: { type: "changePassword" } }),
+          onRequestChange: () => this.openEditRequest(),
+          onRequestRemoval: () => this.askRemovalRequest(),
+        });
+      case "edit":
+      case "adminedit": {
+        const admin = s.screen === "adminedit";
+        const member = admin
+          ? (s.members || []).find((m) => m.id === s.adminEditingId)
+          : this.myMember();
+        if (!member) return null;
+        return h(AEditProfileScreen, {
+          key: s.screen + member.id,
+          lang,
+          villages: s.villages || VILLAGE_LIST,
+          member,
+          adminEdit: admin,
+          api,
+          onBack: () => this.leaveEdit(),
+          onDirtyChange: (dirty) => {
+            if (this.state.editDirty !== dirty) this.setState({ editDirty: dirty });
+          },
+          onSaved: (data) => {
+            if (admin) {
+              // Back to the member list (same village), refreshed, "Saved".
+              this.apply(data, false, "admin");
+              this.setState({ tab: "stats", adminEditingId: null, editDirty: false });
+              this.flashKey("common.saved");
+            } else {
+              this.apply(data, false, "profile");
+              this.setState({ editDirty: false });
+              this.flashKey("edit.sent");
+            }
+          },
+        });
+      }
+      case "directory":
+        return h(ADirectoryScreen, {
+          key: "directory",
+          lang,
+          members: s.members || [],
+          villages: s.villages || VILLAGE_LIST,
+          meId: s.account?.id,
+          query: s.query || "",
+          searchOpen: !!s.searchOpen,
+          village: s.dirVillage || "",
+          chipsVisible: s.chipsVisible !== false,
+          onQuery: (value) => this.set("query", value),
+          onSearchOpen: (open) => this.setState({ searchOpen: open, query: open ? s.query : "" }),
+          onVillage: (value) => this.set("dirVillage", value),
+          onToggleChips: () => this.set("chipsVisible", s.chipsVisible === false),
+          onOpenContact: (m) => this.setState({ contact: m }),
+          onSettings: () => this.set("screen", "settings"),
+          showAdmin: !s.offline && (s.account?.role === "MAIN_ADMIN" || s.account?.role === "VILLAGE_ADMIN"),
+          adminBadge: this.pendingAdminCount(),
+          onAdmin: () => this.openAdmin(),
+          offline: s.connected === false,
+          lastUpdated: s.lastConfirmed,
+          onRetry: () => this.refresh(),
+        });
+      default:
+        return null;
+    }
+  }
+  renderAppOverlay() {
+    const s = this.state,
+      lang = s.lang,
+      api = this.alphaApi(),
+      h = React.createElement;
+    const d = s.alphaDialog;
+    const close = () => this.setState({ alphaDialog: null });
+    const nodes = [];
+    if (s.contact) nodes.push(h(AContactSheet, { key: "contact", m: s.contact, lang, onClose: () => this.setState({ contact: null }) }));
+    if (d?.type === "changePin" || d?.type === "changePassword")
+      nodes.push(
+        h(AChangeSecretDialog, {
+          key: "change",
+          lang,
+          api,
+          mode: d.type === "changePin" ? "pin" : "password",
+          onClose: close,
+          onDone: (message) => {
+            close();
+            this.flash(message, message);
+            this.refresh();
+          },
+        }),
+      );
+    if (d?.type === "adminEnter")
+      nodes.push(
+        h(AAdminEnterDialog, {
+          key: "adminEnter",
+          lang,
+          api,
+          account: s.account,
+          onClose: close,
+          onDone: (data) => {
+            close();
+            this.apply(data);
+            this.openAdmin();
+          },
+        }),
+      );
+    if (d?.type === "forgot")
+      nodes.push(h(AForgotPinDialog, { key: "forgot", lang, api, initialMobile: d.mobile || "", onClose: close }));
+    if (d?.type === "discard")
+      nodes.push(
+        h(AConfirm, {
+          key: "discard",
+          title: t("nav.discardTitle", lang),
+          body: t("nav.discardBody", lang),
+          yes: t("nav.discard", lang),
+          no: t("nav.keepEditing", lang),
+          danger: true,
+          testId: "Discard changes",
+          onYes: () => d.onDiscard(),
+          onNo: close,
+        }),
+      );
+    if (d?.type === "confirm")
+      nodes.push(
+        h(AConfirm, {
+          key: "confirm",
+          title: d.title,
+          body: d.body,
+          yes: d.yes,
+          no: t("common.cancel", lang),
+          danger: d.danger,
+          onYes: () => {
+            close();
+            d.onYes();
+          },
+          onNo: close,
+        }),
+      );
+    if (s.issuedPin)
+      nodes.push(h(ATempPinDialog, { key: "temp", issued: s.issuedPin, lang, onClose: () => this.setState({ issuedPin: null }) }));
+    return nodes.length ? h(React.Fragment, null, ...nodes) : null;
+  }
+  openEditRequest() {
+    if (this.state.offline) return this.flashKey("offline.readOnly");
+    this.setState({ screen: "edit", editDirty: false });
+  }
+  askRemovalRequest() {
+    if (this.state.offline) return this.flashKey("offline.readOnly");
+    const lang = this.state.lang;
+    this.setState({
+      alphaDialog: {
+        type: "confirm",
+        title: t("removal.confirmTitle", lang),
+        body: t("removal.confirmBody", lang),
+        yes: t("removal.send", lang),
+        danger: true,
+        onYes: () =>
+          this.run(async () => {
+            this.apply(await this.api("profile/delete", {}));
+            this.flashKey("removal.sent");
+          }),
+      },
+    });
+  }
+  appVersion() {
+    const match = /MVPMlAndroid\/([\w.-]+)/.exec(navigator.userAgent || "");
+    return match ? match[1] : "";
+  }
   renderVals(primaryOnly = false) {
     const v = super.renderVals(),
       s = this.state;
     v.themeIcon =
       s.theme === "dark" ? "ph-duotone ph-sun" : "ph-duotone ph-moon";
     v.canReview = s.role === "admin" || !!s.villageAdmin;
-    // Header buttons: "All admins" is visible to everyone; the shield opens
-    // the village-admin sign-in (or the review panel once signed in) for every
-    // session that is not the main administrator.
     v.communityName = bilingual(
       "મહુવા ક્ષત્રિય રાજપૂત સમાજ",
       "Mahuva Kshatriya Rajput Samaj",
       s.lang,
     );
-    v.showAllAdmins = true;
-    v.openAllAdmins = () => this.setState({ allAdminsOpen: true });
     v.allAdminsPanel = s.allAdminsOpen
       ? React.createElement(AllAdminDirectory, {
           data: s,
@@ -868,408 +1325,46 @@ class Component extends DesignComponent {
           onClose: () => this.set("allAdminsOpen", false),
         })
       : null;
-    v.isAdminUser = s.role === "admin" || !!s.villageAdmin;
     v.isMainAdmin = s.role === "admin";
-    // Signed-in village administrators reach their workspace through the
-    // Dashboard button next to "My profile", not through the header shield.
-    v.showVillageAdminButton = s.role !== "admin" && !s.villageAdmin;
-    v.showDashboard = !!s.villageAdmin;
-    // The village-administrator badge counts everything awaiting attention
-    // in their village: new applications to verify and forward, plus the
-    // change/removal proposals already waiting with the main administrator
-    // (the same items the Members tab marks as pending).
-    v.pendingCount = Math.min(
-      99,
-      (s.reviewQueue || []).length + (s.villageProposals || []).length,
-    );
-    v.dashboardLabel = bilingual("ડેશબોર્ડ", "Dashboard", s.lang);
-    v.heroVillage = s.villageAdmin
-      ? this.V(s.villageAdminVillage) +
-        this.P(" · ગામ એડમિન", " · Village administrator")
-      : "";
-    v.villageAdminButtonLabel = s.villageAdmin
-      ? bilingual("ગામની વિનંતીઓ તપાસો", "Review village requests", s.lang)
-      : bilingual("ગામ એડમિન સાઇન ઇન", "Village admin sign in", s.lang);
-    v.openVillageAdminHeader = () =>
-      this.setState(
-        s.villageAdmin
-          ? { workflowOpen: true, workflowTab: "requests" }
-          : { villageLoginOpen: true },
-      );
-    v.openVillageLogin = () => this.setState({ villageLoginOpen: true });
-    v.closeVillageLogin = () => this.setState({ villageLoginOpen: false });
-    v.villageLoginPanel = s.villageLoginOpen
-      ? React.createElement(VillageAdminLogin, {
-          lang: s.lang,
-          onClose: () => this.setState({ villageLoginOpen: false }),
-          onAction: async (path, body) => {
-            const data = await this.api(path, body);
-            this.apply(data);
-            if (path === "village/login") {
-              this.setState({ villageLoginOpen: false });
-              this.offerNotifications();
-            }
-          },
-          // The main administrator's entrance is also reachable here (in
-          // addition to the hidden five-tap gesture on the sun logo).
-          onMainAdmin: () =>
-            this.setState({
-              villageLoginOpen: false,
-              screen: "gate",
-              gateInput: "",
-              gateError: false,
-            }),
-        })
-      : null;
-    v.workflowLabel = bilingual(
-      s.role === "admin" ? "ગામ, એડમિન અને ચકાસણી" : "ગામની વિનંતીઓ તપાસો",
-      s.role === "admin"
-        ? "Villages, admins & verification"
-        : "Review village requests",
-      s.lang,
-    );
-    v.openWorkflow = () =>
+    // The Main Admin opens the review panel from the dashboard; a Village
+    // Admin opens it from the Admin icon in the directory's top bar.
+    v.openWorkflow = (tab = "requests") =>
       this.run(async () => {
         // The queue can change while the dashboard is open (a village
         // administrator may forward); always review the latest server state.
         const data = await this.api("state");
         this.apply(data);
-        this.setState({ workflowOpen: true, workflowTab: "requests" });
+        this.setState({ workflowOpen: true, workflowTab: typeof tab === "string" ? tab : "requests" });
       });
     v.workflowPanel =
       s.workflowOpen && v.canReview
         ? React.createElement(VillageWorkflow, {
+            key: s.workflowTab || "requests",
             data: s,
             lang: s.lang,
             initialTab: s.workflowTab || "requests",
-            onClose: () => this.set("workflowOpen", false),
-            onAction: Object.assign(
-              async (path, body) => {
-                const data = await this.api(path, body);
-                this.apply(data);
-                // Signing out of the village-administrator role returns a
-                // community member straight to the member list.
-                if (path === "village/logout" && data.meId)
-                  this.setState({ screen: "directory", workflowOpen: false });
-              },
-              { raw: (path, body) => this.api(path, body) },
-            ),
+            flash: (message) => this.flash(message, message),
+            onClose: () =>
+              this.setState({
+                workflowOpen: false,
+                screen: s.role === "admin" ? s.screen : "directory",
+              }),
+            onAdminLogout: () => this.adminLogout(),
+            onAction: async (path, body) => {
+              const data = await this.api(path, body);
+              this.apply(data);
+            },
           })
-        : null;
-    const registry = s.villages || VILLAGE_LIST;
-    const villageField = (form, key) =>
-      React.createElement(VillageField, {
-        villages: registry,
-        lang: s.lang,
-        value:
-          registry.find((v) => v.gu === form.village || v.en === form.village)
-            ?.gu || "",
-        onChange: (value) =>
-          this.setState((st) => ({
-            [key]: { ...(st[key] || form), village: value },
-          })),
-      });
-    const locationField = (form, key) =>
-      React.createElement(LocationField, {
-        lang: s.lang,
-        value: form.currentLocation || "",
-        onChange: (value) =>
-          this.setState((st) => ({
-            [key]: { ...(st[key] || form), currentLocation: value },
-          })),
-      });
-    v.signupVillage = villageField(s.form, "form");
-    v.signupLocation = locationField(s.form, "form");
-    v.editVillageField = villageField(s.edit || v.edit, "edit");
-    v.editLocation = locationField(s.edit || v.edit, "edit");
-    v.applicationFeedback =
-      s.applicationStage || s.lastDecision
-        ? React.createElement(
-            "div",
-            { className: "application-feedback", role: "status" },
-            s.applicationStage
-              ? bilingual(
-                  s.applicationStage === "main"
-                    ? "ગામની ચકાસણી પૂર્ણ. મુખ્ય એડમિનની મંજૂરી બાકી છે."
-                    : "ગામના એડમિનની ચકાસણી બાકી છે.",
-                  s.applicationStage === "main"
-                    ? "Village verified. Waiting for main-admin approval."
-                    : "Waiting for your village administrator to verify your application.",
-                  s.lang,
-                )
-              : React.createElement(
-                  React.Fragment,
-                  null,
-                  bilingual(
-                    "પાછલી વિનંતી બંધ / નામંજૂર થઈ.",
-                    "Previous application was closed / rejected.",
-                    s.lang,
-                  ),
-                  s.lastDecision.reason
-                    ? " " + s.lastDecision.reason
-                    : "",
-                ),
-          )
         : null;
     v.loaded = !!s.loaded;
     v.busy = !!s.busy || (!s.loaded && s.connected !== false);
     v.connectionError = s.connected === false;
-    if (!s.loaded || (s.connected === false && !s.lastConfirmed))
-      v.isSignup = false;
+    v.adminConnectionError = s.connected === false && s.screen === "admin";
     v.retry = () => this.refresh(true);
     v.development = !!s.development;
-    v.passwordDue = !!s.passwordDue;
-    v.editNoticeGu = s.adminEditingId
-      ? "એડમિનનો ફેરફાર સીધો લાગુ થશે."
-      : "મોબાઇલ નંબર કે ગામ બદલવાની વિનંતી પહેલા ગામના એડમિન ચકાસશે, પછી મુખ્ય એડમિન મંજૂર કરશે.";
-    v.editNoticeEn = s.adminEditingId
-      ? "Admin changes apply directly."
-      : "A new mobile number or village is first verified by your village administrator, then approved by the main administrator.";
-    v.editSubmitGu = s.adminEditingId ? "ફેરફાર સાચવો" : "મંજૂરી માટે મોકલો";
-    v.editSubmitEn = s.adminEditingId ? "Save changes" : "Send for approval";
-    if (v.me && s.meId) {
-      // Blank rows waste space: હાલ location only appears when filled in.
-      const currentLocation =
-        s.members.find((m) => m.id === s.meId)?.currentLocation || "";
-      if (currentLocation.trim())
-        v.me.rows.push({
-          gu: "હાલ :",
-          en: "Current location",
-          value: currentLocation,
-        });
-    }
     v.noResults = !v.showTiles && !v.shortQuery && v.sections.length === 0;
     v.index = [];
     v.resetAll = () => {};
-    v.sendRequest = () => {
-      if (Object.keys(this.errorsFor(s.form)).length) {
-        this.setState({ submitted: true });
-        this.flash("વિગતો તપાસો.", "Please correct the highlighted fields.");
-        return;
-      }
-      this.confirmAction(
-        "સંમતિ અને ગોપનીયતા",
-        "Consent & privacy",
-        "Your name, numbers, current location and village will be shared only with approved community members. Your village administrator will confirm who you are before the main administrator approves. Withdrawn, rejected and removed details are retained in an admin-only archive. Submit only your own details.",
-        () =>
-          this.mutate(
-            "enrollment",
-            { ...s.form, consent: true },
-            "pending",
-          ).then(() => this.state.myRequest && this.offerNotifications()),
-        "તમારું નામ, ફોન નંબર, હાલનું સ્થળ અને ગામ ફક્ત મંજૂર થયેલા સભ્યો જોઈ શકશે. મુખ્ય એડમિનની મંજૂરી પહેલાં તમારા ગામના એડમિન તમારી ઓળખ ચકાસશે. રદ, નામંજૂર કે દૂર કરેલી માહિતી એડમિનના ખાનગી આર્કાઇવમાં રહેશે. ફક્ત તમારી પોતાની વિગતો મોકલો.",
-        "વિનંતી મોકલો",
-        "Submit request",
-      );
-    };
-    const withdraw = v.askWithdraw;
-    v.askWithdraw = () => {
-      withdraw();
-      this.setState((st) => ({
-        confirm: {
-          ...st.confirm,
-          bodyGu: "રિક્વેસ્ટ કેન્સલ થશે. વિગતો ફક્ત એડમિનના આર્કાઇવમાં રહેશે.",
-          bodyEn:
-            "Your request leaves the queue. A copy is retained in an admin-only archive.",
-          onYes: () => this.mutate("enrollment/withdraw", {}, "signup"),
-        },
-      }));
-    };
-    const removal = v.askRemoval;
-    v.askRemoval = () => {
-      removal();
-      this.setState((st) => ({
-        confirm: {
-          ...st.confirm,
-          onYes: () => this.mutate("profile/delete", {}, "profile"),
-        },
-      }));
-    };
-    v.sendUpdateRequest = () => {
-      const p = s.edit || v.edit;
-      if (Object.keys(this.errorsFor(p)).length) {
-        this.flash(
-          "વિગતો તપાસો.",
-          "Enter a full name, valid phone numbers and a community village.",
-        );
-        return;
-      }
-      const me = s.members.find((m) => m.id === (s.adminEditingId || s.meId));
-      const payload = {
-        ...p,
-        label2: p.label2 || me?.label2 || "work",
-        nameGu: p.name === me?.name ? me.nameGu : p.name,
-      };
-      this.mutate(
-        s.adminEditingId
-          ? "admin/members/" + s.adminEditingId
-          : "profile/update",
-        payload,
-        s.adminEditingId ? "admin" : "profile",
-      );
-    };
-    const edit = v.goEditProfile;
-    v.goEditProfile = () => {
-      this.setState({ adminEditingId: null });
-      edit();
-      this.refresh();
-      this.setState((st) => ({
-        edit: {
-          ...st.edit,
-          currentLocation:
-            s.members.find((m) => m.id === s.meId)?.currentLocation || "",
-        },
-      }));
-    };
-    v.goMyProfile = () => {
-      if (s.meId) this.setState({ screen: "profile", adminEditingId: null });
-    };
-    v.goDirectory = () =>
-      this.set("screen", s.adminEditingId ? "admin" : this.home());
-    v.secretTap = () => {
-      // The hidden gate belongs to the main administrator only; a signed-in
-      // village administrator session must never reach it.
-      if (this.state.villageAdmin) return;
-      const now = Date.now();
-      this._logoTaps = (this._logoTaps || []).filter((t) => now - t < 2500);
-      this._logoTaps.push(now);
-      if (this._logoTaps.length >= 5) {
-        this._logoTaps = [];
-        this.setState({ screen: "gate", gateInput: "", gateError: false });
-      }
-    };
-    v.leaveGate = () =>
-      this.setState({ screen: this.home(), gateInput: "", gateError: false });
-    // ---- App lock (server-enforced four-digit PIN) ----
-    v.isAppLock = s.screen === "applock";
-    const settingUp = !!s.lockSetup;
-    const confirming = settingUp && !!s.appLockFirst;
-    v.lockTitleGu = settingUp
-      ? confirming
-        ? "પિન ફરી નાખો"
-        : "નવો ચાર આંકડાનો પિન બનાવો"
-      : "એપ લોક · પિન નાખો";
-    v.lockTitleEn = settingUp
-      ? confirming
-        ? "Enter the same PIN again"
-        : "Create a four-digit PIN"
-      : "App lock · Enter PIN";
-    v.lockHintGu = settingUp
-      ? "સમાજના નંબર સુરક્ષિત રાખવા આ પિન દરેક વખતે એપ ખોલતાં પુછાશે. યાદ રહે તેવો પિન રાખો."
-      : "";
-    v.lockHintEn = settingUp
-      ? "To keep community numbers safe, the app asks for this PIN every time it opens. Choose one you will remember."
-      : "";
-    v.showLockHint = settingUp;
-    v.lockDots = [0, 1, 2, 3].map((i) => ({
-      bg: (s.appLockInput || "").length > i ? "var(--ind)" : "var(--chip)",
-    }));
-    v.lockError = !!s.appLockError;
-    v.lockErrorGu = s.appLockError ? errorText(s.appLockError, "gu") : "";
-    v.lockErrorEn = s.appLockError ? errorText(s.appLockError, "en") : "";
-    const lockWait = Math.max(
-      0,
-      Math.ceil(((s.lockWaitUntil || 0) - Date.now()) / 1000),
-    );
-    const waitText = (secs) =>
-      secs >= 120
-        ? this.P(
-            Math.ceil(secs / 60) + " મિનિટ રાહ જુઓ, પછી ફરી પ્રયાસ કરો.",
-            "Wait " + Math.ceil(secs / 60) + " minutes, then try again.",
-          )
-        : this.P(
-            secs + " સેકન્ડ રાહ જુઓ, પછી ફરી પ્રયાસ કરો.",
-            "Wait " + secs + " seconds, then try again.",
-          );
-    v.lockCooldown = s.lockFrozen
-      ? this.P(
-          "ઘણા ખોટા પ્રયાસો. 'પિન ભૂલી ગયા?' દબાવો.",
-          "Too many wrong PINs. Tap 'Forgot PIN?'.",
-        )
-      : lockWait
-        ? waitText(lockWait)
-        : "";
-    const submitPin = (code) =>
-      this.run(async () => {
-        try {
-          if (!settingUp) {
-            await this.api("lock/unlock", { pin: code });
-            this._lastActivity = Date.now();
-          } else if (!s.appLockFirst) {
-            this.setState({ appLockFirst: code, appLockInput: "", appLockError: null });
-            return;
-          } else if (s.appLockFirst !== code) {
-            this.setState({
-              appLockFirst: "",
-              appLockInput: "",
-              appLockError: "બંને પિન એક જ નથી · The two PINs do not match. Start again.",
-            });
-            return;
-          } else {
-            await this.api("lock/setup", { pin: code });
-            this._lastActivity = Date.now();
-          }
-          this.setState({ appLockInput: "", appLockFirst: "", appLockError: null });
-          await this.refresh();
-        } catch (e) {
-          this.setState({
-            appLockInput: "",
-            appLockFirst: "",
-            appLockError: e.message,
-          });
-          await this.refresh();
-        }
-      });
-    v.lockKeyPad = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "\u232b"].map(
-      (k) => ({
-        label: k,
-        disabled: !k || (!settingUp && (!!lockWait || !!s.lockFrozen)),
-        accessibleLabel:
-          k === "\u232b"
-            ? this.P("છેલ્લો આંકડો કાઢો", "Delete last digit")
-            : k || this.P("ખાલી બટન", "Unused key"),
-        onClick: () => {
-          if (!k || this._busy) return;
-          if (k === "\u232b") {
-            this.setState({
-              appLockInput: (this.state.appLockInput || "").slice(0, -1),
-              appLockError: null,
-            });
-            return;
-          }
-          const code = ((this.state.appLockInput || "") + k).slice(0, 4);
-          this.setState({ appLockInput: code, appLockError: null });
-          if (code.length === 4) submitPin(code);
-        },
-      }),
-    );
-    v.showLockForgot = !settingUp;
-    v.lockForgot = () => this.set("pinResetOpen", true);
-    v.pinResetPanel = s.pinResetOpen
-      ? React.createElement(PinResetPanel, {
-          lang: s.lang,
-          frozen: !!s.lockFrozen,
-          onClose: () => this.set("pinResetOpen", false),
-          onReset: async (code) => {
-            await this.api("lock/reset", { code });
-            this.setState({ pinResetOpen: false, appLockInput: "", appLockFirst: "" });
-            await this.refresh();
-          },
-          onSignOut: () =>
-            this.run(async () => {
-              await this.api("logout", {});
-              this.clearAccess();
-            }),
-        })
-      : null;
-    v.showPinSettings =
-      s.role !== "admin" && (!!s.meId || !!s.villageAdmin) && s.locked === false;
-    v.appLockPanel = v.showPinSettings
-      ? React.createElement(PinSettings, {
-          lang: s.lang,
-          api: (path, body) => this.api(path, body),
-        })
-      : null;
     v.driveBackupPanel =
       s.role === "admin"
         ? React.createElement(DriveBackupPanel, {
@@ -1277,161 +1372,38 @@ class Component extends DesignComponent {
             api: (path, body) => this.api(path, body),
           })
         : null;
-    v.notificationPanel = React.createElement(NotificationSettings, {
-      lang: s.lang,
-      api: (path, body) => this.api(path, body),
-    });
-    v.exitAdmin = () => this.mutate("admin/logout");
-    v.logout = v.exitAdmin;
-    v.keypad = v.keypad.map((k) => ({
-      ...k,
-      disabled: !k.label,
-      isBackspace: k.label === "⌫",
-      accessibleLabel:
-        k.label === "⌫"
-          ? this.P("છેલ્લો આંકડો કાઢો", "Delete last digit")
-          : k.label || "Unused key",
-      onClick: () => {
-        if (this._busy || !k.label) return;
-        const code =
-          k.label === "⌫"
-            ? s.gateInput.slice(0, -1)
-            : (s.gateInput + k.label).slice(0, 4);
-        this.setState({ gateInput: code, gateError: false });
-        if (code.length === 4)
-          this.run(async () => {
-            try {
-              await this.api("admin/gate", { code });
-              this.setState({ screen: "adminlogin", gateInput: "" });
-            } catch (e) {
-              this.setState({ gateInput: "", gateError: true });
-              throw e;
-            }
-          });
+    // Admin dashboard (Section 7): Back → dashboard home → Member Directory;
+    // "Log out" ends the admin session only.
+    v.adminBack = () => this.handleBack();
+    v.adminBackLabel = s.tab === "home" ? t("common.back", s.lang) : uiText("backDashboard", s.lang);
+    v.adminLogoutLabel = t("nav.adminLogout", s.lang);
+    v.exitAdmin = () => this.adminLogout();
+    v.logout = () => this.adminLogout();
+    // Extra dashboard tiles: Village Admins, Forgot PIN requests, My Profile.
+    v.tiles = [
+      ...v.tiles,
+      {
+        gu: STR["va.title"][0],
+        en: STR["va.title"][1],
+        count: (s.villageAssignments || []).filter((a) => !a.disabled).length,
+        hint: this.P("બનાવો · બંધ કરો · પિન રીસેટ", "create · disable · reset PIN"),
+        onClick: () => v.openWorkflow("villages"),
       },
-    }));
-    v.loginErrorMessage = errorText(
-      s.loginErrorMessage || "Unable to sign in.",
-      "en",
-    );
-    v.loginErrorMessageGu = errorText(
-      s.loginErrorMessage || "Unable to sign in.",
-      "gu",
-    );
-    v.doLogin = () =>
-      this.run(async () => {
-        try {
-          const data = await this.api("admin/login", {
-            ...this.state.login,
-            user: this.state.login.user.trim().toLowerCase(),
-          });
-          this.apply(data, false, "admin");
-          this.setState({
-            login: { user: "", pass: "" },
-            loginError: false,
-            // First sign-in issues the recovery code exactly once; the
-            // overlay makes the administrator save it before anything else.
-            recoveryNotice: data.recovery
-              ? formatRecovery(data.recovery)
-              : null,
-          });
-          if (!data.recovery) this.offerNotifications();
-        } catch (e) {
-          this.setState({ loginError: true, loginErrorMessage: e.message });
-          throw e;
-        }
-      });
-    v.goAdminForgot = () => {
-      this.setState({
-        screen: "adminforgot",
-        resetError: null,
-        resetDone: false,
-      });
-    };
-    // Offline recovery code instead of SMS OTP: no per-message cost, no
-    // phone-number dependency and far more entropy than a 6-digit code.
-    v.resetRecovery = s.resetRecovery || "";
-    v.resetPassword = s.resetPassword || "";
-    v.setResetRecovery = (e) =>
-      this.set(
-        "resetRecovery",
-        e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 19),
-      );
-    v.setResetPassword = (e) => this.set("resetPassword", e.target.value);
-    v.resetCodeShown = !!s.resetCodeShown;
-    v.resetPassShown = !!s.resetPassShown;
-    v.resetCodeType = s.resetCodeShown ? "text" : "password";
-    v.resetCodeIcon = s.resetCodeShown
-      ? "ph-duotone ph-eye-slash"
-      : "ph-duotone ph-eye";
-    v.resetPassType = s.resetPassShown ? "text" : "password";
-    v.resetPassIcon = s.resetPassShown
-      ? "ph-duotone ph-eye-slash"
-      : "ph-duotone ph-eye";
-    v.toggleResetCode = () => this.set("resetCodeShown", !s.resetCodeShown);
-    v.toggleResetPass = () => this.set("resetPassShown", !s.resetPassShown);
-    v.resetCodeEyeLabel = this.L("કોડ બતાવો કે છુપાવો", "Show or hide the code");
-    v.resetPassEyeLabel = this.L(
-      "પાસવર્ડ બતાવો કે છુપાવો",
-      "Show or hide the password",
-    );
-    const rpScore = pwStrength(s.resetPassword || ""),
-      { labels: pwLabels, colors: pwColors } = v.pwPalette;
-    v.resetPwWidth = (rpScore / 5) * 100 + "%";
-    v.resetPwColor = pwColors[rpScore];
-    v.resetPwLabel =
-      pwLabels[rpScore] +
-      " · " +
-      this.L(
-        "૧૦+ અક્ષર, નાના-મોટા, આંકડો, ચિહ્ન",
-        "10+ chars, mixed case, number, symbol",
-      );
-    v.resetErrorGu = errorText(s.resetError || "", "gu");
-    v.resetErrorEn = errorText(s.resetError || "", "en");
-    v.resetDone = !!s.resetDone;
-    v.newRecovery = formatRecovery(s.newRecovery || "");
-    v.resetPasswordSubmit = () =>
-      this.run(async () => {
-        try {
-          const r = await this.api("admin/recover", {
-            recovery: s.resetRecovery,
-            password: s.resetPassword,
-          });
-          this.setState({
-            resetDone: true,
-            newRecovery: r.recovery,
-            resetRecovery: "",
-            resetPassword: "",
-            resetError: null,
-          });
-        } catch (e) {
-          this.setState({ resetError: e.message });
-          throw e;
-        }
-      });
-    v.resetDoneNext = () =>
-      this.setState({
-        screen: "adminlogin",
-        resetDone: false,
-        newRecovery: "",
-        loginError: false,
-      });
-    v.closeRecoveryNotice = () => this.set("recoveryNotice", null);
-    v.recoveryNoticeLabel = this.L("રિકવરી કોડ", "Recovery code");
-    v.regenerateRecovery = () =>
-      this.confirmAction(
-        "નવો રિકવરી કોડ બનાવો?",
-        "Generate a new recovery code?",
-        "The current code stops working immediately — save the new one somewhere safe.",
-        async () => {
-          const r = await this.api("admin/recovery/regenerate", {});
-          this.setState({
-            confirm: null,
-            recoveryNotice: formatRecovery(r.recovery),
-          });
-        },
-        "જૂનો કોડ તરત રદ થઈ જશે — નવો કોડ સુરક્ષિત જગ્યાએ સાચવી લેજો.",
-      );
+      {
+        gu: STR["pinreq.title"][0],
+        en: STR["pinreq.title"][1],
+        count: (s.pinResetRequests || []).length,
+        hint: this.P("કામચલાઉ પિન બનાવો", "create a TEMP PIN"),
+        onClick: () => v.openWorkflow("pins"),
+      },
+      {
+        gu: STR["profile.title"][0],
+        en: STR["profile.title"][1],
+        count: 0,
+        hint: this.P("પાસવર્ડ બદલો", "change password"),
+        onClick: () => this.setState({ screen: "profile", profileFrom: "admin" }),
+      },
+    ];
     for (const [key, approve] of [
       ["newRequests", "onApprove"],
       ["updateRequests", "onAuthorize"],
@@ -1441,15 +1413,23 @@ class Component extends DesignComponent {
         ...row,
         [approve]: () => {
           // Village-stage requests must be verified and forwarded in the
-          // review panel; already-verified requests are approved here.
-          if (
-            s.reviewQueue?.some((r) => r.id === s[key][i].id && !r.verification)
-          ) {
-            v.openWorkflow();
-            return;
-          }
+          // review panel; already-verified requests are approved here. The
+          // stage is checked against the latest server state (a Village Admin
+          // may have forwarded it a moment ago).
+          const id = s[key][i].id;
           const approveRequest = () =>
-            this.mutate("admin/requests/" + s[key][i].id + "/approve");
+            this.run(async () => {
+              const fresh = await this.api("state");
+              const queued = (fresh.reviewQueue || []).find((r) => r.id === id);
+              if (queued && queued.stage === "village") {
+                this.apply(fresh);
+                this.setState({ workflowOpen: true, workflowTab: "requests" });
+                return;
+              }
+              this.apply(await this.api("admin/requests/" + id + "/approve", {}));
+              this.setState({ confirm: null });
+              this.flash("કાર્ય પૂર્ણ થયું.", "Saved successfully.");
+            });
           if (key === "deleteRequests")
             this.confirmAction(
               "સભ્યને યાદીમાંથી દૂર કરવા છે?",
@@ -1507,14 +1487,11 @@ class Component extends DesignComponent {
     // server-backed edit/delete actions (the old Members tile).
     v.statVillageMembers = (v.statVillageMembers || []).map((row) => ({
       ...row,
+      // Section 7: Edit → Save returns to this list, refreshed, with "Saved".
       onAdminEdit: () => {
         const m = s.members.find((x) => x.id === row.id);
         if (!m) return;
-        this.setState({
-          adminEditingId: m.id,
-          edit: { ...m, name: s.lang === "gu" ? m.nameGu : m.name },
-          screen: "editprofile",
-        });
+        this.setState({ adminEditingId: m.id, screen: "adminedit", editDirty: false });
       },
       onAdminDelete: () =>
         this.confirmAction(
@@ -1535,64 +1512,6 @@ class Component extends DesignComponent {
         this.O(row.title) +
         (s.alerts[i].blocked ? this.P(" · અવરોધિત", " · Blocked") : ""),
       onBlock: () => this.mutate("admin/alerts/" + s.alerts[i].id + "/block"),
-    }));
-    v.sections = v.sections.map((section) => ({
-      ...section,
-      items: section.items.map((m) => ({
-        ...m,
-        currentLocation:
-          s.members.find((row) => row.id === m.id)?.currentLocation || "",
-        numbers: m.numbers.map((n) => {
-          const links = contactLinks(
-            n.phone,
-            navigator.userAgent.includes("MVPMlAndroid"),
-          );
-          const contact = (kind, event) => {
-            if (!links) {
-              event?.preventDefault();
-              this.flash("નંબર બરાબર નથી.", "This phone number is invalid.");
-              return;
-            }
-            // Numbers are not copied to the clipboard: other apps could read them.
-            this.setState({
-              dial: {
-                icon:
-                  kind === "call"
-                    ? "ph-duotone ph-phone-call"
-                    : "ph-duotone ph-whatsapp-logo",
-                name: s.lang === "gu" ? m.nameGu : m.name,
-                nameGu: m.nameGu,
-                nameEn: m.name,
-                phone: links.number,
-                href: links[kind],
-                target: links.target,
-                gu:
-                  kind === "call"
-                    ? "ડાયલર ખોલવાની વિનંતી મોકલી છે. ન ખૂલે તો ઉપરના નંબરને ટૅપ કરો અથવા ફોનમાં જાતે દાખલ કરો. કમ્પ્યુટર પર ફોન એપ જરૂરી છે; પ્રિવ્યૂમાં બહારની એપ અવરોધિત હોઈ શકે."
-                    : "વોટ્સએપ ખોલવાની વિનંતી મોકલી છે. ન ખૂલે તો ઉપરના નંબરને ટૅપ કરો. પ્રિવ્યૂ અથવા પોપ-અપ અવરોધક અટકાવે તો એપને અલગ ટૅબમાં ખોલો.",
-                en:
-                  kind === "call"
-                    ? "Requested your dialer. If nothing opens, tap the number above or enter it in your phone. A computer needs a calling app; an embedded preview may block external apps."
-                    : "Requested WhatsApp. If nothing opens, tap the number above. If the preview or popup blocker prevents opening, open the directory in a separate tab. WhatsApp or WhatsApp Web must be available.",
-              },
-            });
-          };
-          return {
-            ...n,
-            callHref: links?.call,
-            whatsHref: links?.whatsapp,
-            externalTarget: links?.target,
-            onContactKey: (event) => {
-              if (event.key === " ") {
-                event.preventDefault();
-                event.currentTarget.click();
-              }
-            },
-            onCall: (event) => contact("call", event),
-            onWhats: (event) => contact("whatsapp", event),
-          };
-        }),
-      })),
     }));
     v.exports = v.exports.map((x, i) => ({
       ...x,
@@ -2112,75 +2031,6 @@ class Component extends DesignComponent {
       s.theme === "dark" ? "આછો દેખાવ" : "ઘેરો દેખાવ",
       s.theme === "dark" ? "Light" : "Dark",
     );
-    v.villagesSelected = !v.hasQuery && s.dirMode !== "all";
-    v.directoryHeading =
-      v.hasQuery || !v.inVillageView || s.dirMode === "all"
-        ? uiText("communityName", s.lang)
-        : this.V(s.dirMode);
-    v.allMembersSelected = s.dirMode === "all" && !s.query;
-    v.chooseLight = () => this.set("theme", "light");
-    v.chooseDark = () => this.set("theme", "dark");
-    v.preferencesOpen = !!s.preferencesOpen;
-    v.openPreferences = () => this.set("preferencesOpen", true);
-    v.closePreferences = () => this.set("preferencesOpen", false);
-    v.chooseGujarati = () => this.set("lang", "gu");
-    v.chooseEnglish = () => this.set("lang", "en");
-    v.guSelected = s.lang === "gu";
-    v.enSelected = s.lang === "en";
-    v.waitBodyGu =
-      "ગામના એડમિનની ચકાસણી અને મુખ્ય એડમિનની મંજૂરી પછી યાદી ખુલશે. તમે એપ બંધ કરી શકો છો.";
-    v.waitBodyEn =
-      "Directory access opens after village verification and main-admin approval. You can close the app and return later.";
-    v.submittedDate = s.requestAt
-      ? new Date(s.requestAt).toLocaleString(
-          s.lang === "gu" ? "gu-IN" : "en-IN",
-          { dateStyle: "medium", timeStyle: "short" },
-        )
-      : "—";
-    v.steps = v.steps.map((step, i) =>
-      i === 1 ? { ...step, gu: "તપાસની રાહમાં", en: "Awaiting review" } : step,
-    );
-    v.memberHelp = () => {
-      this.set("preferencesOpen", false);
-      this.confirmAction(
-        "પ્રવેશ માટે ફરી વિનંતી",
-        "Apply again for access",
-        "Access codes are no longer used. Submit your own details from the joining form. Your village administrator verifies you, then the main administrator approves access. A matching archived or active phone is reviewed, never automatically granted access.",
-        () => this.set("confirm", null),
-        "પ્રવેશ કોડ હવે વપરાતા નથી. જોડાવાના ફોર્મથી તમારી વિગતો મોકલો. ગામના એડમિનની ચકાસણી પછી મુખ્ય એડમિન મંજૂરી આપશે. જૂના નંબરનો મેળ હોય તો પણ આપમેળે પ્રવેશ મળતો નથી.",
-        "સમજાયું",
-        "Understood",
-      );
-    };
-    v.reordering = !!s.reordering;
-    v.reorderStatus = s.reorderStatus ? uiText("savedOrder", s.lang) : "";
-    v.reorderLabel = uiText(s.reordering ? "done" : "reorder", s.lang);
-    v.reorderActionLabel = v.reorderLabel;
-    v.toggleReorder = () =>
-      this.setState({ reordering: !s.reordering, reorderStatus: false });
-    v.resetOrder = () =>
-      this.setState({
-        tileOrder: VILLAGE_LIST.map((v) => v.gu),
-        reorderStatus: true,
-      });
-    v.villageTiles = v.villageTiles.map((row, index, list) => {
-      const move = (delta) => {
-        const order = (s.tileOrder || VILLAGE_LIST.map((v) => v.gu)).slice();
-        const next = index + delta;
-        if (next < 0 || next >= order.length) return;
-        [order[index], order[next]] = [order[next], order[index]];
-        this.setState({ tileOrder: order, reorderStatus: true });
-      };
-      return {
-        ...row,
-        first: index === 0,
-        last: index === list.length - 1,
-        earlierLabel: row.primary + " — " + uiText("earlier", s.lang),
-        laterLabel: row.primary + " — " + uiText("later", s.lang),
-        moveEarlier: () => move(-1),
-        moveLater: () => move(1),
-      };
-    });
     for (const key of [
       "newRequests",
       "updateRequests",
@@ -2193,54 +2043,14 @@ class Component extends DesignComponent {
         nameGu: row.nameGu || row.name || "—",
       }));
     }
-    for (const [key, value, choices] of [
-      ["vSuggest", s.form.village, VILLAGES],
-      ["tSuggest", s.form.tehsil, [[TEHSIL_EN, TEHSIL_GU]]],
-    ]) {
-      const match = bestMatch(value, choices);
-      v[key] = match
-        ? {
-            msg: this.P(
-              `શું તમે "${match.gu}" લખવા માંગતા હતા?`,
-              `Did you mean "${match.en}"?`,
-            ),
-          }
-        : null;
-    }
-    v.form = {
-      ...v.form,
-      village: this.V(s.form.village),
-      tehsil: this.T(s.form.tehsil),
-      district: this.D(s.form.district),
-    };
-    if (v.edit)
-      v.edit = {
-        ...v.edit,
-        village: this.V(v.edit.village),
-        tehsil: this.T(v.edit.tehsil),
-        district: this.D(v.edit.district),
-      };
-    v.shortQuery = !!s.query.trim() && !canSearch(s.query);
-    const location = s.screen === "editprofile" ? v.edit : v.form;
-    const villageHint = VILLAGE_LIST.find(
-      (x) =>
-        x.gu === location?.village ||
-        x.en.toLowerCase() === String(location?.village || "").toLowerCase(),
-    );
-    v.locationHints = {
-      village: villageHint ? this.P(villageHint.gu, villageHint.en) : "",
-      tehsil: this.P(TEHSIL_GU, TEHSIL_EN),
-      district: this.P(DISTRICT_GU, DISTRICT_EN),
-    };
-    v.ph = {
-      ...v.ph,
-      tehsil: this.T(TEHSIL_GU),
-      district: this.D(DISTRICT_GU),
-    };
     if (primaryOnly) return v;
     // Read-only language facade: no state mutation, requests or alternate handlers.
     const alternate = Object.create(this);
     alternate.state = { ...s, lang: s.lang === "gu" ? "en" : "gu" };
-    return bilingualView(v, alternate.renderVals(true), s.lang);
+    const out = bilingualView(v, alternate.renderVals(true), s.lang);
+    // Alpha screens (Sections 2–8) are rendered once, after the language merge.
+    out.appScreen = this.renderAppScreen();
+    out.appOverlay = this.renderAppOverlay();
+    return out;
   }
 }

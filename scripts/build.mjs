@@ -3,6 +3,7 @@ import { modernDesign } from "./modern-design.mjs";
 import { liquidGlass } from "./liquid-glass.mjs";
 import { refineDesign } from "./refine-design.mjs";
 import { auditTemplate, auditTemplateLate, auditLogic } from "./audit-design.mjs";
+import { alphaScreens } from "./alpha-screens.mjs";
 import {
   readFileSync as read,
   writeFileSync as write,
@@ -122,10 +123,6 @@ template = template.replace(
   '<span class="gu">મંજૂરી માટે મોકલો</span><span class="en">Send for approval</span>',
   '<span class="gu">{{ editSubmitGu }}</span><span class="en">{{ editSubmitEn }}</span>',
 );
-template = template.replace(
-  '<sc-if value="{{ tabHome }}">',
-  '<sc-if value="{{ tabHome }}"><sc-if value="{{ passwordDue }}"><button onClick="{{ goAdminForgot }}" style="padding:12px;border-radius:16px;border:1px solid var(--gbd);background:var(--g);color:var(--ind);font:inherit">પાસવર્ડ બદલો · Your password is over 60 days old. Reset it.</button></sc-if>',
-);
 // Semantic accessibility additions do not change the supplied visual design.
 template = template
   .replaceAll('class="noscroll"', 'class="noscroll" tabindex="0"')
@@ -181,8 +178,10 @@ template =
   template.slice(0, insertAt) +
   `<sc-if value="{{ connectionError }}"><button onClick="{{ retry }}" role="alert" style="z-index:40;position:absolute;top:8px;left:8px;right:8px;padding:12px;border-radius:16px;background:var(--sheet);color:var(--dan);border:1px solid var(--dan);font:inherit">કનેક્શન તપાસો · Connection lost — tap to retry</button></sc-if><sc-if value="{{ busy }}"><div role="status" style="position:absolute;inset:0;z-index:50;background:var(--scrim);display:flex;align-items:center;justify-content:center;color:white">રાહ જુઓ · Please wait…</div></sc-if>` +
   template.slice(insertAt);
-template = auditTemplateLate(
-  villageWorkflow(modernDesign(liquidGlass(refineDesign(template)))),
+template = alphaScreens(
+  auditTemplateLate(
+    villageWorkflow(modernDesign(liquidGlass(refineDesign(template)))),
+  ),
 );
 let logic = source.match(
   /<script type="text\/x-dc"[^>]*>([\s\S]*?)<\/script>/,
@@ -239,6 +238,15 @@ logic += "\n" + read("web/security-ui.mjs", "utf8").replaceAll("export ", "");
 logic += "\n" + read("web/liquid-ios.mjs", "utf8").replaceAll("export ", "");
 for (const file of ["bilingual.mjs", "material-capability.mjs"])
   logic += "\n" + read("web/" + file, "utf8").replaceAll("export ", "");
+for (const file of [
+  "alpha-ui.mjs",
+  "alpha-auth.mjs",
+  "alpha-register.mjs",
+  "alpha-directory.mjs",
+  "alpha-settings.mjs",
+  "alpha-admin.mjs",
+])
+  logic += "\n" + read("web/" + file, "utf8").replaceAll("export ", "");
 logic +=
   "\n" + read("web/village-workflow.mjs", "utf8").replaceAll("export ", "");
 logic += "\n" + read("web/controller.js", "utf8");
@@ -248,7 +256,8 @@ write(
   "dist/index.html",
   `<!doctype html><html lang="gu"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#B2402C"><link rel="icon" type="image/png" sizes="32x32" href="/brand/favicon-32.png"><link rel="apple-touch-icon" sizes="180x180" href="/brand/apple-touch-icon.png"><link rel="manifest" href="/manifest.webmanifest"><title>મહુવા ક્ષત્રિય રાજપૂત સમાજ · Community Directory</title><meta name="description" content="મહુવા ક્ષત્રિય રાજપૂત સમાજની ખાનગી સભ્ય ડિરેક્ટરી · Private member directory of the Mahuva Kshatriya Rajput Samaj."><link rel="stylesheet" href="/vendor/app-fonts.css"><script src="/vendor/react.js"></script><script src="/vendor/react-dom.js"></script><script src="/support.js"></script></head><body><x-dc><helmet><link rel="stylesheet" href="/vendor/app-fonts.css">${helmet}${extra}<style>${read("web/text-size.css", "utf8")}\n${read("web/usability.css", "utf8")}\n${read("web/liquid-glass.css", "utf8")}\n${read("web/modern-design.css", "utf8")}
 ${read("web/village-workflow.css", "utf8")}
-${read("web/liquid-ios.css", "utf8")}</style></helmet>${template}</x-dc><script type="text/x-dc" data-dc-script>${logic}</script></body></html>`,
+${read("web/liquid-ios.css", "utf8")}
+${read("web/alpha.css", "utf8")}</style></helmet>${template}</x-dc><script type="text/x-dc" data-dc-script>${logic}</script></body></html>`,
 );
 // Icons: keep only the Phosphor rules the app actually uses (the full sheet
 // lists 1,500 icons) and serve the WOFF2 font only.
@@ -260,6 +269,11 @@ ${read("web/liquid-ios.css", "utf8")}</style></helmet>${template}</x-dc><script 
   ];
   for (const text of sources)
     for (const [name] of text.matchAll(/ph-[a-z0-9-]+/g)) used.add(name);
+  // Alpha screens name their icons without the "ph-" prefix
+  // (AIcon { name: "funnel" }, AIconButton { icon: "funnel" }).
+  for (const file of ["alpha-ui", "alpha-auth", "alpha-register", "alpha-directory", "alpha-settings", "alpha-admin"])
+    for (const [, name] of read("web/" + file + ".mjs", "utf8").matchAll(/"([a-z][a-z0-9-]*)"/g))
+      used.add("ph-" + name);
   const full = read("node_modules/@phosphor-icons/web/src/duotone/style.css", "utf8");
   const kept = [];
   for (const block of full.match(/[^{}]+\{[^{}]*\}/g) || []) {

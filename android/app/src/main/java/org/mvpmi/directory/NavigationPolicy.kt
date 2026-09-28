@@ -34,8 +34,11 @@ internal object NavigationPolicy {
                 sameOrigin -> Destination.INTERNAL
                 !mainFrame -> Destination.BLOCKED
                 uri.scheme == "tel" && Regex("\\+91[6-9][0-9]{9}").matches(uri.rawSchemeSpecificPart) -> Destination.DIAL
+                // A chat with an Indian mobile number; only the "text=" message
+                // (the TEMP PIN share) may be added — no other parameters.
                 uri.scheme == "https" && uri.host == "wa.me" && uri.rawUserInfo == null && port(uri) == 443 &&
-                    uri.rawQuery == null && uri.rawFragment == null && Regex("/91[6-9][0-9]{9}").matches(uri.rawPath ?: "") -> Destination.WHATSAPP
+                    (uri.rawQuery == null || Regex("text=[^&#]*").matches(uri.rawQuery)) &&
+                    uri.rawFragment == null && Regex("/91[6-9][0-9]{9}").matches(uri.rawPath ?: "") -> Destination.WHATSAPP
                 else -> Destination.BLOCKED
             }
         } catch (_: Exception) { Destination.BLOCKED }

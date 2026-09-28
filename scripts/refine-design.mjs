@@ -46,10 +46,6 @@ export function refineDesign(template) {
       "Type 3 letters to search…",
       "Enter at least 3 digits to search by phone.",
     );
-  template = template.replace(
-    '<sc-if value="{{ isEditingRequest }}">',
-    '<button class="returning-member" onClick="{{ memberHelp }}">{{ ui.returning }}</button><sc-if value="{{ isEditingRequest }}">',
-  );
   // Use full-width values: keep a readable phone number on one line at large sizes.
   template = template.replace(
     '<div style="display:flex;justify-content:space-between;gap:12px;align-items:baseline">',
@@ -106,10 +102,6 @@ export function refineDesign(template) {
     'aria-label="{{ size.accessibleLabel }}"',
   );
   template = template
-    .replace(
-      "પાસવર્ડ બદલો · Your password is over 60 days old. Reset it.",
-      "{{ ui.passwordDue }}",
-    )
     .replace(
       "કનેક્શન તપાસો · Connection lost — tap to retry",
       "{{ ui.connection }}",
@@ -177,24 +169,5 @@ export function refineDesign(template) {
     template =
       template.slice(0, memberStart) + memberPart + template.slice(memberEnd);
   }
-  template = template.replace(
-    '<sc-if value="{{ preferencesOpen }}">',
-    `
-    <sc-if value="{{ recoveryOpen }}"><div class="preferences-scrim"><section role="dialog" aria-modal="true" aria-label="{{ ui.help }}" class="preferences-panel recovery-panel" tabindex="-1">
-      <h2>{{ ui.help }}</h2><p>{{ ui.helpBody }}</p>
-      <sc-if value="{{ recoveryEligible }}"><label>{{ ui.recoveryPhone }}<input data-testid="Recovery phone" value="{{ recoveryPhone }}" onInput="{{ setRecoveryPhone }}" inputmode="numeric" autocomplete="tel-national" maxlength="10"></label>
-      <label>{{ ui.recoveryCode }}<input data-testid="Recovery code" value="{{ recoveryCode }}" onInput="{{ setRecoveryCode }}" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="48"></label>
-      <button class="close-preferences" onClick="{{ redeemRecovery }}" disabled="{{ busy }}">{{ ui.recoverAccess }}</button></sc-if>
-      <sc-if value="{{ recoveryError }}"><p role="alert">{{ recoveryError }}</p></sc-if>
-      <button class="close-preferences" onClick="{{ closeRecovery }}">{{ ui.helpAction }}</button>
-    </section></div></sc-if>
-    <sc-if value="{{ showRecoveryIssued }}"><div class="preferences-scrim"><section role="dialog" aria-modal="true" aria-label="{{ ui.recoveryIssued }}" class="preferences-panel recovery-panel" tabindex="-1">
-      <h2>{{ ui.recoveryIssued }}</h2><p>{{ recoveryMember }}</p><p>{{ ui.recoveryWarning }}</p>
-      <output class="recovery-token" data-testid="Issued recovery code">{{ recoveryIssued }}</output>
-      <p>{{ ui.recoveryExpires }}: {{ recoveryExpiry }}</p><sc-if value="{{ recoveryCodeExpired }}"><p role="alert">{{ ui.recoveryExpired }}</p></sc-if><button class="close-preferences" onClick="{{ copyRecovery }}" disabled="{{ recoveryCodeExpired }}">{{ ui.copyCode }}</button>
-      <p role="status">{{ copyStatus }}</p><button class="close-preferences" onClick="{{ closeIssuedRecovery }}">{{ ui.close }}</button>
-    </section></div></sc-if>
-    <sc-if value="{{ preferencesOpen }}">`,
-  );
   return template.replace(/<i\b/g, '<i aria-hidden="true"');
 }

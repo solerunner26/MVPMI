@@ -29,6 +29,9 @@ class NavigationPolicyTest {
         assertEquals(WHATSAPP, NavigationPolicy.classify("https://wa.me/919000000001", base))
         assertEquals(BLOCKED, NavigationPolicy.classify("https://wa.me/919000000001", base, false))
         assertEquals(BLOCKED, NavigationPolicy.classify("https://wa.me/919000000001?redirect=evil", base))
+        assertEquals(BLOCKED, NavigationPolicy.classify("https://wa.me/919000000001?text=hi&redirect=evil", base))
+        // The TEMP PIN share message.
+        assertEquals(WHATSAPP, NavigationPolicy.classify("https://wa.me/919000000001?text=TEMP%20PIN%3A%201234", base))
         assertEquals(BLOCKED, NavigationPolicy.classify("https://evil@wa.me/919000000001", base))
     }
     @Test fun privateHttpIsDebugOnlyAndPublicHttpIsAlwaysBlocked() {
