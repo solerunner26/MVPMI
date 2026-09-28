@@ -1,23 +1,31 @@
 # MVPMI — મહુવા ક્ષત્રિય રાજપૂત સમાજ · Community Directory
 
 A private, bilingual (Gujarati / English) phone directory for the Mahuva
-Kshatriya Rajput Samaj. Members apply once; their **village administrator**
-verifies them and the **main administrator** approves. Approved members can
-search the directory and call or WhatsApp other members. The directory is
-locked with a PIN.
+Kshatriya Rajput Samaj. Members register once; their **Village Admin**
+verifies them and the **Main Admin** approves. Approved members log in with
+their mobile number and a 4-digit **PIN**, search the directory and call or
+WhatsApp other members. The directory is never shown without an approved
+login, and a saved copy lets logged-in members call contacts offline.
 
 - **Live site:** https://samaj.kavigsv.com (app download: `/download`)
 - **Android app:** built and signed automatically by GitHub Actions for each
   release (`mvpmi.apk` to share, `mvpmi-play.aab` for Google Play).
-- **Version:** 1.0.0 (first public release).
+- **Version:** 1.1.0 (alpha: new login model, directory redesign — see
+  [CHANGELOG.md](CHANGELOG.md) and [docs/ALPHA_TESTING.md](docs/ALPHA_TESTING.md)).
 
 ## Roles
 
-| Role | Can do |
-|---|---|
-| Member | Apply (first, father's and surname, one of 7 villages, mobile, optional second number and current location), then view the directory, call/WhatsApp, edit own details (re-verified), request removal |
-| Village administrator | Separate phone + password sign-in; verifies applicants of **their own village only** and forwards them; proposes changes/removals; gives PIN reset codes |
-| Main administrator | Hidden entrance (tap the sun logo 5 times + 4-digit code + password); enrolls village administrators; final approval; approves mobile-number changes; removes members; reports (PDF, Excel, CSV); backups |
+| Role | Logs in with | Can do |
+|---|---|---|
+| MEMBER | mobile + 4-digit PIN | Register (consent required), then view the directory, search, call/WhatsApp, request profile changes or removal, change PIN, optional app lock and fingerprint unlock |
+| VILLAGE_ADMIN (one per village, 7 villages) | mobile + PIN | Everything a member can, plus: review PENDING registrations and change requests of **their village only**, forward to the Main Admin or reject with a reason, create TEMP PINs for "Forgot PIN?" requests |
+| MAIN_ADMIN (exactly one, seeded on the server) | mobile + PASSWORD | Final approval, Manage Village Admins (create / edit / disable / reset), members, reports (PDF, Excel, CSV), backups, security alerts |
+
+Terms used everywhere: **PASSWORD** (Main Admin only, 8+ characters), **PIN**
+(4 digits; login AND app lock for Village Admins and Members), **TEMP PIN**
+(random 4 digits created by an admin, one login only, shared with the
+"Share on WhatsApp" button). Account status: PENDING, APPROVED, REJECTED,
+REMOVED.
 
 ## Where things are
 
@@ -26,7 +34,10 @@ locked with a PIN.
 | `server/` | Node.js 22 + Express 5 server, SQLite database (`node:sqlite`) |
 | `web/` | App logic, design layer (`liquid-ios.css`) and components |
 | `Community Directory.dc.html` | Original design source; `npm run build` turns it into `dist/` |
-| `android/` | Android app (Kotlin WebView host, notifications, save/print bridges) |
+| `web/alpha-*.mjs`, `web/strings.mjs` | Login, registration, directory, settings, admin tools and every Gujarati/English string |
+| `server/auth.mjs`, `server/terms.mjs` | Logins, TEMP PINs, PIN/PASSWORD changes, admin mode, shared terms |
+| `config/main-admin.env.example` | Main Admin seed template (the real file stays on the server, not in git) |
+| `android/` | Android app (Kotlin WebView host, notifications, save/print, fingerprint bridges) |
 | `deploy/server/` | Server installer, automatic updater, settings template |
 | `tests/`, `scripts/*-test.mjs` | Unit, API, browser, accessibility and layout tests |
 | `docs/` | Deployment, Android release, design system, testing report |
@@ -48,7 +59,8 @@ locked with a PIN.
 npm install
 npm run dev            # http://localhost:3000 (DEVELOPMENT_MODE=true in .env)
 npm test               # unit + API tests
-npm run check          # everything: unit, browser, accessibility, languages, materials, audit
+npm run test:e2e       # every screen and navigation path in a phone-size browser
+npm run check          # everything above + npm audit
 ```
 
 Windows/Mac helpers: `START-TEST-SERVER-WINDOWS.cmd`, `START-TEST-SERVER-MAC.command`.

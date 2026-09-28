@@ -41,21 +41,43 @@ VM instances → mvpmi → SSH** (opens in the browser).
 3. GoDaddy → **kavigsv.com → DNS → Add record**: type `A`, name `samaj`,
    value = the static IP, TTL 1 hour.
 4. Wait 5–10 minutes, then open `https://samaj.kavigsv.com/api/health`.
-5. SSH into the server and run `sudo mvpmi-config first-login` — it shows
-   the first admin password, the 4-digit access code and the backup
-   passphrase (created on the server). Copy them into your private
-   handover sheet.
-6. `sudo mvpmi-config set GOOGLE_CLIENT_SECRET` (paste the client secret
+5. SSH into the server and run `sudo mvpmi-config main-admin`. It asks for
+   the Main Admin's name, Gujarati name (optional), mobile number, village,
+   current location and initial PASSWORD (8+ characters, typed hidden) and
+   restarts the app. These values stay in `/etc/mvpmi.env` on the server —
+   never in git or in the Android app.
+6. `sudo mvpmi-config first-login` shows the backup passphrase (created on
+   the server). Copy it into your private handover sheet.
+7. `sudo mvpmi-config set GOOGLE_CLIENT_SECRET` (paste the client secret
    from the handover sheet; the value is hidden while typing).
 
-## Main administrator
+## Moving an existing server to version 1.1 (fresh start for the alpha)
 
-- Open the site, **tap the sun logo 5 times**, enter the 4-digit access
-  code, then user `admin` and the password (both set at first start, in the
-  handover sheet). Save the recovery code shown at the first sign-in.
-- Change the password in the app (Security). Set the main administrator's
-  contact number (shown on the privacy page and "All admins").
-- Enroll each village administrator before that village's members apply.
+Version 1.1 replaces the old sign-in (hidden sun-logo gate, recovery code,
+village-admin passwords, device-bound members) with mobile + PIN / PASSWORD
+logins. The alpha starts with an empty database:
+
+1. `sudo mvpmi-config main-admin` (as above) — do this BEFORE publishing the
+   v1.1 release, otherwise the automatic update cannot start and rolls back.
+2. `sudo systemctl stop mvpmi` and move the old database aside:
+   `sudo mv /var/lib/mvpmi/community.sqlite /var/lib/mvpmi/community-v1.0.sqlite`
+   (also move `community.sqlite-wal` / `-shm` if present).
+3. Publish the v1.1 release (or wait for the hourly update), then
+   `sudo systemctl start mvpmi`.
+
+## Main Admin
+
+- Open the app → **Login** → "Main Admin? Log in with password" → mobile
+  number and password. The Main Admin lands on the Member Directory; the
+  shield icon in the top bar opens the admin tools.
+- Change the password in the app: **Admin → My Profile → Change Password**
+  (or Settings → My Profile).
+- Forgotten password: on the server, `sudo mvpmi-config reset-main-admin`
+  (runs `scripts/reset-main-admin.js`). There is no reset inside the app.
+- **Admin → Manage Village Admins**: create one Village Admin per village
+  (name + mobile). The app shows a TEMP PIN once, with a **Share on
+  WhatsApp** button. Create Village Admins before that village's members
+  register (registration for a village without an active admin is closed).
 
 ## Google Drive backup
 

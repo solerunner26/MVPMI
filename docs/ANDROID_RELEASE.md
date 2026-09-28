@@ -69,9 +69,12 @@ GitHub → repository → **Settings → Secrets and variables → Actions**:
 - Blocks screenshots and screen recording (community privacy).
 - Asks for notification permission only after the person applies or signs
   in; checks for notifications about every 15 minutes (no Firebase needed).
-- Android 5.0 and newer; targets Android 16 (API 36), as Google Play
+- Android 10 (API 29) and newer; targets Android 16 (API 36), as Google Play
   requires from 31 August 2026.
+- The server address is built in (`COMMUNITY_URL` for release,
+  `-PcommunityDebugUrl` for debug builds, defaulting to the same address).
+  There is no server setting or "Server" button anywhere in the app.
+- Optional fingerprint unlock uses the phone's own biometric prompt.
 
-The debug APK from the Actions run (`app-debug.apk`) is for testing only:
-it shows a "TEST BUILD" bar and can point at a computer test server
+The debug APK from the Actions run (`app-debug.apk`) is for testing only
 (`PHONE_TESTING.md`).

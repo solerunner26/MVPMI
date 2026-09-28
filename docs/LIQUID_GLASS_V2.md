@@ -28,7 +28,7 @@ call is identical.
 New finishing touches: glass alphabet badges in the directory, a halo ring
 around member initials, status dots.
 
-New tool: `GALLERY_AUDIT=1 node scripts/ui-gallery.mjs <folder> <width>`
+(Version 1.1: the gallery tool was retired with the old screens; `npm run test:e2e` now audits every screen.) Former tool: `GALLERY_AUDIT=1 node scripts/ui-gallery.mjs <folder> <width>`
 writes `layout-report.json` listing clipped text, text escaping a control,
 capsule labels on two lines, overlapping text, and the size of every control
 family. The final run reports **0 clipped, 0 escaping, 0 overlapping** texts

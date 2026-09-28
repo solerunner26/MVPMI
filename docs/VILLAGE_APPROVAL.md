@@ -1,5 +1,13 @@
 # Village verification and management — 20 September 2026
 
+> **Version 1.1 (alpha) update.** Village Admins no longer have a separate
+> password sign-in. The Main Admin creates them in **Admin → Manage Village
+> Admins** (name + mobile), the app shows a TEMP PIN once with "Share on
+> WhatsApp", and the Village Admin logs in with mobile + PIN like every
+> member (forced "Set new PIN" on first login). Disable / Enable / Reset PIN
+> replace the old reassignment and password reset. Rejections need a reason.
+> The two-stage verification described below is unchanged.
+
 Two-stage community approval with separate village-administrator sign-in,
 managed villages and identity-safe rejoining. Pre-edit checkpoints:
 **`Pre-Village-Approval`** (first version) and commit `9111cc7` (before the

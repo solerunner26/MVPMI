@@ -1,118 +1,56 @@
-# Test MVPMl on your phone or emulator
+# Test MVPMl on your phone or emulator (debug build)
 
-This guide is for the **MVPMl Test debug APK**, not a Play Store release. Use made-up contacts only. The app needs a backend server: the APK is not a standalone offline directory.
+For the alpha with real users, install the **signed release APK** instead
+(see [ALPHA_TESTING.md](ALPHA_TESTING.md)). This page is for testing a debug
+build against a server on your own computer, with made-up contacts only.
 
-## Downloads
+## 1. Start the test server on your computer
 
-- **[Download the APK from the Releases page](https://github.com/solerunner26/MVPMI/releases)** — no GitHub sign-in needed, the link never expires. Open the newest release and download `app-debug.apk` directly (no unzip). The same page lists the checksum (`SHA256SUMS.txt`), the exact source commit (`BUILD-INFO.txt`) and the full **Source code (zip)** for the test server.
-- Alternative: each green "Quality checks" run on the [Actions page](https://github.com/solerunner26/MVPMI/actions) keeps a `mvpmi-debug-apk` artifact for 14 days (repo-owner sign-in required).
+1. Install Node.js 22.13 or newer (https://nodejs.org).
+2. Extract the source ZIP completely, then double-click
+   `START-TEST-SERVER-WINDOWS.cmd` (Windows) or open
+   `START-TEST-SERVER-MAC.command` (Mac/Linux: `sh START-TEST-SERVER-MAC.command`).
+3. Leave the window open. It prints the computer, emulator and Wi-Fi
+   addresses, and a made-up **Main Admin mobile number and password** for
+   this test database only.
+4. Open `http://localhost:3000` on the computer: the Login screen appears.
 
-Extract any source ZIP completely before starting the server. CI has verified compilation, lint, Kotlin unit tests, assembly and the debug signature for every published build; installing on your phone/emulator is the next test, not something already verified.
+If Windows Firewall asks, allow Node.js on **Private networks only**.
 
-## What you need
+## 2. Build a debug APK that points at your computer
 
-- A Windows, Mac or Linux computer.
-- Node.js **22.13 or newer LTS** from https://nodejs.org (install once; no Android development tools are needed for phone testing).
-- The test-server ZIP and the debug APK provided with this build.
-- For phone testing: phone and computer on the **same trusted Wi-Fi**.
-- For emulator testing: an Android emulator already installed/running.
-
-The Arena preview URL **does not work as a phone backend** because Arena protects it with a traffic-access token. Never copy platform tokens into an APK.
-
-## Step 1 — Start the server on your computer
-
-1. Download the test-server ZIP.
-2. **Extract the whole ZIP** into a folder. Do not run files while they are still inside the ZIP viewer.
-3. On Windows, double-click **`START-TEST-SERVER-WINDOWS.cmd`**.
-4. On Mac, open **`START-TEST-SERVER-MAC.command`**. On Linux, open a terminal in the extracted folder and run `sh START-TEST-SERVER-MAC.command`.
-5. Wait while it installs dependencies and builds the browser app. Internet is needed for the initial installation.
-6. Leave that window open. It prints:
-   - the computer browser address;
-   - the emulator address;
-   - one or more phone/Wi-Fi addresses;
-   - your **test admin access code and password**.
-
-Open `http://localhost:3000` on the computer first. If the entry form appears, the backend is running.
-
-If Windows Firewall asks, allow Node.js on **Private networks only**. Do not disable the firewall or expose this development server to the internet.
-
-### Important about passwords
-
-The launcher creates credentials specifically for **your computer's test database**. They are different from the Arena preview credentials. Read/copy the credentials printed in your server window; do not use the Arena access code/password.
-
-The settings and test database are saved under the extracted folder's `data/` directory. Keep that folder private. If you change the admin password in the app, use the changed password; the launcher will tell you that the original password is no longer current.
-
-## Step 2 — Install on your Android phone
-
-1. Download/copy **`app-debug.apk`** (or the supplied renamed `MVPMl-debug.apk`) onto your phone. If downloaded from a GitHub artifact, extract the artifact ZIP first.
-2. Tap the APK to install it. If Android asks, allow installation from that particular browser/file manager for this install, then turn that permission off afterwards. Do not turn off Play Protect.
-3. Open **MVPMl Test**.
-4. In **MVPMl test server**, enter the Wi-Fi address printed by the server, for example `http://192.168.1.10:3000`. Use **your** address, not this example.
-5. Press **Connect**. The supplied community-directory design should load.
-
-If more than one address is printed, use the address of the computer's Wi-Fi connection. VPNs, guest Wi-Fi and router client-isolation settings may prevent devices from reaching each other.
-
-**Do not enter `localhost` on a phone:** that refers to the phone itself, not your computer.
-
-## Step 3 — Install on an emulator
-
-1. Keep the computer test server running.
-2. Drag the APK onto the running Android emulator, or install with Android Studio/ADB.
-3. Open **MVPMl Test**.
-4. Enter **`http://10.0.2.2:3000`** as the test server for the standard Android Studio emulator.
-5. Press **Connect**.
-
-Optional ADB installation:
+The server address is built into the app — there is no server setting in
+the app. Build the debug APK with your computer's address, for example:
 
 ```sh
-adb install -r app-debug.apk
+gradle -p android :app:assembleDebug -PcommunityUrl=https://samaj.kavigsv.com -PcommunityDebugUrl=http://192.168.1.10:3000
 ```
 
-For a USB-connected physical device, advanced users can run `adb reverse tcp:3000 tcp:3000` and use `http://127.0.0.1:3000` in the debug app instead of Wi-Fi.
+(Emulator: `-PcommunityDebugUrl=http://10.0.2.2:3000`.) Plain `http://` is
+allowed only for debug builds and only for private network addresses. The
+CI debug APK points at the live server (`COMMUNITY_URL`).
 
-## Step 4 — Test the approval flow
+## 3. Walk through the app
 
-1. Enter a made-up profile and send a request. Use a different test mobile number on each separate device/browser. **Do not call or WhatsApp the made-up numbers.**
-2. Tap the sun logo five times quickly.
-3. Enter the access code printed in your computer's server window.
-4. Sign in as `admin` using the password printed there.
-5. Open **New requests** and approve the test profile.
-6. Sign out of admin. The directory should become available.
-7. Try search, village tiles, My profile, a profile-change request and admin approval.
+1. **Main Admin:** Login → "Main Admin? Log in with password" → the printed
+   mobile and password. You land on the Member Directory; the shield icon
+   opens the admin tools.
+2. **Admin → Manage Village Admins → Create Village Admin** for a village
+   (made-up name and number). A TEMP PIN appears once.
+3. In a private browser window (or a second phone), log in with that number
+   and TEMP PIN → you must **Set new PIN** first.
+4. In another window, **Register** a made-up member for that village (tick
+   the consent box). The Village Admin forwards it; the Main Admin approves
+   it and gets the member's TEMP PIN.
+5. Log in as the member with the TEMP PIN, set a PIN, try search, call /
+   WhatsApp buttons (do not call made-up numbers), Settings, app lock and
+   "Forgot PIN?".
 
-To act as a separate administrator, open the computer browser in a private/incognito window. Requests made by the phone appear there because both use the same computer backend.
+`npm run test:e2e` runs all of these paths automatically.
 
 ## If it cannot connect
 
-- Check the server window is still open and has no error.
-- Check `http://localhost:3000` opens on the computer.
-- Check the phone uses the same Wi-Fi, not mobile data.
-- Check the phone's server address matches the current address printed on the computer.
-- Check Node.js is allowed on the computer's private-network firewall profile.
-- Use **Server** in the APK's test banner to correct the address, or **Retry** on the error screen.
-- For a hosted backend, use a valid HTTPS certificate. The APK does not bypass certificate errors.
-
-If Android says **“App not installed”**, an older test APK may have been signed with a different debug key. Debug keys can differ between CI builds. Uninstall the previous **test** APK and install the new one. This clears that device's app session/settings; its old unverified membership cannot currently be recovered automatically. Test with a fresh made-up number. Do not uninstall a real production app to work around signing problems.
-
-If the screen is blank on an old phone, update Android System WebView/Chrome where possible and report the Android and WebView versions. The package declares Android 5 minimum, but the current web renderer's old-phone compatibility is **not certified**. Start testing with a recent Android device/emulator.
-
-## What this test build does not finish
-
-- Real SMS member verification or lost-device recovery.
-- Native/offline directory storage.
-- Native PDF/download/share integration: use the computer browser to test exports for now.
-- Public hosting, production authentication, notifications, genuine data erasure or a completed privacy policy.
-- Full real-device, accessibility, memory/performance or Play Console validation.
-
-The native server-selection/error screens and test banner are **debug tools** around the unchanged web design. Local HTTP access is allowed only in debug builds and only for loopback/private IPv4 hosts by the navigation policy. It is not encrypted: use synthetic data on a trusted local network only. The release manifest remains HTTPS-only, and release assembly remains blocked pending the release audit.
-
-## Going from testing to deployment
-
-1. Choose and deploy a permanent HTTPS backend with persistent storage/backups and monitoring. Do not publish the local test server.
-2. Implement verified member identity/recovery and choose an SMS provider.
-3. Complete data-deletion/retention rules, privacy policy and support/deletion URLs.
-4. Finish native exports, offline behaviour and compatibility work.
-5. Build and test an actual release candidate on devices and Play testing tracks.
-6. Only then configure a permanent backend URL, production signing and a release AAB/APK, remove the reviewed release blockers, and publish.
-
-A debug APK is for testing only; members install the signed release APK (see `ANDROID_RELEASE.md`).
+- The app shows "No internet / Server not reachable — Retry". Check the
+  server window is still open and the phone is on the same Wi-Fi.
+- If Android says **"App not installed"**, a previous test APK was signed
+  with a different debug key: uninstall the old **test** app first.

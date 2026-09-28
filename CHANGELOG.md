@@ -1,5 +1,42 @@
 # Changelog
 
+## 1.1.0 — alpha (September 2026)
+
+Full audit and rework for the alpha with real users (fresh start: the old
+database is not carried over).
+
+- **Terms:** PASSWORD (Main Admin), PIN (4 digits, login + app lock), TEMP
+  PIN (one login, shared by WhatsApp); roles MAIN_ADMIN, VILLAGE_ADMIN,
+  MEMBER; statuses PENDING, APPROVED, REJECTED, REMOVED.
+- **Server address** built into the app per build type; the "Server" button
+  and test banner are gone. Offline: app shell cached, saved directory copy
+  with "Last updated", Retry without restarting.
+- **Main Admin** seeded once from a server-only config file (bcrypt hash);
+  mobile + password login; My Profile with Change Password; server-only
+  reset script. The hidden sun-logo gate, access code and recovery code are
+  removed.
+- **Village Admins** created, edited, disabled, enabled and reset by the
+  Main Admin; TEMP PIN with "Share on WhatsApp"; forced "Set new PIN";
+  village-scoped review; rejections need a reason.
+- **Registration:** server checks the number (member / pending / rejected /
+  removed / new); consent checkbox; "Already Member?" removed; "Forgot PIN?"
+  asks the village admin for a TEMP PIN.
+- **App lock:** same PIN as the login; optional for members (default off),
+  always on for admins; locks after ≥1 minute in the background; easy PINs
+  refused; 5 wrong → 5-minute lockout with countdown; optional fingerprint.
+- **Feedback** for every PIN/password change case, in Gujarati and English.
+- **Navigation:** Back works on every screen; "Discard changes?"; admin edit
+  → Save returns to the list with "Saved"; logout / login clear the stack;
+  "Log out" of admin keeps the member logged in.
+- **Directory redesign:** slim top bar, 3-character search (name, number,
+  village, taluka, district), optional village chips, compact 64 dp rows
+  with Call and WhatsApp (8+ contacts on a 6-inch phone), details sheet,
+  My Profile inside Settings.
+- **Android:** minimum Android 10; native messages in Gujarati/English
+  string resources.
+- **Tests:** new end-to-end suite (`npm run test:e2e`) replaces the old
+  browser tests.
+
 ## 1.0.0 — 27 September 2026 (first public release)
 
 - Live server on a Google Cloud e2-micro VM with automatic HTTPS, nightly
