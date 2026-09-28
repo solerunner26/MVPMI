@@ -15,3 +15,5 @@ android-build.log
 backups/
 *.p12
 downloads/
+# Main Admin seed values (name, mobile, initial password) stay on the server.
+config/main-admin.env

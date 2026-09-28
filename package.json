@@ -1,6 +1,6 @@
 {
  "name": "mvpmi-community-directory",
- "version": "1.0.0",
+ "version": "1.1.0",
  "private": true,
  "type": "module",
  "scripts": {
@@ -8,22 +8,17 @@
   "start": "node server/index.mjs",
   "dev": "npm run build && node server/index.mjs",
   "test": "node --test tests/*.test.mjs",
-  "test:ui": "npm run build && node scripts/ui-test.mjs",
-  "test:embedded": "npm run build && node scripts/embedded-login-test.mjs",
-  "test:accessibility": "npm run build && node scripts/accessibility-test.mjs",
   "test:coverage": "node --experimental-test-coverage --test --test-coverage-include=\"server/*.mjs\" tests/*.test.mjs",
-  "check": "npm test && npm run test:ui && npm run test:lock && npm run test:embedded && npm run test:accessibility && npm run test:language && npm run test:village && npm run test:materials && npm audit --audit-level=moderate",
+  "check": "npm test && npm run test:e2e && npm audit --audit-level=moderate",
   "start:test": "node scripts/start-test-server.mjs",
-  "test:language": "npm run build && node scripts/language-test.mjs",
-  "test:materials": "npm run build && node scripts/material-test.mjs",
-  "test:village": "npm run build && node scripts/village-workflow-test.mjs",
-  "test:lock": "npm run build && node scripts/app-lock-test.mjs",
-  "test:glass": "npm run build && GLASS_A11Y=1 node scripts/ui-gallery.mjs test-results/glass 390"
+  "test:e2e": "npm run build && node scripts/alpha-e2e-test.mjs",
+  "reset-main-admin": "node scripts/reset-main-admin.js"
  },
  "dependencies": {
   "@fontsource/manrope": "^5.2.6",
   "@fontsource/noto-sans-gujarati": "^5.2.6",
   "@phosphor-icons/web": "2.1.1",
+  "bcryptjs": "3.0.3",
   "exceljs": "^4.4.0",
   "express": "^5.1.0",
   "react": "18.3.1",

@@ -1,4 +1,5 @@
 import { createApp } from "./app.mjs";
+import { mainAdminConfig } from "./config-file.mjs";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 
@@ -34,8 +35,8 @@ const trustProxy =
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const { app } = createApp({
-  adminPassword: process.env.ADMIN_PASSWORD,
-  gateCode: process.env.ADMIN_GATE_CODE,
+  // Main Admin seed: config/main-admin.env (not in git) or the environment.
+  mainAdmin: mainAdminConfig(root),
   // Relative database paths are resolved from the project folder.
   dbPath: resolve(root, process.env.DB_PATH || "data/community.sqlite"),
   secure,

@@ -2,7 +2,9 @@
 # Change a server setting safely (value is typed hidden, never echoed).
 #   sudo mvpmi-config set GOOGLE_CLIENT_SECRET     # asks for the value
 #   sudo mvpmi-config set PRIVACY_CONTACT_EMAIL    # asks for the value
-#   sudo mvpmi-config first-login                  # shows the first admin password, access code and backup passphrase
+#   sudo mvpmi-config main-admin                   # sets the Main Admin (first start of a new database)
+#   sudo mvpmi-config first-login                  # shows the backup passphrase
+#   sudo mvpmi-config reset-main-admin             # forgotten Main Admin password (asks for a new one)
 #   sudo mvpmi-config list                         # setting names only (no values)
 set -euo pipefail
 ENV=/etc/mvpmi.env
@@ -19,10 +21,30 @@ case "${1:-}" in
     systemctl restart mvpmi
     echo "$key saved; app restarted."
     ;;
+  main-admin)
+    # Seed values for the one Main Admin. Used only when the database has no
+    # Main Admin yet; later the password is changed in the app (Profile →
+    # Change Password) or reset with scripts/reset-main-admin.js.
+    tmp=$(mktemp)
+    grep -v '^MAIN_ADMIN_' "$ENV" > "$tmp" || true
+    for key in NAME NAME_GU MOBILE VILLAGE LOCATION; do
+      read -r -p "MAIN_ADMIN_$key: " value
+      [[ "$value" != *$'\n'* ]] || { echo "one line only"; exit 1; }
+      printf 'MAIN_ADMIN_%s=%s\n' "$key" "$value" >> "$tmp"
+    done
+    read -r -s -p "MAIN_ADMIN_PASSWORD (8+ characters, hidden): " value; echo
+    [ "${#value}" -ge 8 ] || { echo "at least 8 characters"; rm -f "$tmp"; exit 1; }
+    printf 'MAIN_ADMIN_PASSWORD=%s\n' "$value" >> "$tmp"
+    install -m 640 -o root -g mvpmi "$tmp" "$ENV"; rm -f "$tmp"
+    systemctl restart mvpmi
+    echo "Main Admin saved; app restarted. Log in with the mobile number and 'Main Admin? Log in with password'."
+    ;;
+  reset-main-admin)
+    cd /opt/mvpmi/app && sudo -u mvpmi env "$(grep '^DB_PATH=' "$ENV")" node scripts/reset-main-admin.js
+    ;;
   first-login)
     cat /root/mvpmi-first-login.txt
-    echo "Main admin user name: admin  (tap the sun logo 5 times, then the access code)"
     ;;
   list) cut -d= -f1 "$ENV" ;;
-  *) sed -n '2,7p' "$0" ;;
+  *) sed -n '2,8p' "$0" ;;
 esac

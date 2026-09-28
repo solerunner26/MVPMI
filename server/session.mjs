@@ -82,7 +82,8 @@ export function installSessions(app, store, { development, secure, rate }) {
           403,
         );
       req.session = session;
-      req.isAdmin = session.adminUntil > Date.now();
+      // Login, role and admin mode are resolved by server/auth.mjs.
+      req.isAdmin = false;
       // Sign-in rotates the session identifier (prevents session fixation):
       // the same owner and state move to a fresh cookie; any development
       // transport that pointed at the old identifier follows it.

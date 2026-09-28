@@ -34,13 +34,14 @@ setdefault DOWNLOAD_DIR /var/lib/mvpmi/downloads
 setdefault PUBLIC_URL "https://$APP_DOMAIN"
 setdefault VAPID_SUBJECT "https://$APP_DOMAIN"
 setdefault APK_URL "https://github.com/solerunner26/MVPMI/releases/latest/download/mvpmi.apk"
-if ! grep -q '^ADMIN_PASSWORD=.' /etc/mvpmi.env; then
-  setdefault ADMIN_PASSWORD "Mv$(gen 'A-HJ-NP-Za-km-z2-9' 12)@$(gen '2-9' 2)"
-  setdefault ADMIN_GATE_CODE "$(gen '0-9' 4)"
+if ! grep -q '^BACKUP_PASSPHRASE=.' /etc/mvpmi.env; then
   setdefault BACKUP_PASSPHRASE "$(gen 'A-Za-z0-9' 32)"
-  grep -E '^(ADMIN_PASSWORD|ADMIN_GATE_CODE|BACKUP_PASSPHRASE)=' /etc/mvpmi.env > /root/mvpmi-first-login.txt
+  grep -E '^BACKUP_PASSPHRASE=' /etc/mvpmi.env > /root/mvpmi-first-login.txt
   chmod 600 /root/mvpmi-first-login.txt
 fi
+# The Main Admin (name, mobile, village, location, initial PASSWORD) is set
+# once on the server with:  sudo mvpmi-config main-admin
+# The app refuses to start without it.
 
 # 1 GB machines need swap for npm.
 if ! swapon --show | grep -q /swapfile; then

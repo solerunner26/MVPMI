@@ -8,12 +8,21 @@ export const example = {
   village: "Thorala",
   consent: true,
 };
-export const VA_PASS = "Village@2026!";
+// Test accounts. The Main Admin is seeded from the same settings the server
+// reads from config/main-admin.env; PINs are never easy PINs.
+export const MAIN = {
+  name: "Test Main Admin",
+  mobile: "9913000001",
+  village: "Thorala",
+  location: "Thorala",
+  password: "Testing@2026!",
+};
+export const VA_PIN = "2580";
+export const MEMBER_PIN = "3691";
 export async function fixture(t, options = {}) {
   const { app, store } = createApp({
     dbPath: ":memory:",
-    adminPassword: "Testing@2026!",
-    gateCode: "5831",
+    mainAdmin: MAIN,
     development: true,
     // The server-side app lock has its own tests (tests/app-lock-server.test.mjs).
     requireAppLock: false,
@@ -46,19 +55,23 @@ export async function fixture(t, options = {}) {
       assert.equal(
         response.status,
         status,
-        `${path}: expected ${status}, got ${response.status}`,
+        `${path}: expected ${status}, got ${response.status} ${JSON.stringify(result.error || "")}`,
       );
       return result;
     };
   };
   const admin = client();
-  await admin("admin/gate", { code: "5831" });
-  await admin("admin/login", { user: "admin", pass: "Testing@2026!" });
+  await admin("login", { mobile: MAIN.mobile, secret: MAIN.password });
   const villageClients = new Map();
   const va = (village) => {
     const c = villageClients.get(village);
     assert.ok(c, "No administrator enrolled for " + village);
     return c;
+  };
+  // Logs a person in with a TEMP PIN and sets their own PIN.
+  const firstLogin = async (c, mobile, tempPin, pin) => {
+    await c("login", { mobile, secret: tempPin });
+    return c("pin/set", { pin, confirm: pin });
   };
   const ensureAdmin = async (village) => {
     const record = store
@@ -69,17 +82,14 @@ export async function fixture(t, options = {}) {
           v.en.toLowerCase() === String(village).toLowerCase(),
       );
     assert.ok(record, "Unknown village " + village);
-    if (store.get("villageAdmins", record.gu)) return;
+    if (villageClients.has(record.gu)) return;
     const phone = "799" + String(1000000 + villageClients.size).slice(-7);
-    await admin("admin/village-admins/" + encodeURIComponent(record.gu), {
-      name: "Administrator " + village,
-      phone,
-      pass: VA_PASS,
-      reason: "Known village administrator",
-      identityConfirmed: true,
-    });
+    const created = await admin(
+      "admin/village-admins/" + encodeURIComponent(record.gu) + "/create",
+      { name: "Administrator " + village, mobile: phone },
+    );
     const c = client();
-    await c("village/login", { phone, pass: VA_PASS });
+    await firstLogin(c, phone, created.issuedPin.pin, VA_PIN);
     villageClients.set(record.gu, c);
   };
   const enroll = async (user, p = example) => {
@@ -92,8 +102,9 @@ export async function fixture(t, options = {}) {
       reason: "Verified test community member",
       identityConfirmed: true,
     });
-    await admin("admin/requests/" + request.id + "/approve", {});
+    const approved = await admin("admin/requests/" + request.id + "/approve", {});
+    await firstLogin(user, p.phone, approved.issuedPin.pin, MEMBER_PIN);
     return (await user("state")).members.find((m) => m.phone === p.phone);
   };
-  return { store, client, admin, enroll, ensureAdmin, va, url };
+  return { store, client, admin, enroll, ensureAdmin, va, url, firstLogin };
 }
