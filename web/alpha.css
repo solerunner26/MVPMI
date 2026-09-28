@@ -1,0 +1,736 @@
+/* ==========================================================================
+   Alpha screens (login, registration, directory, settings, admin tools).
+   Same Liquid Glass tokens, colours and fonts as the rest of the app
+   (web/liquid-ios.css); only layout for the new screens lives here.
+   ========================================================================== */
+.app.lq .alpha-screen {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1;
+}
+.app.lq .alpha-scroll,
+.app.lq .alpha-auth {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.app.lq .alpha-scroll {
+  flex: 1;
+  min-height: 0;
+  padding: 8px 14px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ---- Slim top bar -------------------------------------------------------- */
+.app.lq .alpha-topbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 10px 4px;
+  padding: 4px 6px 4px 14px;
+  min-height: 56px;
+  border-radius: 999px !important;
+  position: sticky;
+  top: 8px;
+  z-index: 20;
+  -webkit-backdrop-filter: var(--lq-blur-strong) !important;
+  backdrop-filter: var(--lq-blur-strong) !important;
+}
+.app.lq .alpha-topbar:has(> .alpha-icon-button:first-child) {
+  padding-left: 4px;
+}
+.app.lq .alpha-topbar-title {
+  flex: 1;
+  min-width: 0;
+}
+.app.lq .alpha-topbar-title h1 {
+  margin: 0;
+  font-size: calc(17px * var(--fs));
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.app.lq .alpha-topbar-title p {
+  margin: 0;
+  font-size: var(--f-xs);
+  color: var(--ink2);
+}
+.app.lq .alpha-topbar-actions {
+  display: flex;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+.app.lq .alpha-icon-button {
+  position: relative;
+}
+.app.lq .alpha-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--grad);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 18px;
+  text-align: center;
+  border: 2px solid var(--lq-base);
+}
+.app.lq .alpha-searchbar {
+  padding-left: 14px;
+}
+.app.lq .alpha-searchbar input {
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--f-md);
+  outline: none;
+}
+.app.lq .alpha-search-icon {
+  font-size: 20px;
+  color: var(--ink2);
+}
+
+/* ---- Directory ----------------------------------------------------------- */
+.app.lq .alpha-chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 4px 12px 2px;
+  scrollbar-width: none;
+  flex: 0 0 auto;
+}
+.app.lq .alpha-chips::-webkit-scrollbar {
+  display: none;
+}
+.app.lq .alpha-chips button {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--gbd);
+  background: var(--chip);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--f-sm);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.app.lq .alpha-chips button[aria-pressed="true"] {
+  background: var(--grad);
+  color: #fff;
+  border-color: transparent;
+}
+.app.lq .alpha-count {
+  margin: 4px 18px 2px;
+  font-size: var(--f-xs);
+  color: var(--ink2);
+  font-weight: 700;
+}
+.app.lq .alpha-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 10px 24px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.app.lq .alpha-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 64px;
+  border-bottom: 1px solid var(--lq-hairline);
+}
+.app.lq .alpha-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 6px 4px 6px 6px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.app.lq .alpha-avatar {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  color: #fff;
+  background: var(--grad);
+  box-shadow: 0 4px 10px -4px rgba(196, 73, 47, 0.55);
+}
+.app.lq .alpha-row-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+}
+.app.lq .alpha-row-name {
+  font-size: var(--f-md);
+  font-weight: 800;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app.lq .alpha-row-place {
+  font-size: var(--f-xs);
+  color: var(--ink2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.app.lq .alpha-you {
+  font-weight: 600;
+  color: var(--ind);
+}
+.app.lq .alpha-contact-actions {
+  display: flex;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+.app.lq .alpha-round-action {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  font-size: 22px;
+  border: 1px solid var(--gbd);
+  background: var(--lq-fill-soft);
+  box-shadow: var(--lq-inner);
+}
+.app.lq .alpha-round-action.call {
+  color: var(--ok);
+}
+.app.lq .alpha-round-action.whatsapp {
+  color: #128c4b;
+}
+.app.lq[data-theme="dark"] .alpha-round-action.whatsapp {
+  color: #6bd49a;
+}
+.app.lq .alpha-empty {
+  margin: 24px 18px;
+  color: var(--ink2);
+  text-align: center;
+}
+.app.lq .alpha-number-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.app.lq .alpha-number {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--lq-r-inner) !important;
+}
+.app.lq .alpha-number span {
+  display: flex;
+  flex-direction: column;
+}
+.app.lq .alpha-phone {
+  font-size: var(--f-md);
+  letter-spacing: 0.02em;
+}
+
+/* ---- Cards, forms, dialogs ---------------------------------------------- */
+.app.lq .alpha-card {
+  border-radius: var(--lq-r-card) !important;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.app.lq .alpha-card h2 {
+  margin: 0;
+  font-size: var(--f-lg);
+  font-weight: 800;
+}
+.app.lq .alpha-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.app.lq .alpha-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-weight: 700;
+  font-size: var(--f-sm);
+}
+.app.lq .alpha-field input,
+.app.lq .alpha-field select,
+.app.lq .alpha-field textarea,
+.app.lq .alpha-secret input {
+  min-height: 50px;
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: var(--lq-r-field);
+  border: 1px solid var(--fieldBd);
+  background: var(--lq-well);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--f-md);
+  font-weight: 600;
+  padding: 0 14px;
+}
+.app.lq .alpha-field[data-invalid="true"] input,
+.app.lq .alpha-field[data-invalid="true"] select,
+.app.lq .alpha-secret input[aria-invalid="true"] {
+  border: 2px solid var(--dan) !important;
+  background: var(--danBg);
+}
+.app.lq .alpha-field small,
+.app.lq .alpha-hint {
+  font-weight: 500;
+  color: var(--ink2);
+  font-size: var(--f-xs);
+  margin: 0;
+}
+.app.lq .alpha-field-error {
+  font-weight: 700;
+  color: var(--dan);
+  font-size: var(--f-xs);
+}
+.app.lq .alpha-secret {
+  position: relative;
+  display: block;
+}
+.app.lq .alpha-secret input {
+  padding-right: 56px;
+  letter-spacing: 0.3em;
+}
+.app.lq .alpha-eye {
+  position: absolute;
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  border: 0;
+  background: transparent;
+  color: var(--ink2);
+  font-size: 22px;
+}
+.app.lq .alpha-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.app.lq .alpha-actions > * {
+  flex: 1 1 140px;
+}
+.app.lq .alpha-actions-column {
+  flex-direction: column;
+}
+.app.lq .alpha-actions-column > * {
+  flex: 0 0 auto;
+}
+.app.lq .alpha-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-decoration: none;
+  text-align: center;
+}
+.app.lq .alpha-text-button {
+  min-height: 48px;
+  border: 0;
+  background: transparent;
+  color: var(--ind);
+  font: inherit;
+  font-weight: 700;
+  padding: 0 8px;
+}
+.app.lq .alpha-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px;
+}
+.app.lq .alpha-notice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: 16px;
+  font-size: var(--f-sm);
+  font-weight: 600;
+  line-height: 1.4;
+  background: var(--lq-fill-soft);
+  border: 1px solid var(--gbd);
+}
+.app.lq .alpha-notice i {
+  font-size: 20px;
+  flex: 0 0 auto;
+}
+.app.lq .alpha-notice-error {
+  color: var(--dan);
+  background: var(--danBg);
+  border-color: var(--dan);
+}
+.app.lq .alpha-notice-ok {
+  color: var(--ok);
+  background: var(--okBg);
+  border-color: var(--ok);
+}
+.app.lq .alpha-sheet {
+  max-height: calc(100% - 24px);
+  overflow-y: auto;
+}
+.app.lq .alpha-sheet-body {
+  margin: 0 0 8px;
+  line-height: 1.45;
+}
+.app.lq .alpha-temp-pin {
+  font-size: 44px;
+  font-weight: 800;
+  letter-spacing: 0.35em;
+  text-align: center;
+  padding: 14px 0 14px 0.35em;
+  margin: 6px 0 12px;
+  border-radius: 20px;
+  border: 2px dashed var(--ind);
+  color: var(--ind);
+  font-variant-numeric: tabular-nums;
+}
+.app.lq .alpha-whatsapp i {
+  font-size: 22px;
+}
+.app.lq .alpha-details {
+  display: grid;
+  grid-template-columns: minmax(96px, auto) 1fr;
+  gap: 8px 14px;
+  margin: 0;
+}
+.app.lq .alpha-details dt {
+  color: var(--ink2);
+  font-size: var(--f-xs);
+  font-weight: 700;
+  align-self: center;
+}
+.app.lq .alpha-details dd {
+  margin: 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.app.lq .alpha-consent {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid var(--gbd);
+  background: var(--lq-fill-soft);
+  font-size: var(--f-sm);
+  font-weight: 600;
+  line-height: 1.4;
+}
+.app.lq .alpha-consent[data-invalid="true"] {
+  border: 2px solid var(--dan);
+  background: var(--danBg);
+}
+.app.lq .alpha-consent input {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  margin: 0;
+  accent-color: var(--lq-brand);
+}
+.app.lq .alpha-intro {
+  margin: 0 4px;
+  color: var(--ink2);
+  line-height: 1.45;
+}
+
+/* ---- Login / lock / pending ---------------------------------------------- */
+.app.lq .alpha-auth {
+  padding: 10px 16px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.app.lq .alpha-auth-top {
+  display: flex;
+  justify-content: flex-end;
+}
+.app.lq .alpha-lang {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--lq-fill-soft);
+  border: 1px solid var(--gbd);
+}
+.app.lq .alpha-lang button,
+.app.lq .alpha-segment button {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+}
+.app.lq .alpha-lang button[aria-pressed="true"],
+.app.lq .alpha-segment button[aria-pressed="true"] {
+  background: var(--grad);
+  color: #fff;
+}
+.app.lq .alpha-brand {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.app.lq .alpha-brand-mark {
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  box-shadow: var(--lq-drop);
+}
+.app.lq .alpha-brand-community {
+  margin: 8px 0 0;
+  font-size: var(--f-sm);
+  font-weight: 700;
+  color: var(--ind);
+}
+.app.lq .alpha-brand-title {
+  margin: 0;
+  font-size: var(--f-xl);
+  font-weight: 800;
+}
+.app.lq .alpha-auth-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.app.lq .alpha-offline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 10px;
+  padding: 10px 14px;
+  border-radius: 18px !important;
+  color: var(--dan) !important;
+  font: inherit;
+  text-align: left;
+}
+.app.lq .alpha-offline i {
+  font-size: 22px;
+}
+.app.lq .alpha-offline span {
+  display: flex;
+  flex-direction: column;
+}
+.app.lq .alpha-offline small {
+  color: var(--ink2);
+  font-weight: 600;
+}
+
+/* ---- Settings ------------------------------------------------------------ */
+.app.lq .alpha-section h2 {
+  margin: 4px 6px 8px;
+  font-size: var(--f-xs);
+}
+.app.lq .alpha-menu {
+  padding: 6px;
+  gap: 2px;
+}
+.app.lq .alpha-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 16px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+}
+.app.lq .alpha-menu-item > i:first-child {
+  font-size: 22px;
+  color: var(--ind);
+}
+.app.lq .alpha-menu-item > span {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.app.lq .alpha-menu-item small {
+  font-weight: 500;
+  color: var(--ink2);
+}
+.app.lq .alpha-menu-item.danger,
+.app.lq .alpha-menu-item.danger > i:first-child {
+  color: var(--dan);
+}
+.app.lq .alpha-caret {
+  color: var(--ink2);
+}
+.app.lq .alpha-switch-row {
+  padding: 6px 10px;
+}
+.app.lq .alpha-switch {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  padding: 0;
+}
+.app.lq .alpha-switch-text {
+  display: flex;
+  flex-direction: column;
+}
+.app.lq .alpha-switch-text small {
+  font-weight: 600;
+  color: var(--ind);
+}
+.app.lq .alpha-switch .switch-track {
+  width: 52px;
+  height: 32px;
+  flex: 0 0 52px;
+  border-radius: 999px;
+  background: var(--lq-track);
+  position: relative;
+  transition: background 200ms ease;
+}
+.app.lq .alpha-switch .switch-track span {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  transition: transform 200ms var(--lq-spring);
+}
+.app.lq .alpha-switch[aria-checked="true"] .switch-track {
+  background: var(--grad);
+}
+.app.lq .alpha-switch[aria-checked="true"] .switch-track span {
+  transform: translateX(20px);
+}
+.app.lq .alpha-switch:disabled {
+  opacity: 0.75;
+}
+.app.lq .alpha-segment {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px 10px;
+}
+.app.lq .alpha-segment-label {
+  flex: 1 1 100%;
+  font-weight: 700;
+  font-size: var(--f-sm);
+}
+.app.lq .alpha-range {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px 12px;
+  font-weight: 700;
+}
+.app.lq .alpha-range > span {
+  display: flex;
+  justify-content: space-between;
+}
+.app.lq .alpha-range input {
+  width: 100%;
+  accent-color: var(--lq-brand);
+}
+.app.lq .alpha-version {
+  text-align: center;
+  color: var(--ink2);
+  font-size: var(--f-xs);
+}
+.app.lq .alpha-va-card h3 {
+  margin: 0 0 4px;
+}
+.app.lq .alpha-va-card .workflow-status[data-state="disabled"],
+.app.lq .alpha-va-card .workflow-status[data-state="none"] {
+  color: var(--dan);
+}
+
+/* ---- Admin dashboard header: always shows Back --------------------------- */
+.app.lq .alpha-admin-back {
+  flex: 0 0 auto;
+}
+
+/* ---- Toast above the new screens ---------------------------------------- */
+.app.lq .alpha-toast-host {
+  z-index: 90 !important;
+}
+.app.lq .alpha-toast {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 24px;
+  z-index: 70;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: var(--lq-fill-strong);
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow: var(--lq-drop-lg);
+  border: 1px solid var(--gbd);
+  -webkit-backdrop-filter: var(--lq-blur) !important;
+  backdrop-filter: var(--lq-blur) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app.lq .alpha-switch .switch-track span {
+    transition: none;
+  }
+}
