@@ -36,13 +36,17 @@ test("Android static source: secure window, narrow bridge, no SSL bypass, no cli
   assert.ok(source.includes("Intent.ACTION_DIAL"));
   assert.ok(source.includes("request.isForMainFrame"));
   assert.ok(source.includes("onReceivedHttpError"));
-  // The web bridge is deliberate and narrow: exactly five annotated methods
-  // (save sheet, print sheet, notification, device registration, pull now).
+  // The web bridge is deliberate and narrow: nine annotated methods (save
+  // sheet, print sheet, notification, device registration, pull now and the
+  // four fingerprint-unlock calls).
   assert.ok(source.includes('addJavascriptInterface(Bridge(), "mvpmiBridge")'));
   assert.equal(
     (source.match(/@android\.webkit\.JavascriptInterface/g) || []).length,
-    5,
+    9,
   );
+  const biometric = read("app/src/main/java/org/mvpmi/directory/Biometric.kt");
+  assert.ok(biometric.includes("android.hardware.biometrics.BiometricPrompt"), "the phone's own biometric prompt");
+  assert.ok(biometric.includes("SecureRandom"));
   assert.ok(source.includes("printer.settings.javaScriptEnabled = false"));
   assert.equal(source.includes("handler.proceed"), false);
   assert.equal(source.includes("Intent.ACTION_CALL"), false);

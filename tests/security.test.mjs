@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import ExcelJS from "exceljs";
-import { fixture, example } from "./helpers.mjs";
+import { fixture, example, MAIN, MEMBER_PIN } from "./helpers.mjs";
 import {
   hash,
   passwordHash,
@@ -22,8 +22,15 @@ const protectedRoutes = [
   ["village/requests/unknown/forward", { reason: "Attempted action" }],
   ["village/members/unknown/update", { reason: "Attempted action" }],
   ["village/members/unknown/delete", { reason: "Attempted action" }],
-  ["village/password", { current: "Attempt@2026!", next: "Attempt@2026!" }],
-  ["admin/recovery/regenerate", {}],
+  ["village/members/unknown/pin-reset", {}],
+  ["village/pin-requests/unknown/dismiss", {}],
+  ["admin/members/unknown/pin-reset", {}],
+  ["admin/village-admins/" + encodeURIComponent("સથરા") + "/create", { name: "Someone Else", mobile: "9812345678" }],
+  ["admin/village-admins/" + encodeURIComponent("થોરાળા") + "/reset", {}],
+  ["admin/village-admins/" + encodeURIComponent("થોરાળા") + "/disable", {}],
+  ["admin/village-admins/" + encodeURIComponent("થોરાળા") + "/edit", { name: "X Y Z", mobile: "9812345678" }],
+  ["admin/archive/unknown/allow-rejoin", {}],
+  ["admin/rejections/unknown/allow-rejoin", {}],
 ];
 for (const role of ["guest", "pending", "member"])
   test(`${role}: every admin data/mutation endpoint requires admin authorization`, async (t) => {
@@ -47,9 +54,10 @@ for (const [label, body] of [
     const { url } = await fixture(t);
     for (const path of [
       "enrollment",
-      "admin/login",
-      "admin/recover",
-      "admin/recovery/regenerate",
+      "login",
+      "pin/set",
+      "pin/forgot",
+      "lock/unlock",
       "admin/restore",
     ]) {
       const r = await fetch(url + "/api/" + path, {
@@ -158,6 +166,9 @@ test("reject enrollment/update/deletion paths preserve the correct directory sta
   });
   assert.equal((await u("state")).role, "guest");
   assert.equal((await admin("state")).rejectedApplications.length, 1);
+  // A rejected number cannot simply register again (Section 4).
+  assert.equal((await client()("enrollment", example, 409)).code, "STATUS_REJECTED");
+  await admin("admin/rejections/" + (await admin("state")).rejectedApplications[0].id + "/allow-rejoin", {});
   await enroll(u);
   await u("profile/update", { ...example, phone: "9000000002" });
   s = await admin("state");
@@ -182,82 +193,56 @@ test("admin removal cleans update/delete requests and revokes member reads", asy
   await admin("admin/members/" + m.id + "/delete", {});
   assert.equal(store.all("requests").length, 0);
   assert.deepEqual((await u("state")).members, []);
-  await u("profile/update", example, 403);
+  await u("profile/update", example, 401);
 });
 
-test("expiry, logout and device blocking are enforced by the server", async (t) => {
-  const { client, admin, store } = await fixture(t);
-  const active = store.all("sessions").find((s) => s.adminUntil > Date.now());
-  active.adminUntil = Date.now() - 1;
+test("expiry, sign-out and device blocking are enforced by the server", async (t) => {
+  const { client, admin, store, enroll } = await fixture(t);
+  const u = client();
+  await enroll(u);
+  // An expired session is a new guest.
+  const mainId = store.get("config", "main-admin").memberId;
+  const active = store.all("sessions").find((s) => s.auth?.memberId === mainId);
+  active.expires = Date.now() - 1;
   store.put("sessions", active);
   await admin("admin/backup", undefined, 403);
-  const u = client();
-  await u("admin/gate", { code: "5831" });
-  const gate = store
-    .all("sessions")
-    .find((s) => s.id !== active.id && s.gateUntil);
-  gate.gateUntil = Date.now() - 1;
-  store.put("sessions", gate);
-  await u("admin/login", { user: "admin", pass: "Testing@2026!" }, 403);
-  gate.blocked = true;
-  store.put("sessions", gate);
+  assert.equal((await admin("state")).account, null);
+  // Sign out of this phone ends the login.
+  assert.equal((await u("state")).role, "member");
+  await u("logout", {});
+  assert.equal((await u("state")).role, "guest");
+  assert.deepEqual((await u("state")).members, []);
+  // A blocked phone can do nothing.
+  await u("login", { mobile: example.phone, secret: MEMBER_PIN });
+  const row = store.all("sessions").find((s) => s.auth && store.get("members", s.auth.memberId)?.phone === example.phone);
+  row.blocked = true;
+  store.put("sessions", row);
   await u("state", undefined, 403);
-  await u("admin/gate", { code: "5831" }, 403);
+  await u("login", { mobile: example.phone, secret: MEMBER_PIN }, 403);
 });
 
-test("recovery attempts require the gate, are rate limited and lock reset for 15 minutes after five wrong codes", async (t) => {
-  const { client, admin, store } = await fixture(t),
-    u = client();
-  const code = (await admin("admin/recovery/regenerate", {})).recovery;
-  // Without the access gate the endpoint is closed.
-  await u("admin/recover", { recovery: code, password: "NextPass@2026" }, 403);
-  await u("admin/gate", { code: "5831" });
-  for (let i = 0; i < 4; i++)
-    await u("admin/recover", { recovery: "BAD" + i, password: "NextPass@2026" }, 401);
-  await u("admin/recover", { recovery: "BAD4", password: "NextPass@2026" }, 429);
-  assert.ok(store.get("config", "reset-lock").until > Date.now() + 14 * 60000);
-  // Every wrong code raises a security alert like other failed credentials.
-  assert.equal(
-    store.all("alerts").filter((x) => /recovery/i.test(x.title)).length,
-    5,
-  );
-  // The lock also stops a correct code, even from a brand-new session.
-  await u("admin/recover", { recovery: code, password: "NextPass@2026" }, 429);
-  const v = client();
-  await v("admin/gate", { code: "5831" });
-  await v("admin/recover", { recovery: code, password: "NextPass@2026" }, 429);
-});
-
-test("recovery codes never appear in stored records, responses other than issuance, or error text", async (t) => {
-  const { admin, client, store } = await fixture(t);
-  const code = (await admin("admin/recovery/regenerate", {})).recovery;
+test("PIN and PASSWORD values never appear in responses, sessions, audit, notifications or backups", async (t) => {
+  const { admin, client, store, enroll } = await fixture(t);
   const u = client();
-  await u("admin/gate", { code: "5831" });
-  const r = await u("admin/recover", { recovery: code, password: "wrong" }, 400);
-  assert.equal(JSON.stringify(r).includes(code), false);
-  for (const row of store.all("sessions"))
-    assert.equal(JSON.stringify(row).includes(code), false);
-  const record = store.get("config", "admin");
-  assert.equal(JSON.stringify(record).includes(code), false);
-  assert.ok(passwordMatches(code, record.recoveryHash));
-});
-
-test("changing password from the login page invalidates every other admin session and gate", async (t) => {
-  const { admin, client, store } = await fixture(t),
-    other = client();
-  await other("admin/gate", { code: "5831" });
-  await other("admin/login", { user: "admin", pass: "Testing@2026!" });
-  const code = (await admin("admin/recovery/regenerate", {})).recovery;
-  await admin("admin/recover", { recovery: code, password: "ChangedPass@2026" });
-  const sessions = store.all("sessions");
-  const keeper = sessions.find((s) => s.adminUntil === undefined && s.gateUntil > Date.now());
-  // Only the resetting device keeps its gate so the new password can be
-  // used immediately; every other session is fully revoked.
-  assert.equal(sessions.filter((s) => s.adminUntil !== undefined).length, 0);
-  assert.ok(keeper);
-  await other("admin/backup", undefined, 403);
-  await other("admin/login", { user: "admin", pass: "ChangedPass@2026" }, 403);
-  await admin("admin/login", { user: "admin", pass: "ChangedPass@2026" });
+  await enroll(u);
+  const dumps = [
+    JSON.stringify(await admin("state")),
+    JSON.stringify(await u("state")),
+    JSON.stringify(store.all("sessions")),
+    JSON.stringify(store.all("audit")),
+    JSON.stringify(store.all("notifications")),
+    JSON.stringify(store.all("requests")),
+    JSON.stringify(store.all("archive")),
+    JSON.stringify(await admin("admin/backup")),
+  ];
+  for (const dump of dumps) {
+    assert.equal(dump.includes(MAIN.password), false);
+    assert.equal(dump.includes('"' + MEMBER_PIN + '"'), false);
+    assert.equal(dump.includes('"cred"'), false);
+  }
+  // Wrong-secret errors do not echo what was typed.
+  const r = await client()("login", { mobile: MAIN.mobile, secret: "Guess@1234" }, 401);
+  assert.equal(JSON.stringify(r).includes("Guess@1234"), false);
 });
 
 test("cookie-independent transport retains identity without granting admin or accepting invalid tokens", async (t) => {
@@ -281,9 +266,8 @@ test("cookie-independent transport retains identity without granting admin or ac
   token = start.token;
   assert.equal(start.enabled, true);
   await call("admin/backup", undefined, 403);
-  await call("admin/login", { user: "admin", pass: "Testing@2026!" }, 403);
-  await call("admin/gate", { code: "5831" });
-  await call("admin/login", { user: "admin", pass: "Testing@2026!" });
+  await call("login", { mobile: MAIN.mobile, secret: "Wrong@pass1" }, 401);
+  await call("login", { mobile: MAIN.mobile, secret: MAIN.password });
   assert.equal((await call("state")).role, "admin");
   await call("state", undefined, 401, "0".repeat(64));
   const b = await call("admin/backup");
@@ -403,12 +387,7 @@ test("simultaneous approval is consumed once and leaves one approved member", as
     headers: { "X-MVPMI-Client": "1", "Content-Type": "application/json" },
     body: "{}",
   }).then((r) => r.json());
-  await post("admin/gate", { code: "5831" }, transport.token);
-  await post(
-    "admin/login",
-    { user: "admin", pass: "Testing@2026!" },
-    transport.token,
-  );
+  await post("login", { mobile: MAIN.mobile, secret: MAIN.password }, transport.token);
   const statuses = await Promise.all([
     post("admin/requests/" + id + "/approve", {}, transport.token),
     post("admin/requests/" + id + "/approve", {}, transport.token),
@@ -418,6 +397,6 @@ test("simultaneous approval is consumed once and leaves one approved member", as
     store.all("members").filter((m) => m.phone === example.phone).length,
     1,
   );
-  // Village administrator, verifier fixture and the approved applicant.
-  assert.equal(store.all("members").length, 3);
+  // Main Admin, Village Admin, verifier fixture and the approved applicant.
+  assert.equal(store.all("members").length, 4);
 });

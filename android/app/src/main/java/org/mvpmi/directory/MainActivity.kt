@@ -78,6 +78,45 @@ class MainActivity : Activity() {
         fun pullNow() {
             runOnUiThread { pullSoon() }
         }
+
+        /** Section 5: optional fingerprint unlock through the phone's own
+         *  biometric prompt. The app keeps a random device key in its private
+         *  storage and gives it to the page only after a successful prompt;
+         *  the server stores just a hash of it for this login. */
+        @android.webkit.JavascriptInterface
+        fun biometricAvailable(): Boolean = Biometric.available(this@MainActivity)
+
+        @android.webkit.JavascriptInterface
+        fun biometricEnroll(title: String, cancel: String) {
+            runOnUiThread {
+                Biometric.prompt(this@MainActivity, title, cancel) { ok ->
+                    sendBiometric(if (ok) "ok" else "cancel", if (ok) Biometric.key(this@MainActivity, create = true) else "")
+                }
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        fun biometricUnlock(title: String, cancel: String) {
+            runOnUiThread {
+                val key = Biometric.key(this@MainActivity, create = false)
+                if (key.isEmpty()) { sendBiometric("error", ""); return@runOnUiThread }
+                Biometric.prompt(this@MainActivity, title, cancel) { ok ->
+                    sendBiometric(if (ok) "ok" else "cancel", if (ok) key else "")
+                }
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        fun biometricForget() {
+            runOnUiThread { Biometric.forget(this@MainActivity) }
+        }
+    }
+
+    private fun sendBiometric(kind: String, key: String) {
+        // Both values are fixed words or 64 hex digits (see Biometric.key).
+        val safeKind = if (kind == "ok" || kind == "cancel") kind else "error"
+        val safeKey = if (Regex("[a-f0-9]{64}").matches(key)) key else ""
+        web.evaluateJavascript("window.mvpmiBiometricResult && window.mvpmiBiometricResult('$safeKind','$safeKey')", null)
     }
 
     private fun pullSoon() {
@@ -228,9 +267,13 @@ class MainActivity : Activity() {
         if (errorView != null) { finish(); return }
         if (backPending) return
         backPending = true
+        // The page decides (Section 7). When it does not handle Back (Login,
+        // Pending, Lock, the Member Directory home), the app closes: there is
+        // no browser history to fall back into, so Back can never reopen an
+        // admin screen after logout or the Login screen after logging in.
         web.evaluateJavascript("Boolean(window.mvpmiBack && window.mvpmiBack())") { handled ->
             backPending = false
-            if (handled != "true") { if (web.canGoBack()) web.goBack() else finish() }
+            if (handled != "true") finish()
         }
     }
 
