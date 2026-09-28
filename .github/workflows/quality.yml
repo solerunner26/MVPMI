@@ -24,13 +24,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run test:coverage
-      - run: npm run test:ui
-      - run: npm run test:lock
-      - run: npm run test:embedded
-      - run: npm run test:accessibility
-      - run: npm run test:language
-      - run: npm run test:materials
-      - run: npm run test:village
+      # Every screen, button and navigation path of the app, per section
+      # (writes test-results/alpha-checklist.md).
+      - run: npm run test:e2e
       - run: npm audit --audit-level=moderate
       - uses: actions/upload-artifact@v4
         if: always()

@@ -1,4 +1,5 @@
 import test from "node:test";
+import { MAIN } from "./helpers.mjs";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
@@ -84,8 +85,7 @@ test("Excel headers follow the requested language and remain admin-only", async 
   const { app, store } = createApp({
     requireAppLock: false,
     dbPath: ":memory:",
-    adminPassword: "LanguageTest@2026",
-    gateCode: "5831",
+    mainAdmin: MAIN,
     development: true,
   });
   const server = app.listen(0, "127.0.0.1");
@@ -113,10 +113,8 @@ test("Excel headers follow the requested language and remain admin-only", async 
     return response;
   };
   assert.equal((await request("admin/export.xlsx?lang=en")).status, 403);
-  assert.equal((await request("admin/gate", { code: "5831" })).status, 200);
   assert.equal(
-    (await request("admin/login", { user: "admin", pass: "LanguageTest@2026" }))
-      .status,
+    (await request("login", { mobile: MAIN.mobile, secret: MAIN.password })).status,
     200,
   );
   for (const [lang, heading] of [

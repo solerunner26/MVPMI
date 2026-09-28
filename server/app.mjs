@@ -1,9 +1,9 @@
 import {
   installVillageApproval,
+  activeAssignment,
   villageState,
   assertVerified,
   needsVerification,
-  activeAdminMember,
 } from "./village-approval.mjs";
 import { isDeepStrictEqual } from "node:util";
 import { fileURLToPath } from "node:url";
@@ -15,32 +15,42 @@ import {
   installDevicePull,
   installNotificationRoutes,
 } from "./notify.mjs";
-import { installAppLock, lockView, touchLock } from "./app-lock.mjs";
+import { installAppLock, lockView, touchLock, lockOn } from "./app-lock.mjs";
+import {
+  numberStatus,
+  installAuth,
+  resolveAuth,
+  seedMainAdmin,
+  issueTempPin,
+  accountRole,
+  mainAdminId,
+  isAdminRole,
+} from "./auth.mjs";
+import { ROLES } from "./terms.mjs";
 import { installDriveBackup } from "./drive-backup-routes.mjs";
 import { installPublicPages } from "./public-pages.mjs";
 import express from "express";
 import ExcelJS from "exceljs";
-import { randomUUID, randomBytes } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import {
   Store,
   villages,
   hash,
-  passwordHash,
-  passwordMatches,
-  strong,
   profile,
   text,
   fail,
   publicProfile,
   isRecord,
+  memberRecord,
 } from "./store.mjs";
 // Static files resolve from the project, not the process working directory,
 // so hosting panels that start Node from another folder still work.
 const DIST = fileURLToPath(new URL("../dist", import.meta.url));
 export function createApp({
   dbPath = "data/community.sqlite",
-  adminPassword,
-  gateCode,
+  // Main Admin seed (Section 2): { name, mobile, village, location, password }
+  // from the server's own config file — used only when no Main Admin exists.
+  mainAdmin = {},
   secure = false,
   development = false,
   // Behind cPanel/Passenger, Apache or any reverse proxy set this (see
@@ -61,20 +71,8 @@ export function createApp({
   const store = new Store(dbPath),
     app = express();
   if (trustProxy !== false) app.set("trust proxy", trustProxy);
-  if (!store.get("config", "admin")) {
-    if (!strong(adminPassword) || !/^\d{4}$/.test(gateCode || ""))
-      throw new Error(
-        "Set a strong ADMIN_PASSWORD and a four-digit ADMIN_GATE_CODE",
-      );
-    store.put("config", {
-      id: "admin",
-      username: "admin",
-      password: passwordHash(adminPassword),
-      gate: passwordHash(gateCode),
-      changedAt: Date.now(),
-    });
-  }
   store.initializeVillages();
+  seedMainAdmin(store, mainAdmin);
   app.disable("x-powered-by");
   app.use((req, res, next) => {
     res.set("X-Content-Type-Options", "nosniff");
@@ -143,10 +141,14 @@ export function createApp({
   };
   installDevicePull(app, store, notifier);
   installSessions(app, store, { development, secure, rate });
+  // Who is logged in (mobile + PIN / PASSWORD) and whether the app is locked.
   app.use("/api", (req, res, next) => {
     try {
-      touchLock(store, req);
-    } catch {}
+      resolveAuth(store, req);
+      touchLock(store, req, requireAppLock);
+    } catch (e) {
+      return next(e);
+    }
     next();
   });
   // Housekeeping on start and every hour (never keeps the process alive).
@@ -161,20 +163,19 @@ export function createApp({
   const admin = (req, res, next) =>
     req.isAdmin
       ? next()
-      : res.status(403).json({ error: "Admin authentication required" });
+      : res
+          .status(403)
+          .json({ error: "Admin authentication required", code: "FORBIDDEN" });
   installDriveBackup(app, store, { admin, rate, env: driveEnv, options: driveOptions });
   const member = (req) => {
-    const m = store.all("members").find((m) => m.owner === req.session.owner);
-    if (!m) fail("Admin approval required", 403);
-    return m;
+    if (!req.me) fail("Please log in", 401, "SESSION");
+    return req.me;
   };
   const alert = (req, title) => {
     store.put("alerts", {
       id: randomUUID(),
       title,
-      who:
-        store.all("members").find((m) => m.owner === req.session.owner)
-          ?.phone || "Unknown device",
+      who: req.me?.phone || "Unknown device",
       device: (req.get("user-agent") || "Unknown").slice(0, 240),
       sessionId: req.session.id,
       when: new Date().toISOString(),
@@ -195,36 +196,61 @@ export function createApp({
       });
     }
   };
-  // Sessions that would receive directory records: approved members and
-  // signed-in village administrators (the main administrator is exempt —
-  // they already pass the hidden gate and password every 30 minutes).
-  const sessionSees = (req) =>
-    !req.isAdmin &&
-    (store.all("members").some((m) => m.owner === req.session.owner) ||
-      !!activeAdminMember(store, req));
-  const lockFor = (req) => lockView(req, sessionSees(req), requireAppLock);
-  const lockClosed = (req) => {
-    const l = lockFor(req);
-    return l.lockSetup || l.locked;
+  const lockFor = (req) => lockView(req, requireAppLock);
+  const lockClosed = (req) => lockFor(req).locked;
+  // While the app is locked, or before a TEMP PIN has been replaced, only
+  // these calls are allowed; everything else (including admin tools and
+  // downloads) is refused by the server.
+  const OPEN_WHILE_LOCKED = new Set([
+    "/state",
+    "/health",
+    "/login",
+    "/logout",
+    "/pin/set",
+    "/pin/forgot",
+    "/lock/engage",
+    "/lock/hidden",
+    "/lock/visible",
+    "/lock/unlock",
+    "/session/transport",
+    "/notifications/device",
+    "/notifications/pull",
+    "/notifications/vapid",
+    "/notifications/subscribe",
+    "/notifications/unsubscribe",
+  ]);
+  app.use("/api", (req, res, next) => {
+    if (OPEN_WHILE_LOCKED.has(req.path)) return next();
+    if (req.mustSetPin)
+      return res.status(409).json({ error: "Set your new PIN first", code: "SET_PIN_FIRST" });
+    if (lockClosed(req))
+      return res.status(423).json({ error: "એપ લોક છે · The app is locked. Enter your PIN.", code: "LOCKED" });
+    next();
+  });
+  const account = (req) => {
+    const me = req.me;
+    if (!me) return null;
+    const role = req.role;
+    const notice = me.notice || null;
+    return {
+      id: me.id,
+      role,
+      adminMode: !!req.adminMode,
+      mustSetPin: !!req.mustSetPin,
+      name: me.name,
+      nameGu: me.nameGu,
+      phone: me.phone,
+      village: me.village,
+      currentLocation: me.currentLocation || "",
+      notice,
+      ...lockFor(req),
+    };
   };
-  // Member and village-administrator actions are refused while locked.
-  app.use(
-    ["/api/profile", "/api/village/requests", "/api/village/members", "/api/village/password"],
-    (req, res, next) => {
-      if (req.method === "POST" && lockClosed(req))
-        return res
-          .status(423)
-          .json({ error: "એપ લોક છે · The app is locked. Enter your PIN." });
-      next();
-    },
-  );
   const state = (req) => {
-    const me =
-        store.all("members").find((m) => m.owner === req.session.owner) ||
-        activeAdminMember(store, req),
+    const me = req.mustSetPin ? null : req.me,
       requests = store.all("requests");
     const lock = lockFor(req);
-    const hidden = lock.lockSetup || lock.locked;
+    const hidden = lock.locked;
     const mine = requests.find(
       (r) => r.owner === req.session.owner && r.kind === "new",
     );
@@ -235,6 +261,13 @@ export function createApp({
       ...villageState(store, req),
       role: req.isAdmin ? "admin" : me ? "member" : mine ? "pending" : "guest",
       meId: me?.id || null,
+      account: account(req),
+      // A registration from this phone that has since been approved: the
+      // person now logs in with the TEMP PIN their admin shared.
+      approvedHere:
+        !req.me && !mine
+          ? store.all("members").some((m) => m.owner === req.session.owner)
+          : false,
       myRequest: mine ? { ...mine.payload, id: mine.id } : null,
       requestAt: mine?.createdAt || null,
       members:
@@ -291,31 +324,33 @@ export function createApp({
               target,
             }))
         : [],
-      passwordDue:
-        req.isAdmin &&
-        Date.now() - store.get("config", "admin").changedAt > 60 * 86400000,
       development,
     };
   };
   const hideWhenLocked = (req, data) => {
-    if (!(data.locked || data.lockSetup)) return data;
-    // Nothing that lists community members leaves the server while locked.
+    if (!data.locked && !req.mustSetPin) return data;
+    // Nothing that lists community members leaves the server while locked
+    // (or before a TEMP PIN has been replaced) — not even for admins.
     return {
       ...data,
+      members: [],
       reviewQueue: [],
       villageProposals: [],
+      villageAssignments: [],
+      pinResetRequests: [],
+      newRequests: [],
       updateRequests: [],
       deleteRequests: [],
+      archive: [],
+      alerts: [],
+      auditLog: [],
+      rejectedApplications: [],
     };
   };
   const baseState = state;
   const lockedState = (req) => hideWhenLocked(req, baseState(req));
-  const { issue: issuePinReset } = installAppLock(app, store, {
-    rate,
-    sessionSees,
-    required: requireAppLock,
-    notify,
-  });
+  installAppLock(app, store, { required: requireAppLock });
+  installAuth(app, store, { rate, state: lockedState, alert, knownClient, clientKey });
   installNotificationRoutes(app, store, notifier, { rate });
   installVillageApproval(app, store, {
     admin,
@@ -324,7 +359,6 @@ export function createApp({
     notify,
     clientKey,
     knownClient,
-    issuePinReset,
   });
   app.get("/api/state", (req, res) => res.json(lockedState(req)));
   // Deployment check: confirms the server runs and whether each visitor's
@@ -340,16 +374,26 @@ export function createApp({
   );
   app.post("/api/enrollment", (req, res) => {
     rate("enroll:" + req.session.id, 30, 3600000);
-    if (store.all("members").some((m) => m.owner === req.session.owner))
-      fail("Already approved", 409);
+    if (req.me) fail("Already a member", 409, "STATUS_APPROVED");
+    // Section 4: the server checks the mobile number before anything else.
+    const mobile = String(req.body.phone ?? "").replace(/\D/g, "");
+    if (/^[6-9]\d{9}$/.test(mobile)) {
+      const ownPending = store
+        .all("requests")
+        .some((r) => r.kind === "new" && r.owner === req.session.owner && r.payload?.phone === mobile);
+      const status = ownPending ? null : numberStatus(store, mobile);
+      if (status) fail("Status " + status, 409, "STATUS_" + status, { field: "phone" });
+    }
     // Identity is verified in person by the village administrator (who knows
     // the family) before the main administrator approves; there is no SMS.
-    if (req.body.consent !== true) fail("Consent is required");
+    if (req.body.consent !== true) fail("Consent is required", 400, "CONSENT", { field: "consent" });
     const p = profile(req.body, store.all("villages"));
-    if (!store.get("villageAdmins", p.village))
+    if (!activeAssignment(store, p.village))
       fail(
-        "આ ગામ માટે ગામ એડમિન હજુ નિયુક્ત નથી · This village has no administrator yet. Enrollment opens after the main administrator appoints one.",
+        "આ ગામ માટે ગામ એડમિન હજુ નિયુક્ત નથી · This village has no Village Admin yet.",
         409,
+        "NO_VILLAGE_ADMIN",
+        { field: "village" },
       );
     // A phone that was REJECTED before (not merely withdrawn or replaced by
     // the applicant) shows a warning to both administrator levels.
@@ -485,7 +529,7 @@ export function createApp({
         owner: m.owner,
         kind: "delete",
         memberId: m.id,
-        old: m,
+        old: memberRecord(m),
         reason: "સભ્યની વિનંતી · Requested by member",
         createdAt: Date.now(),
       });
@@ -498,69 +542,8 @@ export function createApp({
     });
     res.json(lockedState(req));
   });
-  app.post("/api/admin/gate", (req, res) => {
-    rate("gate:" + req.session.id);
-    if (knownClient(req)) rate("gate-ip:" + clientKey(req), 30);
-    else {
-      // Visitor addresses are hidden by the proxy: fall back to a site-wide
-      // cap on WRONG codes only (100 per hour).
-      const g = store.get("limits", "gate-global-failures");
-      if (g?.until > Date.now() && g.count >= 100)
-        fail("ઘણા પ્રયાસો થયા · Too many attempts. Please try again later.", 429);
-    }
-    const a = store.get("config", "admin");
-    if (!passwordMatches(String(req.body.code || ""), a.gate)) {
-      if (!knownClient(req))
-        try {
-          rate("gate-global-failures", 1e9, 3600000);
-        } catch {}
-      alert(req, "ખોટો કોડ · Incorrect access code");
-      fail("Incorrect access code", 401);
-    }
-    req.session.gateUntil = Date.now() + 300000;
-    store.put("sessions", req.session);
-    res.json({ ok: true });
-  });
-  app.post("/api/admin/login", (req, res) => {
-    // The hidden gate is checked BEFORE any shared counter, so strangers
-    // without the access code cannot lock the administrator out.
-    if (!(req.session.gateUntil > Date.now()))
-      fail("Access code required", 403);
-    rate("login:" + req.session.id);
-    const global = store.get("limits", "login-global-failures");
-    if (global?.until > Date.now() && global.count >= 30)
-      fail("ઘણા પ્રયાસો થયા · Too many attempts. Please try again later.", 429);
-    const a = store.get("config", "admin");
-    if (
-      req.body.user !== a.username ||
-      !passwordMatches(String(req.body.pass || ""), a.password)
-    ) {
-      try {
-        rate("login-global-failures", 1e9);
-      } catch {}
-      alert(req, "લોગિન નિષ્ફળ · Failed admin login");
-      fail("Wrong username or password", 401);
-    }
-    req.rotateSession();
-    req.session.adminUntil = Date.now() + 30 * 60000;
-    // Administrator notifications stay on for this device until it signs
-    // out completely or the password changes.
-    req.session.mainNotify = { changedAt: a.changedAt };
-    store.put("sessions", req.session);
-    req.isAdmin = true;
-    store.audit(req.session.owner, "admin.login", a.id);
-    const payload = lockedState(req);
-    // First sign-in on a fresh account issues the offline recovery code
-    // exactly once; the client must make the administrator save it. Later
-    // sign-ins never resend it — a lost code is replaced from the security
-    // tab while signed in, not by this endpoint.
-    if (!a.recoveryHash)
-      payload.recovery = issueRecovery(a, req.session.owner, "admin.recovery-issued");
-    res.json(payload);
-  });
-  // Full device sign-out (used by the app-lock "forgot PIN" flow): the
-  // session, including member identity and any administrator role, is
-  // destroyed so resetting a forgotten lock never leaves data accessible.
+  // Settings → "Sign out of this phone": the session, including the login
+  // and any admin mode, is destroyed; the phone returns to the Login screen.
   app.post("/api/logout", (req, res) => {
     const id = req.session.id;
     store.audit(req.session.owner, "device.logout", id);
@@ -571,94 +554,6 @@ export function createApp({
     });
     res.clearCookie("mvpm_session", { path: "/" });
     res.json({ signedOut: true });
-  });
-  app.post("/api/admin/logout", (req, res) => {
-    delete req.session.adminUntil;
-    delete req.session.gateUntil;
-    if (req.body.stopNotifications === true) delete req.session.mainNotify;
-    store.put("sessions", req.session);
-    req.isAdmin = false;
-    res.json(lockedState(req));
-  });
-  // Password recovery without SMS or OTP: the administrator saves a long
-  // offline recovery code (issued once at first sign-in, rotated on every
-  // use and on demand from the security tab). Possession of that code plus
-  // the access gate is enough to set a new password. This removes the
-  // per-message SMS cost entirely and is stronger than a 6-digit OTP:
-  // 80 bits of entropy, no phone-number dependency, no SIM-swap risk.
-  const recoveryCode = () => {
-    const alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-    let value = BigInt("0x" + randomBytes(10).toString("hex")),
-      raw = "";
-    for (let i = 0; i < 16; i++, value >>= 5n)
-      raw = alphabet[Number(value & 31n)] + raw;
-    return raw;
-  };
-  const normalizeRecovery = (input) =>
-    String(input || "")
-      .toUpperCase()
-      .replace(/[^A-Z0-9]/g, "")
-      .slice(0, 16);
-  const issueRecovery = (a, actor, action) => {
-    const code = recoveryCode();
-    a.recoveryHash = passwordHash(code);
-    a.recoveryAt = Date.now();
-    store.put("config", a);
-    store.audit(actor, action, "admin");
-    return code;
-  };
-  app.post("/api/admin/recover", (req, res) => {
-    if (!req.isAdmin && !(req.session.gateUntil > Date.now()))
-      fail("Access code required", 403);
-    if (store.get("config", "reset-lock")?.until > Date.now())
-      fail("Reset temporarily locked. Try again in 15 minutes.", 429);
-    rate("recover:" + req.session.id, 10);
-    rate("recover-global", 20, 3600000);
-    const a = store.get("config", "admin");
-    if (
-      !a.recoveryHash ||
-      !passwordMatches(normalizeRecovery(req.body.recovery), a.recoveryHash)
-    ) {
-      alert(req, "ખોટો રિકવરી કોડ · Wrong recovery code");
-      req.session.recoverTries = (req.session.recoverTries || 0) + 1;
-      if (req.session.recoverTries >= 5) {
-        req.session.recoverTries = 0;
-        store.put("sessions", req.session);
-        store.put("config", { id: "reset-lock", until: Date.now() + 900000 });
-        fail("Too many attempts. Reset locked for 15 minutes.", 429);
-      }
-      store.put("sessions", req.session);
-      fail("Incorrect recovery code", 401);
-    }
-    if (!strong(req.body.password))
-      fail("Use 10+ characters, upper/lowercase, a number and a symbol");
-    a.password = passwordHash(req.body.password);
-    a.changedAt = Date.now();
-    const next = issueRecovery(
-      a,
-      req.session.owner,
-      "admin.password-recovered",
-    );
-    // Every administrator session is revoked; the resetting device keeps
-    // only its gate so the new password can be used immediately without
-    // repeating the hidden-logo gesture.
-    for (const s of store.all("sessions")) {
-      delete s.adminUntil;
-      delete s.reset;
-      delete s.recoverTries;
-      if (s.id !== req.session.id) delete s.gateUntil;
-      store.put("sessions", s);
-    }
-    res.json({ ok: true, recovery: next });
-  });
-  app.post("/api/admin/recovery/regenerate", admin, (req, res) => {
-    const a = store.get("config", "admin");
-    const next = issueRecovery(
-      a,
-      req.session.owner,
-      "admin.recovery-regenerated",
-    );
-    res.json({ ok: true, recovery: next });
   });
   // The main administrator may correct typos in a joining request before the
   // final approval; moving it to another village restarts that village's
@@ -688,33 +583,8 @@ export function createApp({
     res.json(lockedState(req));
   });
 
-  // Contactable identity for the "All admins" page (name + phone shown to
-  // everyone, including applicants who want to talk before applying).
-  app.post("/api/admin/main-admin-contact", admin, (req, res) => {
-    const name = text(req.body.name, 3, 120, "name");
-    // Optional English spelling so the public page honours the language
-    // selection; falls back to the stored name.
-    const nameEnRaw = req.body.nameEn;
-    const nameEn =
-      typeof nameEnRaw === "string" && nameEnRaw.trim()
-        ? text(nameEnRaw, 3, 120, "English name")
-        : "";
-    const phone = String(req.body.phone || "").replace(/\D/g, "");
-    if (!/^[6-9]\d{9}$/.test(phone))
-      fail("નંબર બરાબર લખો · Enter a valid 10-digit mobile number");
-    store.tx(() => {
-      store.put("config", {
-        id: "main-admin-contact",
-        name,
-        ...(nameEn ? { nameEn } : {}),
-        phone,
-      });
-      store.audit(req.session.owner, "main-admin-contact.set", phone);
-    });
-    res.json(lockedState(req));
-  });
-
   app.post("/api/admin/requests/:id/:action", admin, (req, res) => {
+    let issued = null;
     const r = store.get("requests", req.params.id);
     if (!r) fail("Request already processed. Refresh and try again", 409);
     if (!["approve", "reject"].includes(req.params.action))
@@ -770,7 +640,7 @@ export function createApp({
           )
             fail("Confirm the matching archive identity before rejoining", 409);
           store.unique(r.payload, r.owner, r.id);
-          store.put("members", {
+          const approved = {
             ...r.payload,
             id:
               existing?.id ||
@@ -780,15 +650,28 @@ export function createApp({
             owner: r.owner,
             createdAt: r.createdAt,
             approvedAt: Date.now(),
-            approvedBy: req.session.owner,
+            approvedBy: req.me.id,
             consentAt: r.consentAt,
             consentVersion: r.consentVersion,
-          });
+            notice: { kind: "approved", at: Date.now() },
+          };
+          store.put("members", approved);
+          // Section 5: the approving admin sees a TEMP PIN exactly once and
+          // shares it on WhatsApp; the member logs in with it.
+          issued = {
+            pin: issueTempPin(store, approved, req.me.id, "temp-pin.approval"),
+            kind: "member",
+            memberId: approved.id,
+            name: approved.name,
+            nameGu: approved.nameGu,
+            phone: approved.phone,
+            village: approved.village,
+          };
         } else {
           const m = store.get("members", r.memberId);
           if (!m) fail("Member no longer exists", 409);
           if (r.kind === "update") {
-            if (!isDeepStrictEqual(m, r.old))
+            if (!isDeepStrictEqual(memberRecord(m), memberRecord(r.old)))
               fail(
                 "Profile changed since this request. Reject and ask for a new request.",
                 409,
@@ -796,7 +679,6 @@ export function createApp({
             store.unique(r.payload, m.owner, r.id);
             if (m.village !== r.payload.village) store.dropAssignments(m.id);
             store.put("members", { ...m, ...r.payload });
-            syncAdminUsername(m.id, r.payload.phone);
           } else store.remove(m, "દૂર કરી · Removed on request");
         }
       } else if (r.kind === "new") {
@@ -820,8 +702,8 @@ export function createApp({
           kind: "approved",
           titleGu: "સ્વાગત છે! તમારી નોંધણી મંજૂર થઈ",
           titleEn: "Welcome! Your application is approved",
-          bodyGu: "સમાજની સંપર્ક યાદી હવે ખુલ્લી છે. પિન સેટ કરીને શરૂ કરો.",
-          bodyEn: "The community directory is now open. Set your PIN to begin.",
+          bodyGu: "તમારા એડમિન વોટ્સએપ પર કામચલાઉ પિન મોકલશે. તેનાથી લોગિન કરો.",
+          bodyEn: "Your admin will send a TEMP PIN on WhatsApp. Log in with it.",
         });
         notify("village:" + r.payload.village, {
           kind: "member-added",
@@ -852,14 +734,8 @@ export function createApp({
         bodyGu: req.body.reason?.trim().slice(0, 200) || "વધુ માહિતી માટે ગામના એડમિનનો સંપર્ક કરો.",
         bodyEn: req.body.reason?.trim().slice(0, 200) || "Contact your village administrator for details.",
       });
-    res.json(lockedState(req));
+    res.json({ ...lockedState(req), ...(issued ? { issuedPin: issued } : {}) });
   });
-  // A village administrator signs in with their current member number.
-  const syncAdminUsername = (memberId, phone) => {
-    for (const a of store.all("villageAdmins"))
-      if (a.memberId === memberId && a.username !== phone)
-        store.put("villageAdmins", { ...a, username: phone });
-  };
   app.post("/api/admin/members/:id", admin, (req, res) => {
     const m = store.get("members", req.params.id);
     if (!m) fail("Member not found", 404);
@@ -869,7 +745,6 @@ export function createApp({
     store.tx(() => {
       store.unique(p, m.owner);
       store.put("members", { ...m, ...p });
-      syncAdminUsername(m.id, p.phone);
       store.audit(req.session.owner, "member.edit", m.id);
     });
     res.json(lockedState(req));
@@ -890,13 +765,58 @@ export function createApp({
     });
     res.json(lockedState(req));
   });
-  // Forgotten member PIN: the main administrator can issue a code for anyone.
+  // Forgotten PIN: the Main Admin can create a TEMP PIN for anyone.
   app.post("/api/admin/members/:id/pin-reset", admin, (req, res) => {
     const m = store.get("members", req.params.id);
     if (!m) fail("Member not found", 404);
-    if (req.body.identityConfirmed !== true)
-      fail("Confirm you spoke with this member first");
-    issuePinReset(req, res, m, req.session.owner, "admin");
+    if (accountRole(store, m) === ROLES.MAIN_ADMIN)
+      fail("The Main Admin password is reset on the server only", 409, "FORBIDDEN");
+    const pin = issueTempPin(store, m, req.me.id, "temp-pin.reset");
+    for (const f of store.all("pinResets").filter((x) => x.memberId === m.id))
+      store.del("pinResets", f.id);
+    res.json({
+      ...lockedState(req),
+      issuedPin: { pin, kind: "reset", memberId: m.id, name: m.name, nameGu: m.nameGu, phone: m.phone, village: m.village },
+    });
+  });
+  // A removed or rejected number normally cannot register again (Section 4).
+  // After talking to the person, the Main Admin can allow one new registration;
+  // it still needs village verification and final approval.
+  app.post("/api/admin/archive/:id/allow-rejoin", admin, (req, res) => {
+    const a = store.get("archive", req.params.id);
+    if (!a) fail("Record not found", 404);
+    store.tx(() => {
+      store.put("archive", { ...a, rejoinAllowed: true, rejoinAllowedAt: Date.now(), rejoinAllowedBy: req.me.id });
+      store.audit(req.me.id, "archive.allow-rejoin", a.id);
+    });
+    res.json(lockedState(req));
+  });
+  app.post("/api/admin/rejections/:id/allow-rejoin", admin, (req, res) => {
+    const r = store.get("rejections", req.params.id);
+    if (!r) fail("Record not found", 404);
+    store.tx(() => {
+      const last = r.events[r.events.length - 1];
+      store.put("rejections", {
+        ...r,
+        events: [
+          ...r.events,
+          {
+            requestId: last?.requestId || r.id,
+            owner: last?.owner || "admin",
+            action: "cleared",
+            reason: "Allowed to register again",
+            actor: req.me.id,
+            actorName: req.me.nameGu || req.me.name,
+            level: "main",
+            category: r.category,
+            at: Date.now(),
+            snapshot: last?.snapshot,
+          },
+        ],
+      });
+      store.audit(req.me.id, "rejection.allow-rejoin", r.id);
+    });
+    res.json(lockedState(req));
   });
   app.post("/api/admin/alerts/:id/block", admin, (req, res) => {
     const a = store.get("alerts", req.params.id);
@@ -906,7 +826,8 @@ export function createApp({
     const s = store.get("sessions", a.sessionId);
     if (s) {
       s.blocked = true;
-      s.adminUntil = 0;
+      delete s.adminMode;
+      delete s.auth;
       store.put("sessions", s);
     }
     a.blocked = true;
@@ -941,7 +862,7 @@ export function createApp({
       req.body.digest !== hash(JSON.stringify(req.body.backup))
     )
       fail("Backup confirmation does not match");
-    store.restore(req.body.backup, req.session.owner, req.body.currentDigest);
+    store.restore(req.body.backup, req.me.id, req.body.currentDigest, req.session.id);
     res.json(lockedState(req));
   });
   app.get("/api/admin/export.xlsx", admin, async (req, res) => {
@@ -1285,6 +1206,8 @@ export function createApp({
     res.status(status).json({
       ...(err.code && status < 500 ? { code: err.code } : {}),
       ...(err.until && status < 500 ? { until: err.until } : {}),
+      ...(err.field && status < 500 ? { field: err.field } : {}),
+      ...(Number.isFinite(err.left) && status < 500 ? { left: err.left } : {}),
       error:
         err.type === "entity.parse.failed"
           ? "Invalid JSON"

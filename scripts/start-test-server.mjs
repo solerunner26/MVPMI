@@ -11,36 +11,34 @@ if (major < 22 || (major === 22 && minor < 13)) {
 }
 await import("./build.mjs");
 const { createApp } = await import("../server/app.mjs");
-const { passwordMatches } = await import("../server/store.mjs");
+const { secretMatches, mainAdminId } = await import("../server/auth.mjs");
 mkdirSync("data", { recursive: true });
+// A made-up Main Admin for THIS computer's test database only.
 const settingsFile = "data/phone-test-settings.json";
-if (!existsSync(settingsFile)) {
-  writeFileSync(
-    settingsFile,
-    JSON.stringify(
-      {
-        password: "Test@" + randomBytes(8).toString("hex") + "9",
-        gate: String(randomInt(1000, 10000)),
-      },
-      null,
-      2,
-    ),
-    { mode: 0o600 },
-  );
+let settings = existsSync(settingsFile) ? JSON.parse(readFileSync(settingsFile, "utf8")) : {};
+if (!settings.mainAdmin) {
+  settings = {
+    mainAdmin: {
+      name: "Test Main Admin",
+      mobile: "99" + String(randomInt(10000000, 100000000)),
+      village: "Thorala",
+      location: "Thorala",
+      password: "Test@" + randomBytes(4).toString("hex"),
+    },
+  };
+  writeFileSync(settingsFile, JSON.stringify(settings, null, 2), { mode: 0o600 });
 }
-const settings = JSON.parse(readFileSync(settingsFile, "utf8"));
 const port = Number(process.env.TEST_PORT || 3000);
 if (!Number.isInteger(port) || port < 1024 || port > 65535)
   throw new Error("TEST_PORT must be between 1024 and 65535");
 const { app, store } = createApp({
   dbPath: "data/phone-testing.sqlite",
-  adminPassword: settings.password,
-  gateCode: settings.gate,
+  mainAdmin: settings.mainAdmin,
   development: true,
   secure: false,
 });
 const server = app.listen(port, "0.0.0.0", () => {
-  const saved = store.get("config", "admin");
+  const main = store.get("members", mainAdminId(store));
   console.log("\n==========================================================");
   console.log("MVPMl PHONE / EMULATOR TEST SERVER — NOT PRODUCTION");
   console.log("Use made-up contacts only. Keep this window open.");
@@ -58,24 +56,15 @@ const server = app.listen(port, "0.0.0.0", () => {
   console.log(
     "If Windows Firewall asks, allow Node.js on PRIVATE networks only.",
   );
-  console.log("\nADMIN — tap the sun logo 5 times quickly:");
-  console.log("  Username: admin");
-  console.log(
-    "  Access code: " +
-      (passwordMatches(settings.gate, saved.gate)
-        ? settings.gate
-        : "Use your previously configured access code"),
-  );
+  console.log("\nMAIN ADMIN — Login screen → 'Main Admin? Log in with password':");
+  console.log("  Mobile:   " + main.phone);
   console.log(
     "  Password: " +
-      (passwordMatches(settings.password, saved.password)
-        ? settings.password
+      (secretMatches(settings.mainAdmin.password, main.cred?.password)
+        ? settings.mainAdmin.password
         : "Password was changed. Use your new password."),
   );
-  console.log(
-    "\nThese credentials belong only to THIS computer test database.",
-  );
-  console.log("They are different from the Arena preview credentials.");
+  console.log("\nThese details belong only to THIS computer test database.");
   console.log(
     "Stop the server with Ctrl+C. Do not expose it to the internet.\n",
   );

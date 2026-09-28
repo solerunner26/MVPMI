@@ -1,7 +1,7 @@
 // Regression tests for the September 2026 full audit (see docs/AUDIT_FIXES.md).
 import test from "node:test";
 import assert from "node:assert/strict";
-import { fixture, VA_PASS } from "./helpers.mjs";
+import { fixture, MAIN, VA_PIN, MEMBER_PIN } from "./helpers.mjs";
 
 const G = "થોરાળા";
 const member = (phone, name = "Some Member Test") => ({
@@ -25,7 +25,8 @@ async function join(f, phone, name) {
   await f.va(G)("village/requests/" + r.myRequest.id + "/forward", {
     identityConfirmed: true,
   });
-  await f.admin("admin/requests/" + r.myRequest.id + "/approve", {});
+  const done = await f.admin("admin/requests/" + r.myRequest.id + "/approve", {});
+  await f.firstLogin(m, phone, done.issuedPin.pin, MEMBER_PIN);
   return m;
 }
 
@@ -42,7 +43,7 @@ test("village-verified number change: member request waits for the village admin
   assert.ok(f.store.all("members").some((x) => x.phone === "9000000009"));
 });
 
-test("a village administrator's own number change goes straight to the main administrator and moves the sign-in", async (t) => {
+test("a Village Admin's number changed by the Main Admin moves their login with it", async (t) => {
   const f = await setup(t);
   const store = f.store;
   const vaMember = store.get("members", store.get("villageAdmins", G).memberId);
@@ -55,12 +56,11 @@ test("a village administrator's own number change goes straight to the main admi
     village: "Thorala",
   });
   const c = f.client();
-  await c("village/login", { phone: "7990009999", pass: VA_PASS });
+  await c("login", { mobile: "7990009999", secret: VA_PIN });
   assert.equal((await c("state")).villageAdmin, true);
-  assert.equal(store.get("villageAdmins", G).username, "7990009999");
 });
 
-test("village-admin proposals and device-replacement applications survive backup and restore", async (t) => {
+test("village-admin proposals survive backup and restore; a member on a new phone just logs in", async (t) => {
   const f = await setup(t);
   await join(f, "9000000001");
   const target = f.store.all("members").find((m) => m.phone === "9000000001");
@@ -68,8 +68,12 @@ test("village-admin proposals and device-replacement applications survive backup
     reason: "Moved away from the village",
     identityConfirmed: true,
   });
-  // Same person, new phone/device: applies again with the same number.
-  await f.client()("enrollment", member("9000000001", "Some Member Test"));
+  // Same person, new phone: registering again is refused — they log in.
+  assert.equal(
+    (await f.client()("enrollment", member("9000000001", "Some Member Test"), 409)).code,
+    "STATUS_APPROVED",
+  );
+  await f.client()("login", { mobile: "9000000001", secret: MEMBER_PIN });
   const backup = await f.admin("admin/backup");
   const preview = await f.admin("admin/restore/validate", backup);
   await f.admin("admin/restore", {
@@ -77,10 +81,12 @@ test("village-admin proposals and device-replacement applications survive backup
     digest: preview.digest,
     currentDigest: preview.currentDigest,
   });
-  // Village administrator keeps their password after restore…
+  assert.equal((await f.admin("state")).deleteRequests.length, 1);
+  // The Village Admin keeps their PIN after the restore…
   const c = f.client();
-  await c("village/login", { phone: vaPhone(f.store), pass: VA_PASS });
-  // …but sessions signed in before the restore are ended.
+  await c("login", { mobile: vaPhone(f.store), secret: VA_PIN });
+  assert.equal((await c("state")).villageAdmin, true);
+  // …but phones logged in before the restore must log in again.
   assert.equal((await f.va(G)("state")).villageAdmin, false);
 });
 
@@ -98,49 +104,51 @@ test("older backups (renamed village) keep a matching confirmation digest", asyn
   });
 });
 
-test("replacing a village administrator returns forwarded requests to the new administrator", async (t) => {
+test("a disabled Village Admin loses access at once; a new one gets the village queue", async (t) => {
   const f = await setup(t);
   const m = f.client();
   const r = await m("enrollment", member("9000000003"));
-  await f.va(G)("village/requests/" + r.myRequest.id + "/forward", { identityConfirmed: true });
-  await f.admin("admin/village-admins/" + encodeURIComponent(G), {
+  await f.admin("admin/village-admins/" + encodeURIComponent(G) + "/disable", {});
+  let s = await f.va(G)("state");
+  assert.equal(s.villageAdmin, false, "no admin tools any more");
+  assert.equal(s.account.role, "MEMBER", "still a member of the village");
+  await f.va(G)("village/requests/" + r.myRequest.id + "/forward", { identityConfirmed: true }, 403);
+  // At most one ACTIVE admin per village: a new admin can now be created.
+  const created = await f.admin("admin/village-admins/" + encodeURIComponent(G) + "/create", {
     name: "Second Administrator",
-    phone: "7991000002",
-    pass: VA_PASS,
-    reason: "Replacement administrator",
-    identityConfirmed: true,
+    mobile: "7991000002",
   });
   const v2 = f.client();
-  await v2("village/login", { phone: "7991000002", pass: VA_PASS });
+  await f.firstLogin(v2, "7991000002", created.issuedPin.pin, "4826");
   await v2("village/requests/" + r.myRequest.id + "/forward", { identityConfirmed: true });
   await f.admin("admin/requests/" + r.myRequest.id + "/approve", {});
+  // A second active admin for the same village is refused.
+  assert.equal(
+    (await f.admin("admin/village-admins/" + encodeURIComponent(G) + "/create", { name: "Third Admin", mobile: "7991000003" }, 409)).code,
+    "VILLAGE_TAKEN",
+  );
 });
 
-test("password reset ends existing village-administrator sessions", async (t) => {
+test("resetting a Village Admin gives a new TEMP PIN and logs out their phones", async (t) => {
   const f = await setup(t);
   assert.equal((await f.va(G)("state")).villageAdmin, true);
-  await f.admin("admin/village-admins/" + encodeURIComponent(G) + "/password", {
-    pass: "Other@2026!x",
-    identityConfirmed: true,
-  });
-  assert.equal((await f.va(G)("state")).villageAdmin, false);
+  const reset = await f.admin("admin/village-admins/" + encodeURIComponent(G) + "/reset", {});
+  assert.equal(reset.issuedPin.kind, "village-admin-reset");
+  assert.equal((await f.va(G)("state")).account, null);
+  const c = f.client();
+  const s = await c("login", { mobile: vaPhone(f.store), secret: reset.issuedPin.pin });
+  assert.equal(s.account.mustSetPin, true);
+  assert.equal(s.villageAdmin, false, "no admin tools before the new PIN is set");
 });
 
-test("strangers cannot lock out the administrators", async (t) => {
+test("strangers cannot guess PINs quickly, and a lockout never blocks other numbers", async (t) => {
   const f = await setup(t);
-  // Without the hidden gate, login attempts never touch a shared counter.
-  for (let i = 0; i < 35; i++)
-    await f.client()("admin/login", { user: "x", pass: "y" }, 403);
-  const b = f.client();
-  await b("admin/gate", { code: "5831" });
-  await b("admin/login", { user: "admin", pass: "Testing@2026!" });
-  // Wrong village-admin passwords are limited per number AND client, and
-  // correct passwords are not counted at all.
   const phone = vaPhone(f.store);
   const spam = f.client();
-  for (let i = 0; i < 5; i++)
-    await spam("village/login", { phone, pass: "bad" }, 401);
-  await spam("village/login", { phone, pass: "bad" }, 429);
+  for (let i = 0; i < 4; i++) await spam("login", { mobile: phone, secret: "9" + String(100 + i) }, 401);
+  assert.equal((await spam("login", { mobile: phone, secret: "9105" }, 429)).code, "LOCKED_OUT");
+  // The Main Admin is unaffected.
+  await f.client()("login", { mobile: MAIN.mobile, secret: MAIN.password });
 });
 
 test("withdrawn or replaced applications are not flagged as 'rejected before'", async (t) => {
@@ -155,52 +163,30 @@ test("withdrawn or replaced applications are not flagged as 'rejected before'", 
     reason: "Not from this village",
     category: "not-community",
   });
+  // …after the Main Admin allows the number to register again.
+  const ledger = (await f.admin("state")).rejectedApplications[0];
+  await f.admin("admin/rejections/" + ledger.id + "/allow-rejoin", {});
   await f.client()("enrollment", member("9000000004", "Jjj Kkk Lll"));
   assert.ok((await f.admin("state")).newRequests[0].rejectedBefore);
 });
 
-test("device replacement keeps the member's second number and location", async (t) => {
-  const f = await setup(t);
-  const m = f.client();
-  const r = await m("enrollment", {
-    ...member("9000000005"),
-    phone2: "9000000006",
-    currentLocation: "Surat",
-  });
-  await f.va(G)("village/requests/" + r.myRequest.id + "/forward", { identityConfirmed: true });
-  await f.admin("admin/requests/" + r.myRequest.id + "/approve", {});
-  const old = f.store.all("members").find((x) => x.phone === "9000000005");
-  const n = f.client();
-  const again = await n("enrollment", member("9000000005"));
-  await f.va(G)("village/requests/" + again.myRequest.id + "/forward", { identityConfirmed: true });
-  await f.admin("admin/requests/" + again.myRequest.id + "/approve", {
-    replaceExistingMemberId: old.id,
-    identityConfirmed: true,
-  });
-  const now = f.store.get("members", old.id);
-  assert.equal(now.phone2, "9000000006");
-  assert.equal(now.currentLocation, "Surat");
-  assert.equal((await n("state")).role, "member");
-});
-
 test("rate limits use the forwarded client address behind a trusted proxy", async (t) => {
   const f = await fixture(t, { trustProxy: 1 });
-  for (let i = 0; i < 5; i++)
-    await f.client()("admin/gate", { code: "0000" }, 401);
   const call = (ip) =>
-    fetch(f.url + "/api/admin/gate", {
+    fetch(f.url + "/api/login", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "X-MVPMI-Client": "1",
         "X-Forwarded-For": ip,
       },
-      body: JSON.stringify({ code: "0000" }),
+      body: JSON.stringify({ mobile: "9876500000", secret: "1357" }),
     });
-  for (let i = 0; i < 30; i++) assert.equal((await call("198.51.100.1")).status, 401);
+  // Unknown numbers: 60 tries per visitor address in 15 minutes.
+  for (let i = 0; i < 60; i++) assert.equal((await call("198.51.100.1")).status, 404);
   assert.equal((await call("198.51.100.1")).status, 429);
   // A different visitor is unaffected.
-  assert.equal((await call("198.51.100.2")).status, 401);
+  assert.equal((await call("198.51.100.2")).status, 404);
 });
 
 test("origin check accepts the forwarded public host behind a proxy", async (t) => {
@@ -249,8 +235,7 @@ test("health check and consistent database backup script", async (t) => {
   const dir = mkdtempSync(join(tmpdir(), "mvpmi-backup-"));
   const { store } = createApp({
     dbPath: join(dir, "db.sqlite"),
-    adminPassword: "Backup@2026!x",
-    gateCode: "5831",
+    mainAdmin: MAIN,
   });
   store.db.close();
   const r = spawnSync(process.execPath, ["scripts/backup-db.mjs", join(dir, "db.sqlite"), join(dir, "out")], { encoding: "utf8" });

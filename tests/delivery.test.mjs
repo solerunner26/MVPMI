@@ -31,8 +31,10 @@ test("live mode starts (HTTPS cookies, trusted proxy) and the CommonJS bridge lo
       TRUST_PROXY: "1",
       PORT: "0",
       DB_PATH: join(dir, "live.sqlite"),
-      ADMIN_PASSWORD: "LiveTest@2026!",
-      ADMIN_GATE_CODE: "5831",
+      MAIN_ADMIN_NAME: "Live Test Admin",
+      MAIN_ADMIN_MOBILE: "9913000001",
+      MAIN_ADMIN_VILLAGE: "Thorala",
+      MAIN_ADMIN_PASSWORD: "LiveTest@26",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });

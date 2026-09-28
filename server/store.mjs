@@ -173,6 +173,14 @@ export const profileKeys = [
   "tehsil",
   "district",
 ];
+// A member record without its login secrets and one-time notices. Used for
+// every copy of a member (requests, archive, backups) so PIN / PASSWORD
+// hashes stay only on the live member record.
+export const memberRecord = (m) => {
+  if (!m || typeof m !== "object") return m;
+  const { cred, notice, ...rest } = m;
+  return rest;
+};
 // Never return a stored record wholesale, even after administrator restore.
 export const publicProfile = (p) =>
   Object.fromEntries(
@@ -207,6 +215,8 @@ const tables = new Set([
   "notifications",
   "devices",
   "pushSubs",
+  // "Forgot PIN?" requests waiting for a Village Admin (Section 4).
+  "pinResets",
 ]);
 const table = (t) => {
   if (!tables.has(t)) throw new Error("Unknown database table");
@@ -457,8 +467,11 @@ export class Store {
   }
   remove(m, reason) {
     this.del("recoveries", m.id);
+    this.del("pinResets", m.id);
+    for (const f of this.all("pinResets").filter((x) => x.memberId === m.id))
+      this.del("pinResets", f.id);
     this.dropAssignments(m.id);
-    this.archive(m, reason);
+    this.archive(memberRecord(m), reason);
     this.del("members", m.id);
     for (const r of this.all("requests").filter((r) => r.memberId === m.id))
       this.del("requests", r.id);
@@ -468,9 +481,13 @@ export class Store {
       villages: this.all("villages"),
       villageAdmins: this.all("villageAdmins").map(({ pass, ...a }) => a),
       rejections: this.all("rejections"),
-      members: this.all("members"),
-      requests: this.all("requests"),
-      archive: this.all("archive"),
+      // PIN / PASSWORD hashes and one-time notices never leave the server.
+      members: this.all("members").map(memberRecord),
+      requests: this.all("requests").map((r) => (r.old ? { ...r, old: memberRecord(r.old) } : r)),
+      archive: this.all("archive").map((a) => ({
+        ...memberRecord(a),
+        ...(a.snapshot ? { snapshot: memberRecord(a.snapshot) } : {}),
+      })),
     };
   }
   dataDigest() {
@@ -702,6 +719,9 @@ export class Store {
         "personId",
         "numbers",
         "history",
+        "rejoinAllowed",
+        "rejoinAllowedAt",
+        "rejoinAllowedBy",
       ]);
       id(a.id);
       if (archiveIds.has(a.id)) fail("Duplicate archive record");
@@ -751,6 +771,9 @@ export class Store {
           "reason",
           "username",
           "passChangedAt",
+          "disabled",
+          "disabledAt",
+          "disabledBy",
         ]);
         if (a.username !== undefined && !/^\d{10}$/.test(a.username))
           fail("Invalid administrator username");
@@ -851,14 +874,16 @@ export class Store {
     }
     return b;
   }
-  restore(b, actor, expectedDigest) {
+  restore(b, actor, expectedDigest, keepSessionId) {
     this.validateBackup(b);
-    // Password hashes are never exported. Keep each village administrator's
-    // current password when the same person is still assigned after restore;
-    // anyone else needs a password reset from the main administrator.
-    const passwords = new Map(
-      this.all("villageAdmins").map((a) => [a.id + "|" + a.memberId, a]),
+    // PIN / PASSWORD hashes are never exported. Everyone keeps their current
+    // login when their record is restored; a person who has no login on this
+    // server needs a TEMP PIN from an admin. The Main Admin is always kept.
+    const creds = new Map(
+      this.all("members").filter((m) => m.cred).map((m) => [m.id, m.cred]),
     );
+    const mainId = this.get("config", "main-admin")?.memberId;
+    const mainRecord = mainId ? this.get("members", mainId) : null;
     this.tx(() => {
       if (expectedDigest !== undefined && expectedDigest !== this.dataDigest())
         fail(
@@ -885,20 +910,26 @@ export class Store {
             delete x.reviewHistory;
           }
           if (t === "villageAdmins") {
-            const kept = passwords.get(x.id + "|" + x.memberId);
-            if (kept?.pass) {
-              x.pass = kept.pass;
-              x.passChangedAt = kept.passChangedAt;
-            }
+            delete x.pass;
             x.version = randomUUID();
           }
+          if (t === "members" && creds.has(x.id)) x.cred = creds.get(x.id);
           this.put(t, x);
         }
       }
-      // Village-administrator sign-ins made before the restore end now.
+      if (mainRecord) {
+        const clash = this.all("members").find(
+          (m) => m.phone === mainRecord.phone && m.id !== mainRecord.id,
+        );
+        if (clash) this.del("members", clash.id);
+        this.put("members", mainRecord);
+      }
+      // Everyone else logs in again after a restore (the Main Admin who ran
+      // it stays logged in on this phone).
       for (const s of this.all("sessions"))
-        if (s.villageAdmin) {
-          delete s.villageAdmin;
+        if (s.id !== keepSessionId && (s.auth || s.adminMode)) {
+          delete s.auth;
+          delete s.adminMode;
           this.put("sessions", s);
         }
       this.audit(actor, "restore", b.exportedAt);
@@ -916,11 +947,7 @@ export class Store {
       for (const s of this.all("sessions")) {
         const idle =
           !owners.has(s.owner) &&
-          !s.villageAdmin &&
-          !s.mainNotify &&
-          !s.villageNotify &&
-          !(s.adminUntil > now) &&
-          !s.lock &&
+          !s.auth &&
           !s.aliasOf &&
           (s.createdAt || 0) < now - 2 * 86400000;
         if (s.expires <= now || idle || (s.aliasOf && s.aliasUntil < now))

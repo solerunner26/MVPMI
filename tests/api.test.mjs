@@ -8,12 +8,18 @@ const form = {
   village: "Thorala",
   consent: true,
 };
+const MAIN = {
+  name: "Main Admin Test",
+  mobile: "9913000001",
+  village: "Thorala",
+  location: "Thorala",
+  password: "Testing@26",
+};
 async function setup(t, opts = {}) {
   const { app, store } = createApp({
     requireAppLock: false,
     dbPath: ":memory:",
-    adminPassword: "Testing@2026!",
-    gateCode: "5831",
+    mainAdmin: MAIN,
     development: true,
     ...opts,
   });
@@ -45,23 +51,28 @@ async function setup(t, opts = {}) {
     };
   };
   const admin = client();
-  await admin("admin/gate", { code: "5831" });
-  await admin("admin/login", { user: "admin", pass: "Testing@2026!" });
-  await admin("admin/village-admins/" + encodeURIComponent("થોરાળા"), {
-    name: "Thorala Administrator",
-    phone: "7990000010",
-    pass: "Village@2026!",
-    reason: "Known village administrator",
-    identityConfirmed: true,
-  });
+  await admin("login", { mobile: MAIN.mobile, secret: MAIN.password });
+  const created = await admin(
+    "admin/village-admins/" + encodeURIComponent("થોરાળા") + "/create",
+    { name: "Thorala Administrator", mobile: "7990000010" },
+  );
   const va = client();
-  await va("village/login", { phone: "7990000010", pass: "Village@2026!" });
+  await va("login", { mobile: "7990000010", secret: created.issuedPin.pin });
+  await va("pin/set", { pin: "2580", confirm: "2580" });
   const forward = (id) =>
     va("village/requests/" + id + "/forward", {
       reason: "Verified community member",
       identityConfirmed: true,
     });
-  return { store, client, admin, va, forward, base };
+  // Approve a joining request and log the new member in with the TEMP PIN.
+  const approveAndLogin = async (user, requestId, phone, pin = "3691") => {
+    const approved = await admin("admin/requests/" + requestId + "/approve", {});
+    assert.match(approved.issuedPin.pin, /^\d{4}$/);
+    await user("login", { mobile: phone, secret: approved.issuedPin.pin });
+    await user("pin/set", { pin, confirm: pin });
+    return approved.issuedPin;
+  };
+  return { store, client, admin, va, forward, base, approveAndLogin };
 }
 test("approval gate, ownership, request replacement, withdrawal and admin-only archive", async (t) => {
   const { client, admin } = await setup(t);
@@ -69,7 +80,7 @@ test("approval gate, ownership, request replacement, withdrawal and admin-only a
     b = client();
   assert.deepEqual((await a("state")).members, []);
   await a("admin/backup", undefined, 403);
-  await a("profile/delete", {}, 403);
+  await a("profile/delete", {}, 401);
   await a("enrollment", form);
   await a("enrollment", { ...form, name: "Edited Name" });
   const state = await admin("state");
@@ -84,15 +95,17 @@ test("approval gate, ownership, request replacement, withdrawal and admin-only a
   assert.equal((await a("state")).role, "guest");
 });
 test("approve, search data, update stays private, direct admin edit, delete revokes access", async (t) => {
-  const { client, admin, forward } = await setup(t),
+  const { client, admin, forward, approveAndLogin } = await setup(t),
     a = client();
   await a("enrollment", form);
   let s = await admin("state");
   await forward(s.newRequests[0].id);
-  await admin("admin/requests/" + s.newRequests[0].id + "/approve", {});
+  const request = s.newRequests[0].id;
+  await approveAndLogin(a, request, form.phone);
   s = await a("state");
   assert.equal(s.role, "member");
-  assert.equal(s.members.length, 2);
+  // Main Admin, Village Admin and the new member.
+  assert.equal(s.members.length, 3);
   const mine = s.members.find((m) => m.phone === form.phone);
   assert.equal(mine.owner, undefined);
   await a("profile/update", { ...form, name: "New Name", phone: "9000000002" });
@@ -126,24 +139,31 @@ test("approve, search data, update stays private, direct admin edit, delete revo
   await admin("admin/requests/" + s.deleteRequests[0].id + "/approve", {});
   assert.equal((await a("state")).role, "guest");
   assert.deepEqual((await a("state")).members, []);
-  await a("profile/update", form, 403);
+  await a("profile/update", form, 401);
+  // The removed number cannot register again or log in.
+  const again = await client()("enrollment", form, 409);
+  assert.equal(again.code, "STATUS_REMOVED");
+  assert.equal((await client()("login", { mobile: form.phone, secret: "3691" }, 409)).code, "STATUS_REMOVED");
 });
 test("backup validation is atomic, roundtrip restores links, export is a genuine XLSX", async (t) => {
-  const { client, admin, forward } = await setup(t),
+  const { client, admin, forward, approveAndLogin } = await setup(t),
     a = client();
   await a("enrollment", form);
   let s = await admin("state");
   await forward(s.newRequests[0].id);
-  await admin("admin/requests/" + s.newRequests[0].id + "/approve", {});
+  await approveAndLogin(a, s.newRequests[0].id, form.phone);
   const backup = await admin("admin/backup");
   assert.equal(backup.schemaVersion, 2);
   assert.equal(backup.sessions, undefined);
+  // No PIN or PASSWORD hash ever leaves the server.
+  assert.equal(JSON.stringify(backup).includes('"cred"'), false);
+  assert.equal(JSON.stringify(backup).includes("$2"), false);
   await admin(
     "admin/restore/validate",
     { ...backup, members: [...backup.members, ...backup.members] },
     400,
   );
-  assert.equal((await a("state")).members.length, 2);
+  assert.equal((await a("state")).members.length, 3);
   await admin(
     "admin/members/" +
       backup.members.find((m) => m.phone === form.phone).id +
@@ -156,6 +176,14 @@ test("backup validation is atomic, roundtrip restores links, export is a genuine
     digest: diff.digest,
     currentDigest: diff.currentDigest,
   });
+  // Everyone logs in again after a restore. The member was deleted before the
+  // restore, so their PIN is gone: an admin creates a TEMP PIN.
+  assert.equal((await a("state")).role, "guest");
+  assert.equal((await a("login", { mobile: form.phone, secret: "3691" }, 409)).code, "NO_PIN_YET");
+  const restoredId = (await admin("state")).members.find((m) => m.phone === form.phone).id;
+  const reset = await admin("admin/members/" + restoredId + "/pin-reset", {});
+  await a("login", { mobile: form.phone, secret: reset.issuedPin.pin });
+  await a("pin/set", { pin: "3691", confirm: "3691" });
   assert.equal((await a("state")).role, "member");
   const xlsx = Buffer.from(await admin("admin/export.xlsx"));
   assert.equal(xlsx.subarray(0, 2).toString(), "PK");
@@ -192,7 +220,7 @@ test("CSV reports download with a UTF-8 BOM and admin-only access", async (t) =>
   }
   await admin("admin/export.csv?type=nonsense", undefined, 400);
 });
-test("a rejected phone that applies again is flagged for both administrators", async (t) => {
+test("a rejected phone cannot register again until the Main Admin allows it; then both admins see the warning", async (t) => {
   const { client, admin, forward } = await setup(t);
   const a = client();
   await a("enrollment", { ...form, phone: "9003000001" });
@@ -204,6 +232,10 @@ test("a rejected phone that applies again is flagged for both administrators", a
   );
   // The same person applies again from a fresh session.
   const b = client();
+  assert.equal((await b("enrollment", { ...form, phone: "9003000001" }, 409)).code, "STATUS_REJECTED");
+  assert.equal((await b("login", { mobile: "9003000001", secret: "1357" }, 409)).code, "STATUS_REJECTED");
+  s = await admin("state");
+  await admin("admin/rejections/" + s.rejectedApplications[0].id + "/allow-rejoin", {});
   await b("enrollment", { ...form, phone: "9003000001" });
   s = await admin("state");
   assert.ok(
@@ -216,7 +248,7 @@ test("a rejected phone that applies again is flagged for both administrators", a
   );
 });
 test("server rejects invalid fields, ignores injected approval, rejects stale updates", async (t) => {
-  const { client, admin, forward } = await setup(t),
+  const { client, admin, forward, approveAndLogin } = await setup(t),
     a = client();
   await a("enrollment", { ...form, phone2: "1234567890" }, 400);
   await a("enrollment", { ...form, village: "Unknown" }, 400);
@@ -225,7 +257,7 @@ test("server rejects invalid fields, ignores injected approval, rejects stale up
   assert.equal((await a("state")).role, "pending");
   let s = await admin("state");
   await forward(s.newRequests[0].id);
-  await admin("admin/requests/" + s.newRequests[0].id + "/approve", {});
+  await approveAndLogin(a, s.newRequests[0].id, form.phone);
   await a("profile/update", { ...form, name: "Requested Name" });
   s = await admin("state");
   await admin(
@@ -234,57 +266,93 @@ test("server rejects invalid fields, ignores injected approval, rejects stale up
   );
   await admin("admin/requests/" + s.updateRequests[0].id + "/approve", {}, 409);
 });
-test("authentication, failed attempt auditing, device blocking and logout", async (t) => {
+test("authentication, failed attempt auditing, device blocking and admin logout", async (t) => {
   const { client, admin } = await setup(t),
     a = client();
-  await a("admin/login", { user: "admin", pass: "Testing@2026!" }, 403);
-  await a("admin/gate", { code: "0000" }, 401);
+  await a("admin/backup", undefined, 403);
+  const wrong = await a("login", { mobile: MAIN.mobile, secret: "Wrong@pass1" }, 401);
+  assert.equal(wrong.code, "WRONG_PASSWORD");
+  assert.equal(wrong.left, 4);
   let s = await admin("state");
   assert.equal(s.alerts.length, 1);
+  // Alerts never show a full phone number.
+  assert.doesNotMatch(s.alerts[0].title, /9913000001/);
   await admin("admin/alerts/" + s.alerts[0].id + "/block", {});
   await a("state", undefined, 403);
-  await admin("admin/logout", {});
+  // "Log out" in the admin tools ends ONLY admin mode.
+  s = await admin("admin/logout", {});
+  assert.equal(s.role, "member");
+  assert.equal(s.account.role, "MAIN_ADMIN");
+  assert.equal(s.account.adminMode, false);
+  assert.ok(s.members.length >= 2, "still sees the directory as a member");
   await admin("admin/backup", undefined, 403);
+  // Re-opening the admin tools asks for the password again.
+  await admin("admin/enter", { secret: "nope-nope" }, 401);
+  s = await admin("admin/enter", { secret: MAIN.password });
+  assert.equal(s.role, "admin");
+  // "Sign out of this phone" clears everything.
+  await admin("logout", {});
+  s = await admin("state");
+  assert.equal(s.role, "guest");
+  assert.equal(s.account, null);
+  assert.deepEqual(s.members, []);
 });
-test("password recovery uses an offline recovery code, enforces strength, rotates the code and revokes sessions", async (t) => {
-  const { client, admin, store } = await setup(t),
-    a = client();
-  // The login-page reset requires the access gate.
-  await a("admin/recover", { recovery: "ANY", password: "NewSecret@2026" }, 403);
-  // A fresh code comes from the security-tab action and is shown once.
-  const issued = await admin("admin/recovery/regenerate", {});
-  assert.equal(typeof issued.recovery, "string");
-  assert.equal(issued.recovery.length, 16);
-  assert.match(issued.recovery, /^[0-9A-HJKMNP-TV-Z]{16}$/);
-  assert.ok(
-    store
-      .all("audit")
-      .some((r) => r.action === "admin.recovery-regenerated"),
+test("Section 2: Main Admin is seeded once from server config, logs in with mobile + password and can change it", async (t) => {
+  const { client, admin, store } = await setup(t);
+  const main = store.all("members").find((m) => m.phone === MAIN.mobile);
+  assert.ok(main, "seeded as a member of Thorala");
+  assert.equal(main.village, "થોરાળા");
+  assert.equal(main.currentLocation, "Thorala");
+  assert.match(main.cred.password, /^\$2[aby]\$10\$/, "bcrypt hash");
+  assert.equal(JSON.stringify(main).includes(MAIN.password), false);
+  const me = (await admin("state")).account;
+  assert.deepEqual(
+    [me.role, me.name, me.phone, me.village, me.currentLocation],
+    ["MAIN_ADMIN", "Main Admin Test", MAIN.mobile, "થોરાળા", "Thorala"],
   );
-  // The code is stored hashed, never in plaintext.
-  const record = store.get("config", "admin");
-  assert.match(record.recoveryHash, /^\w{32}:[a-f0-9]{128}$/);
-  assert.equal(record.recoveryHash.includes(issued.recovery), false);
-  await a("admin/gate", { code: "5831" });
-  // Wrong code and weak passwords are rejected.
-  await a("admin/recover", { recovery: "WRONGCODE000000", password: "NewSecret@2026" }, 401);
-  await a("admin/recover", { recovery: issued.recovery, password: "weak" }, 400);
-  // Success accepts the dashed form, rotates the code and revokes every
-  // other administrator session.
-  const dashed = issued.recovery.replace(/^(.{4})(.{4})(.{4})(.{4})$/, "$1-$2-$3-$4");
-  const reset = await a("admin/recover", { recovery: dashed, password: "NewSecret@2026" });
-  assert.equal(reset.recovery.length, 16);
-  assert.notEqual(reset.recovery, issued.recovery);
-  await admin("admin/backup", undefined, 403);
-  // The new password works; the old recovery code is invalid, the new one is not.
-  await a("admin/login", { user: "admin", pass: "NewSecret@2026" });
-  await a("admin/recover", { recovery: issued.recovery, password: "Again@2026!x" }, 401);
-  await a("admin/recover", { recovery: reset.recovery, password: "Again@2026!x" });
-  await a("admin/login", { user: "admin", pass: "Again@2026!x" });
+  // Change Password dialog rules, in order.
+  const change = (body, status) => admin("password/change", body, status);
+  assert.equal((await change({ current: "wrong-old", next: "Another@26", confirm: "Another@26" }, 401)).code, "WRONG_OLD_PASSWORD");
+  assert.equal((await change({ current: MAIN.password, next: "short", confirm: "short" }, 400)).code, "PASSWORD_FORMAT");
+  assert.equal((await change({ current: MAIN.password, next: MAIN.password, confirm: MAIN.password }, 400)).code, "PASSWORD_SAME");
+  assert.equal((await change({ current: MAIN.password, next: "Another@26", confirm: "Another@27" }, 400)).code, "PASSWORD_MISMATCH");
+  const other = client();
+  await other("login", { mobile: MAIN.mobile, secret: MAIN.password });
+  const ok = await change({ current: MAIN.password, next: "Another@26", confirm: "Another@26" });
+  assert.equal(ok.ok, true);
+  assert.equal(ok.role, "admin", "this phone stays logged in");
+  assert.equal((await other("state")).account, null, "other phones must log in again");
+  assert.equal((await client()("login", { mobile: MAIN.mobile, secret: MAIN.password }, 401)).code, "WRONG_PASSWORD");
+  await client()("login", { mobile: MAIN.mobile, secret: "Another@26" });
+  // A second start never re-seeds or overwrites the changed password.
+  const { seedMainAdmin } = await import("../server/auth.mjs");
+  assert.equal(seedMainAdmin(store, MAIN), false);
+  // Server-only recovery (scripts/reset-main-admin.js uses this).
+  const { resetMainAdminPassword } = await import("../server/auth.mjs");
+  resetMainAdminPassword(store, "Recovered@26");
+  assert.equal((await admin("state")).account, null, "reset logs every device out");
+  await client()("login", { mobile: MAIN.mobile, secret: "Recovered@26" });
+  // There is no password reset inside the app.
+  for (const path of ["admin/recover", "admin/recovery/regenerate", "admin/gate", "admin/login"])
+    await client()(path, {}, 404);
 });
-test("gate attempts are rate limited", async (t) => {
+test("Section 2: the app refuses to start without Main Admin settings", () => {
+  assert.throws(
+    () => createApp({ dbPath: ":memory:", requireAppLock: false }),
+    /MAIN_ADMIN_NAME/,
+  );
+  assert.throws(
+    () => createApp({ dbPath: ":memory:", mainAdmin: { ...MAIN, password: "short" } }),
+    /8\+ characters/,
+  );
+});
+test("5 wrong PINs or passwords lock the account for 5 minutes and show the time left", async (t) => {
   const { client } = await setup(t),
     a = client();
-  for (let i = 0; i < 5; i++) await a("admin/gate", { code: "0000" }, 401);
-  await a("admin/gate", { code: "5831" }, 429);
+  for (let i = 0; i < 4; i++) await a("login", { mobile: MAIN.mobile, secret: "wrong" + i + "xx" }, 401);
+  const locked = await a("login", { mobile: MAIN.mobile, secret: "wrong5xxx" }, 429);
+  assert.equal(locked.code, "LOCKED_OUT");
+  assert.ok(locked.until > Date.now() + 4.9 * 60000 && locked.until <= Date.now() + 5 * 60000);
+  // Even the right password waits until the lockout ends.
+  assert.equal((await a("login", { mobile: MAIN.mobile, secret: MAIN.password }, 429)).code, "LOCKED_OUT");
 });

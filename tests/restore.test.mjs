@@ -92,8 +92,8 @@ test("restore refuses stale confirmation and mismatched file digest", async (t) 
     digest: fresh.digest,
     currentDigest: fresh.currentDigest,
   });
-  // The enrolled village administrator is also a member.
-  assert.equal(store.all("members").length, 2);
+  // The Main Admin and the enrolled Village Admin are also members.
+  assert.equal(store.all("members").length, 3);
   assert.equal(store.all("requests").length, 0);
 });
 
@@ -130,7 +130,7 @@ test("JSON key ordering does not cause a false stale-update conflict after resto
   });
   await admin("admin/requests/" + backup.requests[0].id + "/approve", {});
   assert.equal(
-    (await u("state")).members.find((m) => m.phone === example.phone).name,
+    (await admin("state")).members.find((m) => m.phone === example.phone).name,
     "Updated Name",
   );
 });

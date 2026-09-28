@@ -1,4 +1,5 @@
 import test from "node:test";
+import { MAIN } from "./helpers.mjs";
 import assert from "node:assert/strict";
 import express from "express";
 import { DatabaseSync } from "node:sqlite";
@@ -82,8 +83,7 @@ test("Drive backup: admin connects, backs up an encrypted snapshot, cron hook an
   const env = { GOOGLE_CLIENT_ID: "cid", GOOGLE_CLIENT_SECRET: "csecret", BACKUP_PASSPHRASE: PASS, PUBLIC_URL: "https://directory.example.org" };
   const { app, store } = createApp({
     dbPath: ":memory:",
-    adminPassword: "Testing@2026!",
-    gateCode: "5831",
+    mainAdmin: MAIN,
     development: true,
     requireAppLock: false,
     driveEnv: env,
@@ -109,8 +109,7 @@ test("Drive backup: admin connects, backs up an encrypted snapshot, cron hook an
   };
   // Not signed in: nothing is reachable.
   assert.equal((await call("/api/admin/drive")).status, 403);
-  await call("/api/admin/gate", { code: "5831" });
-  assert.equal((await call("/api/admin/login", { user: "admin", pass: "Testing@2026!" })).status, 200);
+  assert.equal((await call("/api/login", { mobile: MAIN.mobile, secret: MAIN.password })).status, 200);
 
   let status = await (await call("/api/admin/drive")).json();
   assert.equal(status.configured, true);
@@ -154,7 +153,7 @@ test("Drive backup: admin connects, backs up an encrypted snapshot, cron hook an
   try {
     writeFileSync(join(dir, "db.sqlite"), plain);
     const db = new DatabaseSync(join(dir, "db.sqlite"), { readOnly: true });
-    assert.ok(db.prepare("SELECT data FROM config WHERE id = 'admin'").get(), "admin config is in the backup");
+    assert.ok(db.prepare("SELECT data FROM config WHERE id = 'main-admin'").get(), "Main Admin config is in the backup");
     db.close();
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -187,8 +186,7 @@ test("Drive backup: admin connects, backs up an encrypted snapshot, cron hook an
 test("Drive backup is off (and harmless) when the server is not configured", async (t) => {
   const { app, store } = createApp({
     dbPath: ":memory:",
-    adminPassword: "Testing@2026!",
-    gateCode: "5831",
+    mainAdmin: MAIN,
     development: true,
     requireAppLock: false,
     driveEnv: {},

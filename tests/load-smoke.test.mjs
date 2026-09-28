@@ -26,7 +26,8 @@ test("local 1,001-member read smoke test preserves authorization and bounded out
     const start = performance.now();
     last = await u("state");
     durations.push(performance.now() - start);
-    assert.equal(last.members.length, 1002);
+    assert.equal(last.members.length, store.all("members").length);
+    assert.ok(last.members.length >= 1002);
   }
   durations.sort((a, b) => a - b);
   const bytes = Buffer.byteLength(JSON.stringify(last));
