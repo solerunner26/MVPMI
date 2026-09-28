@@ -62,7 +62,7 @@ jobs:
         with:
           gradle-version: "8.11.1"
       - run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
-      # With no hosted backend configured, the APK asks for a test server on first launch.
+      # The server address is built into the APK (no server setting in the app).
       - name: Compile, lint, unit-test and build a phone-test APK
         shell: bash
         run: |

@@ -96,7 +96,7 @@ internal object Notifications {
             val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             if (Build.VERSION.SDK_INT >= 26) {
                 manager.createNotificationChannel(
-                    NotificationChannel(CHANNEL, "સમાજ સૂચનાઓ · Community updates", NotificationManager.IMPORTANCE_DEFAULT),
+                    NotificationChannel(CHANNEL, context.getString(R.string.notification_channel_gu) + " · " + context.getString(R.string.notification_channel_en), NotificationManager.IMPORTANCE_DEFAULT),
                 )
             }
             val open = Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)

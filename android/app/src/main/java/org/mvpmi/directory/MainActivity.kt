@@ -2,7 +2,6 @@ package org.mvpmi.directory
 
 import android.annotation.TargetApi
 import android.app.Activity
-import android.app.AlertDialog
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.graphics.Color
@@ -10,7 +9,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.Base64
-import android.text.InputType
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
@@ -27,7 +25,9 @@ class MainActivity : Activity() {
     private var upload: ValueCallback<Array<Uri>>? = null
     private var unregisterBack: (() -> Unit)? = null
     private var backPending = false
-    private var serverUrl = BuildConfig.COMMUNITY_URL
+    // The server address is fixed when the app is built (BuildConfig);
+    // members can never see or change it.
+    private val serverUrl = BuildConfig.COMMUNITY_URL
     private var pendingSave: Pair<String, ByteArray>? = null
 
     /** Web bridge: file saving (phone or Google Drive via the system
@@ -46,7 +46,7 @@ class MainActivity : Activity() {
                 try { startActivityForResult(intent, 101) }
                 catch (_: ActivityNotFoundException) {
                     pendingSave = null
-                    message("સેવ કરવાનું શીટ નથી · No save sheet available")
+                    message(R.string.save_no_sheet_gu, R.string.save_no_sheet_en)
                 }
             }
         }
@@ -100,7 +100,6 @@ class MainActivity : Activity() {
         // Community phone numbers must not appear in screenshots, screen
         // recordings or the recent-apps preview.
         window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
-        if (BuildConfig.DEBUG) serverUrl = getPreferences(MODE_PRIVATE).getString("testServer", serverUrl) ?: serverUrl
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.rgb(36, 20, 19)) }
         // Android 15+ always draws edge-to-edge: coloured bars sit behind the
         // status and navigation icons so the (white) icons stay visible.
@@ -116,12 +115,6 @@ class MainActivity : Activity() {
             insets
         }
         root.addView(statusBar, LinearLayout.LayoutParams(-1, 0))
-        if (BuildConfig.DEBUG) {
-            val bar = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; setPadding(dp(12), 0, dp(8), 0) }
-            bar.addView(TextView(this).apply { text = "TEST BUILD · Made-up contacts only"; textSize = 11f; setTextColor(Color.rgb(107, 79, 72)) }, LinearLayout.LayoutParams(0, dp(48), 1f))
-            bar.addView(Button(this).apply { text = "Server"; contentDescription = "Change test server"; setOnClickListener { configureServer() } })
-            root.addView(bar)
-        }
         content = FrameLayout(this).apply { setBackgroundColor(Color.rgb(255, 251, 246)) }
         root.addView(content, LinearLayout.LayoutParams(-1, 0, 1f))
         root.addView(navigationBar, LinearLayout.LayoutParams(-1, 0))
@@ -155,7 +148,7 @@ class MainActivity : Activity() {
             // The hosting server answered with an error page (busy, restarting, updating).
             override fun onReceivedHttpError(view: WebView, request: WebResourceRequest, response: WebResourceResponse) {
                 if (request.isForMainFrame && response.statusCode >= 500)
-                    showConnectionError("સર્વર થોડી વાર માટે ઉપલબ્ધ નથી. થોડી મિનિટ પછી ફરી પ્રયાસ કરો.\nThe server is busy or restarting. Please try again in a few minutes.")
+                    showConnectionError(both(R.string.error_busy_gu, R.string.error_busy_en))
             }
             // Android may stop the WebView's renderer under memory pressure;
             // start the screen again instead of crashing the app.
@@ -167,7 +160,7 @@ class MainActivity : Activity() {
             }
             override fun onReceivedSslError(view: WebView, handler: SslErrorHandler, error: android.net.http.SslError) {
                 handler.cancel()
-                showConnectionError("The server certificate is not trusted. Use a valid HTTPS server or the debug-only local computer address.")
+                showConnectionError(both(R.string.error_certificate_gu, R.string.error_certificate_en))
             }
         }
         web.webChromeClient = object : WebChromeClient() {
@@ -179,16 +172,15 @@ class MainActivity : Activity() {
                     type = "application/json"
                 }
                 try { startActivityForResult(intent, 100) }
-                catch (_: ActivityNotFoundException) { upload?.onReceiveValue(null); upload = null; message("ફાઇલ પસંદ કરી શકાતી નથી · No file picker available") }
+                catch (_: ActivityNotFoundException) { upload?.onReceiveValue(null); upload = null; message(R.string.no_file_picker_gu, R.string.no_file_picker_en) }
                 return true
             }
         }
         // Exports are saved through the mvpmiBridge save sheet (phone or
         // Google Drive); unexpected direct downloads fall back to the browser.
-        web.setDownloadListener { _, _, _, _, _ -> message("બ્રાઉઝરમાં ખોલો · Open this link in a browser") }
+        web.setDownloadListener { _, _, _, _, _ -> message(R.string.open_in_browser_gu, R.string.open_in_browser_en) }
         if (NavigationPolicy.validServer(serverUrl, BuildConfig.DEBUG)) loadServer()
-        else if (BuildConfig.DEBUG) configureServer()
-        else showConnectionError("The application server is not configured.")
+        else showConnectionError(both(R.string.error_not_configured_gu, R.string.error_not_configured_en), retry = false)
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
@@ -200,55 +192,22 @@ class MainActivity : Activity() {
         web.loadUrl(serverUrl)
     }
 
-    private fun configureServer() {
-        if (!BuildConfig.DEBUG) return
-        val initialValid = NavigationPolicy.validServer(serverUrl, true)
-        val input = EditText(this).apply {
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
-            setSingleLine(true)
-            hint = "http://10.0.2.2:3000"
-            if (initialValid) setText(serverUrl)
-            contentDescription = "Test server address"
-        }
-        val wrapper = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(dp(24), dp(8), dp(24), 0)
-            addView(TextView(this@MainActivity).apply {
-                text = "Start the test server on your computer first.\n\nEmulator: http://10.0.2.2:3000\nPhone: use the Wi-Fi address printed by the server.\n\nUse only made-up contacts. The Arena preview URL cannot be used here."
-            })
-            addView(input)
-        }
-        val dialog = AlertDialog.Builder(this).setTitle("MVPMl test server")
-            .setView(wrapper).setPositiveButton("Connect", null)
-            .setNegativeButton("Cancel") { _, _ -> if (!initialValid) finish() }
-            .setCancelable(initialValid).create()
-        dialog.setOnShowListener {
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                val next = input.text.toString().trim().trimEnd('/')
-                if (!NavigationPolicy.validServer(next, true)) {
-                    input.error = "Enter an HTTPS server, or a local computer HTTP address such as http://192.168.1.10:3000"
-                } else {
-                    serverUrl = next
-                    getPreferences(MODE_PRIVATE).edit().putString("testServer", serverUrl).apply()
-                    dialog.dismiss(); loadServer()
-                }
-            }
-        }
-        dialog.show()
-    }
-
-    private fun showConnectionError(detail: String = if (BuildConfig.DEBUG)
-            "Check that your computer's test server is running. Your phone and computer must use the same Wi-Fi."
-        else
-            "ઇન્ટરનેટ કનેક્શન તપાસો અને ફરી પ્રયાસ કરો.\nCheck your internet connection and try again.") {
+    /** Full-screen "Server not reachable — Retry" state. Shown only when the
+     *  page itself cannot load (first start without internet, server down).
+     *  Once the app has loaded, the web page shows its own offline banner and
+     *  the saved copy of the directory instead. */
+    private fun showConnectionError(detail: String = both(R.string.error_offline_gu, R.string.error_offline_en), retry: Boolean = true) {
         if (isFinishing) return
         errorView?.let { content.removeView(it) }
         val box = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; setPadding(dp(24), dp(24), dp(24), dp(24))
             setBackgroundColor(Color.rgb(255, 251, 246))
-            addView(TextView(this@MainActivity).apply { text = "કનેક્શન થઈ શક્યું નથી\nCould not connect"; textSize = 22f; gravity = Gravity.CENTER })
-            addView(TextView(this@MainActivity).apply { text = if (BuildConfig.DEBUG) "\n$detail\n\n$serverUrl\n" else "\n$detail\n"; textSize = 17f; gravity = Gravity.CENTER })
-            addView(Button(this@MainActivity).apply { text = "ફરી પ્રયાસ કરો · Retry"; textSize = 17f; setOnClickListener { loadServer() } })
-            if (BuildConfig.DEBUG) addView(Button(this@MainActivity).apply { text = "Change test server"; setOnClickListener { configureServer() } })
+            addView(TextView(this@MainActivity).apply { text = both(R.string.error_title_gu, R.string.error_title_en); textSize = 22f; gravity = Gravity.CENTER; setTextColor(Color.rgb(36, 20, 19)) })
+            addView(TextView(this@MainActivity).apply { text = "\n$detail\n"; textSize = 17f; gravity = Gravity.CENTER; setTextColor(Color.rgb(107, 79, 72)) })
+            if (retry) addView(Button(this@MainActivity).apply {
+                text = getString(R.string.retry_gu) + " · " + getString(R.string.retry_en); textSize = 17f
+                setOnClickListener { loadServer() }
+            })
         }
         errorView = box; content.addView(box, FrameLayout.LayoutParams(-1, -1))
     }
@@ -259,7 +218,7 @@ class MainActivity : Activity() {
             // Numbers are not copied to the clipboard (other apps could read them).
             NavigationPolicy.Destination.DIAL -> open(Intent(Intent.ACTION_DIAL, uri))
             NavigationPolicy.Destination.WHATSAPP -> open(Intent(Intent.ACTION_VIEW, uri))
-            NavigationPolicy.Destination.BLOCKED -> if (mainFrame) message("આ લિંક ખોલી શકાતી નથી · This link cannot be opened")
+            NavigationPolicy.Destination.BLOCKED -> if (mainFrame) message(R.string.link_blocked_gu, R.string.link_blocked_en)
         }
         return true
     }
@@ -286,8 +245,8 @@ class MainActivity : Activity() {
 
     private fun open(intent: Intent) {
         try { startActivity(intent) }
-        catch (_: ActivityNotFoundException) { message("એપ ઉપલબ્ધ નથી · No compatible app is installed") }
-        catch (_: SecurityException) { message("ઉપકરણની નીતિએ એપ ખોલવા દીધી નથી · Device policy blocked opening this app") }
+        catch (_: ActivityNotFoundException) { message(R.string.no_app_gu, R.string.no_app_en) }
+        catch (_: SecurityException) { message(R.string.policy_blocked_gu, R.string.policy_blocked_en) }
     }
     /** Print an HTML report through the system print sheet — "Save as PDF"
      *  can target phone storage or Google Drive. */
@@ -304,11 +263,12 @@ class MainActivity : Activity() {
             }
             printer.loadDataWithBaseURL(serverUrl, html, "text/html", "utf-8", null)
         } catch (_: Exception) {
-            message("પ્રિન્ટ ઉપલબ્ધ નથી · Printing is unavailable")
+            message(R.string.print_unavailable_gu, R.string.print_unavailable_en)
         }
     }
 
-    private fun message(text: String) = Toast.makeText(this, text, Toast.LENGTH_LONG).show()
+    private fun both(gu: Int, en: Int): String = getString(gu) + "\n" + getString(en)
+    private fun message(gu: Int, en: Int) = Toast.makeText(this, getString(gu) + " · " + getString(en), Toast.LENGTH_LONG).show()
 
     @Deprecated("Required for Android 5 compatibility")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -324,9 +284,9 @@ class MainActivity : Activity() {
             if (resultCode == RESULT_OK && uri != null) {
                 try {
                     contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
-                    message("સેવ થઈ: $name · Saved")
+                    message(R.string.save_done_gu, R.string.save_done_en)
                 } catch (_: Exception) {
-                    message("સેવ ન થઈ · Could not save the file")
+                    message(R.string.save_failed_gu, R.string.save_failed_en)
                 }
             }
         }

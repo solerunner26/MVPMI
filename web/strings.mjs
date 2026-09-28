@@ -98,6 +98,20 @@ export const STR = {
   ],
 };
 
+// ---- Section 1: offline ------------------------------------------------
+Object.assign(STR, {
+  "offline.banner": [
+    "ઇન્ટરનેટ નથી / સર્વર મળતું નથી — ફરી પ્રયાસ કરો",
+    "No internet / Server not reachable — Retry",
+  ],
+  "offline.lastUpdated": ["છેલ્લે અપડેટ: {time}", "Last updated: {time}"],
+  "offline.readOnly": [
+    "ઑફલાઇન: સંપર્ક જોઈ અને ફોન કરી શકાય છે. ફેરફાર માટે ઇન્ટરનેટ જરૂરી છે.",
+    "Offline: you can view and call contacts. Changes need internet.",
+  ],
+  "offline.retry": ["ફરી પ્રયાસ કરો", "Retry"],
+});
+
 export function t(key, lang = "gu", vars) {
   const row = STR[key];
   let text = row ? row[lang === "en" ? 1 : 0] : key;

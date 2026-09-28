@@ -20,6 +20,9 @@ function fixture(statuses) {
       alerts: [],
     },
     clone: structuredClone,
+    clearOffline: () => {},
+    saveOffline: () => {},
+    loadOffline: () => null,
     AbortSignal,
     sessionStorage: { removeItem: (key) => removed.push(key) },
     fetch: async (path, options) => {

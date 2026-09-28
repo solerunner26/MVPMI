@@ -2,17 +2,28 @@ import java.net.URI
 
 plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }
 
-// The hosted server address is built into the app, e.g.
-//   gradle assembleRelease -PcommunityUrl=https://directory.example.org
-// It must be the ROOT of an HTTPS site (a sub-domain is fine, a sub-folder
-// such as https://example.org/directory is not: the web app uses /api paths).
+// The server address is built into the app and can never be seen or changed
+// by members (there is no server setting anywhere in the app):
+//   release: gradle assembleRelease -PcommunityUrl=https://directory.example.org
+//   debug:   gradle assembleDebug   -PcommunityDebugUrl=https://test.example.org
+//            (defaults to communityUrl; a private-network http:// address such
+//            as http://10.0.2.2:3000 is allowed for debug builds only)
+// It must be the ROOT of the site (a sub-domain is fine, a sub-folder such as
+// https://example.org/directory is not: the web app uses /api paths).
 val communityUrl = providers.gradleProperty("communityUrl").orElse("https://example.invalid").get().trimEnd('/')
-val parsedCommunityUrl = URI(communityUrl)
-require(
-    parsedCommunityUrl.scheme == "https" && parsedCommunityUrl.host != null &&
-        parsedCommunityUrl.rawUserInfo == null && parsedCommunityUrl.rawQuery == null &&
-        parsedCommunityUrl.rawFragment == null && parsedCommunityUrl.rawPath.isNullOrEmpty(),
-) { "communityUrl must be an HTTPS site root (no sub-folder, credentials, query or fragment), e.g. https://directory.example.org" }
+val communityDebugUrl = providers.gradleProperty("communityDebugUrl").orElse(communityUrl).get().trimEnd('/')
+fun siteRoot(raw: String, allowHttp: Boolean): URI {
+    val uri = URI(raw)
+    require(
+        (uri.scheme == "https" || (allowHttp && uri.scheme == "http")) && uri.host != null &&
+            uri.rawUserInfo == null && uri.rawQuery == null &&
+            uri.rawFragment == null && uri.rawPath.isNullOrEmpty(),
+    ) { "Server address must be a site root (no sub-folder, credentials, query or fragment), e.g. https://directory.example.org" }
+    return uri
+}
+val parsedCommunityUrl = siteRoot(communityUrl, false)
+siteRoot(communityDebugUrl, true)
+fun quoted(value: String) = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
 // Every build that is shared with members MUST be signed with the same
 // permanent key, otherwise phones refuse to install an update over the old
@@ -25,14 +36,14 @@ android {
     compileSdk = 36
     defaultConfig {
         applicationId = "org.mvpmi.directory"
-        minSdk = 21
+        // Android 10 (API 29) to Android 17.
+        minSdk = 29
         targetSdk = 36
         // CI passes a growing number (-PversionCode=<run number>) so every
         // new APK installs as an update.
         versionCode = providers.gradleProperty("versionCode").orElse("9").get().toInt()
         // CI passes the release tag (v1.0.0 → 1.0.0).
         versionName = providers.gradleProperty("versionName").orElse("1.0.0").get()
-        buildConfigField("String", "COMMUNITY_URL", "\"${communityUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\"")
     }
     signingConfigs {
         if (keystoreFile != null) {
@@ -45,7 +56,11 @@ android {
         }
     }
     buildTypes {
+        getByName("debug") {
+            buildConfigField("String", "COMMUNITY_URL", quoted(communityDebugUrl))
+        }
         getByName("release") {
+            buildConfigField("String", "COMMUNITY_URL", quoted(communityUrl))
             isDebuggable = false
             isMinifyEnabled = false
             if (keystoreFile != null) signingConfig = signingConfigs.getByName("release")

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Every message the Android app shows by itself (outside the web screens)
+     exists in Gujarati (_gu) and English (_en). The app shows both lines,
+     because these screens appear before the web page knows the chosen
+     language. -->
+<resources>
+    <string name="app_name">મહુવા ક્ષત્રિય રાજપૂત સમાજ</string>
+    <string name="app_name_debug">મહુવા ક્ષત્રિય રાજપૂત સમાજ (ટેસ્ટ)</string>
+
+    <string name="error_title_gu">સર્વર સુધી પહોંચી શકાયું નથી</string>
+    <string name="error_title_en">Server not reachable</string>
+    <string name="error_offline_gu">ઇન્ટરનેટ નથી અથવા સર્વર મળતું નથી. કનેક્શન તપાસો અને ફરી પ્રયાસ કરો.</string>
+    <string name="error_offline_en">No internet or the server is not reachable. Check your connection and try again.</string>
+    <string name="error_busy_gu">સર્વર થોડી વાર માટે ઉપલબ્ધ નથી. થોડી મિનિટ પછી ફરી પ્રયાસ કરો.</string>
+    <string name="error_busy_en">The server is busy or restarting. Please try again in a few minutes.</string>
+    <string name="error_certificate_gu">સર્વરનું સુરક્ષા પ્રમાણપત્ર માન્ય નથી.</string>
+    <string name="error_certificate_en">The server security certificate is not trusted.</string>
+    <string name="error_not_configured_gu">આ એપમાં સર્વર સેટ થયેલ નથી. નવી એપ ઇન્સ્ટોલ કરો.</string>
+    <string name="error_not_configured_en">This app was built without a server. Please install a new version.</string>
+    <string name="retry_gu">ફરી પ્રયાસ કરો</string>
+    <string name="retry_en">Retry</string>
+
+    <string name="save_no_sheet_gu">સેવ કરવાનું શીટ નથી</string>
+    <string name="save_no_sheet_en">No save sheet available</string>
+    <string name="save_done_gu">ફાઇલ સેવ થઈ</string>
+    <string name="save_done_en">File saved</string>
+    <string name="save_failed_gu">ફાઇલ સેવ ન થઈ</string>
+    <string name="save_failed_en">Could not save the file</string>
+    <string name="no_file_picker_gu">ફાઇલ પસંદ કરી શકાતી નથી</string>
+    <string name="no_file_picker_en">No file picker available</string>
+    <string name="open_in_browser_gu">આ લિંક બ્રાઉઝરમાં ખોલો</string>
+    <string name="open_in_browser_en">Open this link in a browser</string>
+    <string name="link_blocked_gu">આ લિંક ખોલી શકાતી નથી</string>
+    <string name="link_blocked_en">This link cannot be opened</string>
+    <string name="no_app_gu">આ માટે ફોનમાં એપ નથી</string>
+    <string name="no_app_en">No compatible app is installed</string>
+    <string name="policy_blocked_gu">ફોનની નીતિએ એપ ખોલવા દીધી નથી</string>
+    <string name="policy_blocked_en">Device policy blocked opening this app</string>
+    <string name="print_unavailable_gu">પ્રિન્ટ ઉપલબ્ધ નથી</string>
+    <string name="print_unavailable_en">Printing is unavailable</string>
+    <string name="notification_channel_gu">સમાજ સૂચનાઓ</string>
+    <string name="notification_channel_en">Community updates</string>
+
+    <string name="biometric_title_gu">ફિંગરપ્રિન્ટથી ખોલો</string>
+    <string name="biometric_title_en">Unlock with fingerprint</string>
+    <string name="biometric_cancel_gu">પિન વાપરો</string>
+    <string name="biometric_cancel_en">Use PIN</string>
+</resources>

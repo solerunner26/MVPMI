@@ -172,10 +172,15 @@ class Component extends DesignComponent {
         this._engageLock();
     }, 15000);
     // Installable home-screen app + Web Push (not needed inside the Android app).
+    // The service worker keeps the app itself available offline (inside the
+    // Android app too); Web Push is only used by ordinary browsers.
     try {
-      if (!androidBridge() && window.isSecureContext && "serviceWorker" in navigator)
+      if (window.isSecureContext && "serviceWorker" in navigator)
         navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {});
     } catch {}
+    // Back online: load the directory again without restarting the app.
+    this._onOnline = () => this.refresh();
+    window.addEventListener("online", this._onOnline);
     // Every app start begins locked (the server keeps the lock state).
     this.api("lock/engage", {})
       .catch(() => {})
@@ -194,6 +199,7 @@ class Component extends DesignComponent {
     }
     document.removeEventListener("keydown", this._onKey);
     document.removeEventListener("visibilitychange", this._onVisibility);
+    window.removeEventListener("online", this._onOnline);
     for (const type of ["pointerdown", "keydown", "touchstart", "wheel"])
       document.removeEventListener(type, this._activity, { capture: true });
     delete window.mvpmiBack;
@@ -574,10 +580,39 @@ class Component extends DesignComponent {
       }
     } else if (current.screen === "applock" || patch.screen === "applock")
       patch.screen = this.home(data);
+    patch.offline = false;
     this.setState(patch);
+    this.persistOffline(data);
+  }
+  // Keep the offline copy in step with what the server just said.
+  persistOffline(data) {
+    try {
+      if (!data.meId) {
+        // Not logged in (signed out, removed or never approved): nothing of
+        // the directory may stay on this phone.
+        if (!data.locked && !data.lockSetup) clearOffline();
+        return;
+      }
+      if (data.locked || data.lockSetup || !data.members?.length) return;
+      const me = data.members.find((m) => m.id === data.meId) || {};
+      saveOffline({
+        account: {
+          id: data.meId,
+          role: data.account?.role || "MEMBER",
+          name: me.name,
+          nameGu: me.nameGu,
+          phone: me.phone,
+          village: me.village,
+          lockOn: !!data.account?.lockOn,
+        },
+        members: data.members,
+        villages: data.villages,
+      });
+    } catch {}
   }
   clearAccess() {
     if (!this._alive) return;
+    clearOffline();
     this.setState({
       recoveryIssued: null,
       recoveryMember: null,
@@ -677,9 +712,36 @@ class Component extends DesignComponent {
         if (e.status === 403 || e.status === 401) {
           this.clearAccess();
           this.flash(errorText(e.message, "gu"), errorText(e.message, "en"));
+        } else if (!this.state.lastConfirmed && this.applyOffline()) {
+          // Cold start without internet: show the saved directory copy.
         } else this.setState({ connected: false, loaded: true });
       }
     }
+  }
+  // Section 1: open the saved copy of the directory (read-only) when the
+  // server cannot be reached and this phone has a logged-in account.
+  applyOffline() {
+    const saved = loadOffline();
+    if (!saved || !this._alive) return false;
+    if (saved.villages?.length)
+      VILLAGE_LIST.splice(0, VILLAGE_LIST.length, ...saved.villages);
+    const locked = !!saved.account.lockOn;
+    this.setState({
+      ...this._overlaysClosed(),
+      members: locked ? [] : saved.members,
+      offlineMembers: saved.members,
+      meId: saved.account.id,
+      role: "member",
+      account: saved.account,
+      offline: true,
+      connected: false,
+      loaded: true,
+      lastConfirmed: saved.at,
+      locked,
+      lockSetup: false,
+      screen: locked ? "applock" : "directory",
+    });
+    return true;
   }
   async run(fn) {
     if (this._busy) return;
@@ -2023,6 +2085,16 @@ class Component extends DesignComponent {
             : "unavailable",
         s.lang,
       );
+    if (v.connectionError && s.lastConfirmed)
+      v.ui.connection =
+        t("offline.banner", s.lang) +
+        " · " +
+        t("offline.lastUpdated", s.lang, {
+          time: new Date(s.lastConfirmed).toLocaleString(
+            s.lang === "gu" ? "gu-IN" : "en-IN",
+            { dateStyle: "medium", timeStyle: "short" },
+          ),
+        });
     v.lastConfirmed =
       s.connected === false && s.lastConfirmed
         ? new Date(s.lastConfirmed).toLocaleString(

@@ -234,6 +234,7 @@ logic +=
   "\n" + read("web/print-document.mjs", "utf8").replaceAll("export ", "");
 logic += "\n" + read("web/save-file.mjs", "utf8").replaceAll("export ", "");
 logic += "\n" + read("web/app-lock.mjs", "utf8").replaceAll("export ", "");
+logic += "\n" + read("web/offline-store.mjs", "utf8").replaceAll("export ", "");
 logic += "\n" + read("web/security-ui.mjs", "utf8").replaceAll("export ", "");
 logic += "\n" + read("web/liquid-ios.mjs", "utf8").replaceAll("export ", "");
 for (const file of ["bilingual.mjs", "material-capability.mjs"])
