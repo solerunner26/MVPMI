@@ -23,6 +23,8 @@ jobs:
           node-version: "22"
           cache: npm
       - run: npm ci
+      # The static-site test serves dist/ (Brotli/gzip copies), so build first.
+      - run: npm run build
       - run: npm run test:coverage
       # Every screen, button and navigation path of the app, per section
       # (writes test-results/alpha-checklist.md).
