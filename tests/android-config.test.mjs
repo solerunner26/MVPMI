@@ -13,6 +13,8 @@ test("Android static configuration: minimal permissions, HTTPS-only, no device/c
       "android.permission.POST_NOTIFICATIONS",
       // Keeps the background notification check scheduled after a reboot.
       "android.permission.RECEIVE_BOOT_COMPLETED",
+      // Optional fingerprint unlock of the app lock (Section 5).
+      "android.permission.USE_BIOMETRIC",
     ],
   );
   assert.ok(manifest.includes('android:allowBackup="false"'));
