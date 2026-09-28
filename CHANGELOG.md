@@ -2,6 +2,11 @@
 
 ## 1.1.0 — alpha (September 2026)
 
+- Owner decisions (28 Sep): the seeded Main Admin password works for the
+  first login only, then he must set his own; a Village Admin's TEMP PIN
+  stays on their card for the Main Admin (Call / WhatsApp) until their first
+  login. The app keeps the word "PIN".
+
 Full audit and rework for the alpha with real users (fresh start: the old
 database is not carried over).
 

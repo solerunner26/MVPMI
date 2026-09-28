@@ -453,7 +453,12 @@ test("Village Admin create, edit, disable and reset need no reason; edits keep t
   let s = await f.admin("state");
   const row = s.villageAssignments.find((a) => a.id === "થોરાળા");
   assert.deepEqual([row.name, row.phone, row.mustSetPin, !!row.disabled], ["Thorala Admin Person", "7990000077", true, false]);
-  assert.equal(JSON.stringify(s).includes(created.issuedPin.pin + '"'), false, "never shown again");
+  // Owner decision: the Main Admin sees it again ONLY as the card's tempPin
+  // (until first login); nowhere else in the state.
+  assert.equal(row.tempPin, created.issuedPin.pin);
+  const { tempPin, ...rest } = row;
+  assert.equal(JSON.stringify({ ...s, villageAssignments: [rest] }).includes(created.issuedPin.pin + '"'), false, "not leaked elsewhere");
+  void tempPin;
   s = await f.admin("admin/village-admins/" + g + "/edit", { name: "Thorala Admin Renamed", mobile: "7990000078" });
   assert.equal(s.villageAssignments.find((a) => a.id === "થોરાળા").phone, "7990000078");
   assert.equal((await f.admin("admin/village-admins/" + g + "/edit", { name: "Xx Yy Zz", mobile: MAIN.mobile }, 409)).code, "PHONE_IN_USE");

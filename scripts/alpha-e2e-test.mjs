@@ -50,8 +50,11 @@ async function server(keepFirstPassword = false) {
     };
   };
   const admin = client();
-  await admin("login", { mobile: MAIN.mobile, secret: MAIN.password });
-  await admin("lock/unlock", { secret: MAIN.password }).catch(() => {});
+  // In flow s2 the browser does the Main Admin's very first login itself.
+  if (!keepFirstPassword) {
+    await admin("login", { mobile: MAIN.mobile, secret: MAIN.password });
+    await admin("lock/unlock", { secret: MAIN.password }).catch(() => {});
+  }
   const villageAdmins = new Map();
   const ensureVA = async (village = "થોરાળા", mobile = "9800000010", pin = "2580") => {
     if (villageAdmins.has(village)) return villageAdmins.get(village);
@@ -176,9 +179,16 @@ async function screenAudit(page, section, screen) {
     assert.ok(over <= 1, "overflow " + over + "px");
   });
   await row(section, screen, "(accessibility scan)", "no serious or critical axe issues").run(async () => {
-    const result = await new AxeBuilder({ page }).include(".app").analyze();
-    const bad = result.violations.filter((v) => ["serious", "critical"].includes(v.impact));
-    assert.deepEqual(bad.map((v) => v.id + ": " + v.nodes[0]?.target), []);
+    // Scan again after a short pause if a fade/slide animation was still
+    // running (half-transparent text fails the contrast rule mid-animation).
+    let bad = [];
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt) await page.waitForTimeout(600);
+      const result = await new AxeBuilder({ page }).include(".app").analyze();
+      bad = result.violations.filter((v) => ["serious", "critical"].includes(v.impact)).map((v) => v.id + ": " + v.nodes[0]?.target);
+      if (!bad.length) break;
+    }
+    assert.ok(!bad.length, "axe: " + bad.join(" ; "));
   });
 }
 

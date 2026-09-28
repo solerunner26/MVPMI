@@ -11,10 +11,16 @@ every tester starts fresh.
    main-admin`, old database moved aside.
 2. Install the signed `mvpmi.apk` from the GitHub release on your phone and
    log in: **Login → "Main Admin? Log in with password"**.
-3. Change the initial password: **Admin → My Profile → Change Password**.
+3. The first-time password works for ONE login only: the app then asks for
+   a new password (new + re-enter) before anything else. Later changes:
+   **Admin → My Profile → Change Password** (old, new, re-enter).
 4. **Admin → Manage Village Admins**: create the Village Admin for each
-   village taking part. Tap **Share on WhatsApp** to send each one their
-   TEMP PIN (it is shown only once; use **Reset PIN** if it was lost).
+   village taking part. Each one gets a 4-digit TEMP PIN. Until that Village
+   Admin's first login the TEMP PIN stays on their card (visible to the Main
+   Admin only) with **Call** and **Share on WhatsApp**, so it can be given in
+   a phone call. At their first login they must choose their own PIN; the
+   TEMP PIN then disappears from the card. **Reset PIN** gives a new one
+   (for example when the Village Admin changes).
 5. Share the download link (`https://samaj.kavigsv.com/download`) with the
    testers.
 
