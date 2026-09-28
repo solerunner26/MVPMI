@@ -5,18 +5,32 @@
 import { launchBrowser } from "./browser.mjs";
 import { createApp } from "../server/app.mjs";
 import { profile } from "../server/store.mjs";
+import { mainAdminId } from "../server/auth.mjs";
 import AxeBuilder from "@axe-core/playwright";
 import { mkdirSync, writeFileSync } from "node:fs";
 import assert from "node:assert/strict";
 
+// FIRST_PASSWORD is the seeded first-login-only password; flow s2 tests the
+// forced change to MAIN.password. Every other flow starts after that change.
+const FIRST_PASSWORD = "FirstTime@26";
 const MAIN = { name: "Test Main Admin", mobile: "9913000001", village: "Thorala", location: "Thorala", password: "Testing@26" };
 const PHONE = { width: 360, height: 728 }; // 6-inch phone, minus status and navigation bars
 const rows = [];
 const only = process.env.ALPHA_ONLY ? new Set(process.env.ALPHA_ONLY.split(",")) : null;
 mkdirSync("test-results/alpha", { recursive: true });
 
-async function server() {
-  const { app, store } = createApp({ dbPath: ":memory:", mainAdmin: MAIN, development: true, requireAppLock: true });
+async function server(keepFirstPassword = false) {
+  const { app, store } = createApp({
+    dbPath: ":memory:",
+    mainAdmin: keepFirstPassword ? { ...MAIN, password: FIRST_PASSWORD } : MAIN,
+    development: true,
+    requireAppLock: true,
+  });
+  if (!keepFirstPassword) {
+    const m = store.get("members", mainAdminId(store));
+    delete m.cred.initial;
+    store.put("members", m);
+  }
   const s = app.listen(0, "127.0.0.1");
   await new Promise((r) => s.once("listening", r));
   const url = "http://127.0.0.1:" + s.address().port;
@@ -131,7 +145,7 @@ function row(section, screen, button, expected) {
 let lastPage = null;
 async function flow(name, fn) {
   if (only && !only.has(name)) return;
-  const env = await server();
+  const env = await server(name === "s2");
   try {
     await fn(env);
   } catch (e) {
@@ -177,10 +191,32 @@ await flow("s2", async (env) => {
     await page.getByTestId("Login error").filter({ hasText: "Wrong password" }).waitFor();
     await page.getByTestId("Login error").filter({ hasText: "4 attempts left" }).waitFor();
   });
-  await row(S, "Login", "Log in (mobile + password)", "lands on the Member Directory").run(async () => {
-    await page.getByTestId("Login secret").fill(MAIN.password);
+  await row(S, "Login", "Log in (first-time password)", "asks for a new password before anything else").run(async () => {
+    await page.getByTestId("Login secret").fill(FIRST_PASSWORD);
     await page.getByTestId("Login submit").click();
+    await waitScreen(page, "setpin");
+    await page.getByText("Set your new password").first().waitFor();
+    assert.equal(await page.getByTestId("Admin").count(), 0);
+    await shot(page, "s2-first-password");
+  });
+  for (const [label, next, confirm, message] of [
+    ["shorter than 8", "short", "short", "at least 8 characters"],
+    ["same as the first-time password", FIRST_PASSWORD, FIRST_PASSWORD, "same as the old password"],
+    ["fields differ", MAIN.password, MAIN.password + "x", "do not match"],
+  ])
+    await row(S, "Set new password", "Set password (" + label + ")", "error shown, stays on the screen").run(async () => {
+      await page.getByTestId("Set PIN new").fill(next);
+      await page.getByTestId("Set PIN confirm").fill(confirm);
+      await page.getByTestId("Set PIN submit").click();
+      await page.getByTestId("Set PIN error").filter({ hasText: message }).waitFor();
+      assert.equal(await screenOf(page), "setpin");
+    });
+  await row(S, "Set new password", "Set password (valid)", "'Password set', lands on the Member Directory").run(async () => {
+    await page.getByTestId("Set PIN new").fill(MAIN.password);
+    await page.getByTestId("Set PIN confirm").fill(MAIN.password);
+    await page.getByTestId("Set PIN submit").click();
     await waitScreen(page, "directory");
+    await toast(page, "Password set");
     await shot(page, "s2-directory-main-admin");
   });
   await row(S, "Directory", "Back", "leaves the app (never returns to Login)").run(async () => {
@@ -259,6 +295,11 @@ await flow("s2", async (env) => {
     await loginMain(page, MAIN.password);
     await page.getByTestId("Login error").filter({ hasText: "Wrong password" }).waitFor();
   });
+  await row(S, "Login", "Log in with the first-time password", "refused (first login only)").run(async () => {
+    await page.getByTestId("Login secret").fill(FIRST_PASSWORD);
+    await page.getByTestId("Login submit").click();
+    await page.getByTestId("Login error").filter({ hasText: "Wrong password" }).waitFor();
+  });
   await row(S, "Login", "Log in with the NEW password", "works").run(async () => {
     await page.getByTestId("Login secret").fill("NewPass@26");
     await page.getByTestId("Login submit").click();
@@ -295,11 +336,17 @@ await flow("s3", async (env) => {
     for (const part of ["Community Directory", "You are the Village Admin for Thorala", "TEMP PIN: " + temp, "Change it after first login", "ગામ એડમિન"])
       assert.ok(text.includes(part), part);
   });
-  await row(S, "TEMP PIN dialog", "Done", "closes; the TEMP PIN is never shown again").run(async () => {
+  await row(S, "TEMP PIN dialog", "Call", "phones the new Village Admin").run(async () => {
+    assert.equal(await main.page.getByTestId("TEMP PIN call").getAttribute("href"), "tel:+919800000010");
+  });
+  await row(S, "TEMP PIN dialog", "Done", "closes; the TEMP PIN stays on the card (Call / WhatsApp) until first login").run(async () => {
     await main.page.getByTestId("TEMP PIN done").click();
     await main.page.getByTestId("TEMP PIN dialog").waitFor({ state: "detached" });
-    assert.equal((await main.page.content()).includes(">" + temp + "<"), false);
     await main.page.getByTestId("Village admin Thorala").filter({ hasText: "First login pending" }).waitFor();
+    assert.equal((await main.page.getByTestId("VA temp pin Thorala").innerText()).trim(), temp);
+    assert.equal(await main.page.getByTestId("VA call Thorala").getAttribute("href"), "tel:+919800000010");
+    assert.ok(decodeURIComponent(await main.page.getByTestId("VA share Thorala").getAttribute("href")).includes("TEMP PIN: " + temp));
+    await shot(main.page, "s3-va-card-handover");
   });
   await row(S, "Manage Village Admins", "Create (second admin for Thorala)", "not offered while one is active").run(async () => {
     assert.equal(await main.page.getByTestId("VA create Thorala").count(), 0);
@@ -323,6 +370,11 @@ await flow("s3", async (env) => {
     await va.page.getByTestId("Set PIN submit").click();
     await waitScreen(va.page, "directory");
     await va.page.getByTestId("Admin").waitFor();
+  });
+  await row(S, "Manage Village Admins", "(after the Village Admin's first login)", "TEMP PIN removed from the card; status Active").run(async () => {
+    await main.page.getByTestId("Village admin Thorala").filter({ hasText: "Active" }).waitFor();
+    assert.equal(await main.page.getByTestId("VA temp pin Thorala").count(), 0);
+    assert.equal((await main.page.content()).includes(">" + temp + "<"), false);
   });
   // Two registrations: Thorala (this admin) and Sathra (another admin).
   await env.ensureVA("સથરા", "9800000020", "3690");

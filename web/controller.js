@@ -1089,7 +1089,7 @@ class Component extends DesignComponent {
           onDone: (data, pin) => {
             this.apply(data, false, "directory");
             rememberOfflineUnlock(data.account?.id, pin);
-            this.flashKey("setpin.done");
+            this.flashKey(data.account?.role === "MAIN_ADMIN" ? "setpw.done" : "setpin.done");
           },
           onSignOut: () => this.signOutOfPhone(),
         });

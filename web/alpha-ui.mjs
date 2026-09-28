@@ -307,7 +307,9 @@ export function ATempPinDialog({ issued, lang, onClose }) {
     { title: t("temp.title", lang), onClose, closeLabel: t("common.done", lang), testId: "TEMP PIN dialog" },
     ah("p", { className: "alpha-sheet-body" }, who),
     ah("div", { className: "alpha-temp-pin", "data-testid": "TEMP PIN value", "aria-label": t("temp.title", lang) + " " + issued.pin.split("").join(" ") }, issued.pin),
-    ah(ANotice, { kind: "info" }, t("temp.once", lang), " ", t("temp.sharedHint", lang)),
+    // A Village Admin's TEMP PIN stays on their card for the Main Admin until
+    // the first login, so he can also hand it over in a phone call.
+    ah(ANotice, { kind: "info" }, t(String(issued.kind).startsWith("village-admin") ? "temp.onCard" : "temp.once", lang), " ", t("temp.sharedHint", lang)),
     ah(
       "div",
       { className: "alpha-actions" },
@@ -325,7 +327,33 @@ export function ATempPinDialog({ issued, lang, onClose }) {
         " ",
         t("temp.share", lang),
       ),
+      ah(ACallLink, { phone: issued.phone, lang, testId: "TEMP PIN call" }),
       ah(AButton, { onClick: onClose, "data-testid": "TEMP PIN done" }, t("common.done", lang)),
     ),
+  );
+}
+export function AWhatsAppLink({ issued, lang, testId }) {
+  return ah(
+    "a",
+    {
+      role: "button",
+      className: "lq-btn alpha-button alpha-whatsapp",
+      href: "https://wa.me/91" + issued.phone + "?text=" + encodeURIComponent(tempPinMessage(issued, lang)),
+      target: "_blank",
+      rel: "noopener noreferrer",
+      "data-testid": testId,
+    },
+    ah(AIcon, { name: "whatsapp-logo" }),
+    " ",
+    t("temp.share", lang),
+  );
+}
+export function ACallLink({ phone, lang, testId }) {
+  return ah(
+    "a",
+    { role: "button", className: "lq-btn alpha-button", href: "tel:+91" + phone, "data-testid": testId },
+    ah(AIcon, { name: "phone" }),
+    " ",
+    t("temp.call", lang),
   );
 }

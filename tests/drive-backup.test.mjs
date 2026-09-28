@@ -1,5 +1,5 @@
 import test from "node:test";
-import { MAIN } from "./helpers.mjs";
+import { MAIN, firstPasswordDone } from "./helpers.mjs";
 import assert from "node:assert/strict";
 import express from "express";
 import { DatabaseSync } from "node:sqlite";
@@ -89,6 +89,7 @@ test("Drive backup: admin connects, backs up an encrypted snapshot, cron hook an
     driveEnv: env,
     driveOptions: { google: fake.google },
   });
+  firstPasswordDone(store);
   const server = app.listen(0, "127.0.0.1");
   await new Promise((r) => server.once("listening", r));
   t.after(async () => {

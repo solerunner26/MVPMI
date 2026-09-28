@@ -211,20 +211,28 @@ export function AForgotPinDialog({ lang, api, initialMobile = "", onClose }) {
 
 // Section 5: after logging in with a TEMP PIN nothing else is possible until
 // the person sets their own PIN.
+// The Main Admin's first-time password works for ONE login only: this same
+// screen then asks for his own new password (new + re-enter).
 export function ASetPinScreen({ lang, onLang, api, onDone, onSignOut, account }) {
+  const password = account?.role === "MAIN_ADMIN";
   const [pin, setPin] = React.useState("");
   const [confirm, setConfirm] = React.useState("");
   const [error, setError] = React.useState(null);
   const [busy, setBusy] = React.useState(false);
   const submit = async () => {
     if (busy) return;
-    if (!/^\d{4}$/.test(pin)) return setError({ code: "PIN_FORMAT", field: "next" });
-    if (ALPHA_WEAK_PINS.includes(pin)) return setError({ code: "PIN_WEAK", field: "next" });
-    if (confirm !== pin) return setError({ code: "PIN_MISMATCH", field: "confirm" });
+    if (password) {
+      if (pin.length < 8) return setError({ code: "PASSWORD_FORMAT", field: "next" });
+      if (confirm !== pin) return setError({ code: "PASSWORD_MISMATCH", field: "confirm" });
+    } else {
+      if (!/^\d{4}$/.test(pin)) return setError({ code: "PIN_FORMAT", field: "next" });
+      if (ALPHA_WEAK_PINS.includes(pin)) return setError({ code: "PIN_WEAK", field: "next" });
+      if (confirm !== pin) return setError({ code: "PIN_MISMATCH", field: "confirm" });
+    }
     setBusy(true);
     setError(null);
     try {
-      const data = await api("pin/set", { pin, confirm });
+      const data = password ? await api("password/set", { next: pin, confirm }) : await api("pin/set", { pin, confirm });
       onDone(data, pin);
     } catch (e) {
       setError({ code: e.code || (e.network ? "NETWORK" : undefined), field: e.field, message: e.message, network: e.network });
@@ -247,21 +255,21 @@ export function ASetPinScreen({ lang, onLang, api, onDone, onSignOut, account })
           submit();
         },
       },
-      ah("h2", null, t("setpin.title", lang)),
+      ah("h2", null, t(password ? "setpw.title" : "setpin.title", lang)),
       account ? ah("p", { className: "alpha-hint" }, (lang === "en" ? account.name : account.nameGu || account.name) + " · " + formatMobile(account.phone)) : null,
-      ah("p", { className: "alpha-hint" }, t("setpin.intro", lang)),
+      ah("p", { className: "alpha-hint" }, t(password ? "setpw.intro" : "setpin.intro", lang)),
       ah(
         AField,
-        { label: t("field.newPin", lang), invalid: error?.field === "next", hint: t("field.pinHint", lang) },
-        ah(ASecretInput, { value: pin, onChange: (v) => { setPin(v); setError(null); }, lang, label: t("field.newPin", lang), invalid: error?.field === "next", testId: "Set PIN new", autoFocus: true }),
+        { label: t(password ? "field.newPassword" : "field.newPin", lang), invalid: error?.field === "next", hint: t(password ? "field.passwordHint" : "field.pinHint", lang) },
+        ah(ASecretInput, { value: pin, mode: password ? "password" : "pin", onChange: (v) => { setPin(v); setError(null); }, lang, label: t(password ? "field.newPassword" : "field.newPin", lang), invalid: error?.field === "next", testId: "Set PIN new", autoFocus: true }),
       ),
       ah(
         AField,
-        { label: t("field.newPin2", lang), invalid: error?.field === "confirm" },
-        ah(ASecretInput, { value: confirm, onChange: (v) => { setConfirm(v); setError(null); }, lang, label: t("field.newPin2", lang), invalid: error?.field === "confirm", testId: "Set PIN confirm", onEnter: submit }),
+        { label: t(password ? "field.newPassword2" : "field.newPin2", lang), invalid: error?.field === "confirm" },
+        ah(ASecretInput, { value: confirm, mode: password ? "password" : "pin", onChange: (v) => { setConfirm(v); setError(null); }, lang, label: t(password ? "field.newPassword2" : "field.newPin2", lang), invalid: error?.field === "confirm", testId: "Set PIN confirm", onEnter: submit }),
       ),
       error ? ah(ANotice, { kind: "error", testId: "Set PIN error" }, alphaError(error, lang)) : null,
-      ah(AButton, { kind: "primary", type: "submit", disabled: busy, "data-testid": "Set PIN submit" }, busy ? t("common.wait", lang) : t("setpin.submit", lang)),
+      ah(AButton, { kind: "primary", type: "submit", disabled: busy, "data-testid": "Set PIN submit" }, busy ? t("common.wait", lang) : t(password ? "setpw.submit" : "setpin.submit", lang)),
       ah(AButton, { kind: "text", onClick: onSignOut, "data-testid": "Set PIN sign out" }, t("setpin.signout", lang)),
     ),
   );

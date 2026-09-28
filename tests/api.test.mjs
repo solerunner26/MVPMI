@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createApp } from "../server/app.mjs";
+import { firstPasswordDone } from "./helpers.mjs";
 const form = {
   name: "Test Member",
   phone: "9000000001",
@@ -23,6 +24,7 @@ async function setup(t, opts = {}) {
     development: true,
     ...opts,
   });
+  firstPasswordDone(store);
   const server = app.listen(0, "127.0.0.1");
   await new Promise((r) => server.once("listening", r));
   t.after(() => {

@@ -88,6 +88,7 @@ test("Excel headers follow the requested language and remain admin-only", async 
     mainAdmin: MAIN,
     development: true,
   });
+  (await import("./helpers.mjs")).firstPasswordDone(store);
   const server = app.listen(0, "127.0.0.1");
   await new Promise((r) => server.once("listening", r));
   t.after(() => {

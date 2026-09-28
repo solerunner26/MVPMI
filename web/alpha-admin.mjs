@@ -75,6 +75,24 @@ export function AManageVillageAdmins({ lang, data, act, flash }) {
         ah("h3", null, lang === "en" ? v.en : v.gu),
         a ? ah("p", null, ah("strong", null, personName(a)), " · +91 " + formatMobile(a.phone)) : null,
         ah("p", { className: "workflow-status", "data-state": !a ? "none" : a.disabled ? "disabled" : "active" }, status),
+        a && !a.disabled && a.tempPin
+          ? ah(
+              "div",
+              { className: "alpha-va-handover", "data-testid": "VA handover " + v.en },
+              ah("span", null, t("va.handover", lang)),
+              ah("strong", { className: "alpha-va-pin", "data-testid": "VA temp pin " + v.en, "aria-label": t("va.handover", lang) + " " + a.tempPin.split("").join(" ") }, a.tempPin),
+              ah(
+                "div",
+                { className: "workflow-actions" },
+                ah(ACallLink, { phone: a.phone, lang, testId: "VA call " + v.en }),
+                ah(AWhatsAppLink, {
+                  issued: { kind: "village-admin", pin: a.tempPin, phone: a.phone, village: v.gu, villageEn: v.en },
+                  lang,
+                  testId: "VA share " + v.en,
+                }),
+              ),
+            )
+          : null,
         ah(
           "div",
           { className: "workflow-actions" },

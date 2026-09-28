@@ -25,7 +25,17 @@ jobs:
       - run: npm ci
       # The static-site test serves dist/ (Brotli/gzip copies), so build first.
       - run: npm run build
-      - run: npm run test:coverage
+      - run: mkdir -p test-results && node --experimental-test-coverage --test-coverage-include="server/*.mjs" --test-reporter=spec --test-reporter-destination=stdout --test-reporter=tap --test-reporter-destination=test-results/unit.tap --test tests/*.test.mjs
+      # Show each failing unit test as an annotation on the run summary.
+      - if: failure()
+        run: |
+          node -e '
+            const t = require("fs").readFileSync("test-results/unit.tap", "utf8").split("\n");
+            t.forEach((l, i) => {
+              if (!/^\s*not ok/.test(l)) return;
+              const msg = t.slice(i, i + 30).join(" ").replace(/\s+/g, " ").slice(0, 900);
+              console.log("::error title=Unit test failed::" + msg);
+            });'
       # Every screen, button and navigation path of the app, per section
       # (writes test-results/alpha-checklist.md).
       - run: npm run test:e2e

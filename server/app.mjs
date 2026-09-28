@@ -207,6 +207,7 @@ export function createApp({
     "/login",
     "/logout",
     "/pin/set",
+    "/password/set",
     "/pin/forgot",
     "/lock/engage",
     "/lock/hidden",

@@ -159,6 +159,8 @@ export function villageState(store, req) {
             nameGu: m?.nameGu || "",
             phone: m?.phone || "",
             mustSetPin: !!m?.cred?.temp,
+            // TEMP PIN still waiting for the first login (Main Admin only).
+            tempPin: req.role === "MAIN_ADMIN" && m?.cred?.temp && !m.cred.consumed ? m.cred.handover || null : null,
           };
         })
       : [],

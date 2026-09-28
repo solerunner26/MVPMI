@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { createApp } from "../server/app.mjs";
+import { mainAdminId } from "../server/auth.mjs";
 export const example = {
   name: "Synthetic Member",
   phone: "9000000001",
@@ -17,6 +18,14 @@ export const MAIN = {
   location: "Thorala",
   password: "Testing@2026!",
 };
+// The seeded password is for the FIRST login only (tests/first-login.test.mjs
+// covers that). Other tests start after the Main Admin chose his password.
+export function firstPasswordDone(store) {
+  const m = store.get("members", mainAdminId(store));
+  delete m.cred.initial;
+  store.put("members", m);
+  return store;
+}
 export const VA_PIN = "2580";
 export const MEMBER_PIN = "3691";
 export async function fixture(t, options = {}) {
@@ -28,6 +37,7 @@ export async function fixture(t, options = {}) {
     requireAppLock: false,
     ...options,
   });
+  if (!options.keepFirstPassword) firstPasswordDone(store);
   const server = app.listen(0, "127.0.0.1");
   await new Promise((r) => server.once("listening", r));
   t.after(async () => {

@@ -90,7 +90,9 @@ export function seedMainAdmin(store, config = {}) {
     approvedBy: existing?.approvedBy || "seed",
     consentAt: existing?.consentAt || now,
     consentVersion: existing?.consentVersion || "main-admin-seed-v1",
-    cred: { password: hashSecret(password), stamp: randomUUID(), changedAt: now },
+    // "initial": this password is for the FIRST login only; the Main Admin
+    // must choose his own password right after that login.
+    cred: { password: hashSecret(password), initial: true, stamp: randomUUID(), changedAt: now },
   };
   store.tx(() => {
     store.put("members", member);
@@ -107,20 +109,26 @@ export function resetMainAdminPassword(store, password) {
   const m = store.get("members", mainAdminId(store));
   if (!m) throw new Error("No Main Admin in this database.");
   store.tx(() => {
-    m.cred = { password: hashSecret(password), stamp: randomUUID(), changedAt: Date.now() };
+    // A server reset is also a first-login-only password.
+    m.cred = { password: hashSecret(password), initial: true, stamp: randomUUID(), changedAt: Date.now() };
     store.put("members", m);
     store.audit("server-script", "main-admin.password-reset", m.id);
   });
   return m;
 }
 
-// A TEMP PIN for one login. The plain PIN is returned ONCE to the admin who
-// created it and is never stored or shown again.
+// A TEMP PIN for one login. For a member the plain PIN is returned ONCE to
+// the admin who created it and is never stored. For a VILLAGE ADMIN (owner
+// decision, 2026-09-28) the Main Admin can see it again on the Village
+// Admin's card until it is used, so he can hand it over by phone call; it
+// is deleted at that first login.
 export function issueTempPin(store, member, actor, action = "temp-pin.issue") {
   const pin = randomTempPin();
+  const villageAdmin = accountRole(store, member) === ROLES.VILLAGE_ADMIN;
   member.cred = {
     pin: hashSecret(pin),
     temp: true,
+    ...(villageAdmin ? { handover: pin } : {}),
     stamp: randomUUID(),
     changedAt: Date.now(),
   };
@@ -272,9 +280,13 @@ export function installAuth(app, store, { rate, state, alert, knownClient, clien
     }
     const fresh = store.get("members", m.id);
     const temp = !!fresh.cred.temp;
+    // TEMP PIN (members, Village Admins) or the first-time password (Main
+    // Admin): the next step is choosing their own secret.
+    const mustChoose = temp || (main && !!fresh.cred.initial);
     if (temp) {
       // A TEMP PIN works for exactly one login.
       fresh.cred.consumed = true;
+      delete fresh.cred.handover;
       store.put("members", fresh);
     }
     req.rotateSession();
@@ -283,7 +295,7 @@ export function installAuth(app, store, { rate, state, alert, knownClient, clien
     req.session.auth = {
       memberId: fresh.id,
       stamp: fresh.cred.stamp,
-      mustSetPin: temp,
+      mustSetPin: mustChoose,
       at: Date.now(),
     };
     // Admins land on the directory with their tools one tap away.
@@ -300,6 +312,8 @@ export function installAuth(app, store, { rate, state, alert, knownClient, clien
   app.post("/api/pin/set", (req, res) => {
     const me = signedIn(req);
     if (!req.session.auth.mustSetPin) fail("PIN already set", 409, "PIN_ALREADY_SET");
+    if (accountRole(store, me) === ROLES.MAIN_ADMIN)
+      fail("The Main Admin uses a password", 409, "FORBIDDEN");
     const pin = validateNewPin(req.body.pin, req.body.confirm, me.cred?.pin);
     store.tx(() => {
       me.cred = { pin: hashSecret(pin), stamp: randomUUID(), changedAt: Date.now() };
@@ -307,6 +321,27 @@ export function installAuth(app, store, { rate, state, alert, knownClient, clien
       req.session.auth = { ...req.session.auth, stamp: me.cred.stamp, mustSetPin: false };
       save(req);
       store.audit(me.id, "pin.set", me.id);
+    });
+    resolveAuth(store, req);
+    res.json(state(req));
+  });
+
+  // Section 2: the first-time Main Admin password works for ONE login; he
+  // then chooses his own (new + re-enter; he has just typed the old one).
+  app.post("/api/password/set", (req, res) => {
+    const me = signedIn(req);
+    if (accountRole(store, me) !== ROLES.MAIN_ADMIN)
+      fail("Only the Main Admin has a password", 403, "FORBIDDEN");
+    if (!req.session.auth.mustSetPin || !me.cred?.initial)
+      fail("Password already set", 409, "PIN_ALREADY_SET");
+    const password = validateNewPassword(req.body.next, req.body.confirm, me.cred.password);
+    store.tx(() => {
+      me.cred = { password: hashSecret(password), stamp: randomUUID(), changedAt: Date.now() };
+      store.put("members", me);
+      req.session.auth = { ...req.session.auth, stamp: me.cred.stamp, mustSetPin: false };
+      req.session.adminMode = true;
+      save(req);
+      store.audit(me.id, "password.set", me.id);
     });
     resolveAuth(store, req);
     res.json(state(req));

@@ -695,6 +695,24 @@
   color: var(--ink2);
   font-size: var(--f-xs);
 }
+.app.lq .alpha-va-handover {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 2px dashed var(--ind);
+}
+.app.lq .alpha-va-handover .alpha-va-pin {
+  font-size: 26px;
+  letter-spacing: 0.3em;
+  color: var(--ind);
+}
+.app.lq .alpha-va-handover .workflow-actions {
+  flex-basis: 100%;
+}
 .app.lq .alpha-va-card h3 {
   margin: 0 0 4px;
 }
