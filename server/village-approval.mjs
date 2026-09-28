@@ -1,17 +1,18 @@
 import { randomUUID } from "node:crypto";
+import { fail, publicProfile, profile, nameParts, memberRecord } from "./store.mjs";
 import {
-  fail,
-  publicProfile,
-  profile,
-  nameParts,
-  passwordHash,
-  passwordMatches,
-  strong,
-} from "./store.mjs";
+  issueTempPin,
+  mainAdminId,
+  mobileDigits,
+  isMobile,
+  accountRole,
+} from "./auth.mjs";
+import { ROLES } from "./terms.mjs";
 
-// Village administrators are delegated, village-scoped reviewers. Their
-// authority comes ONLY from an explicit phone+password sign-in, never from
-// merely being the approved member, and is re-checked live on every request.
+// Village Admins are delegated, village-scoped reviewers created only by the
+// Main Admin (Section 3). They log in with mobile + PIN like every member; their
+// authority is re-checked live on every request (a disabled admin loses it at
+// once).
 // Joining requests, village moves and mobile-number changes all pass through
 // the village administrator first. A village administrator's own record is
 // decided by the main administrator directly (nobody can verify themselves).
@@ -24,10 +25,15 @@ export const needsVerification = (r) =>
   (r.kind === "update" &&
     (r.old.village !== r.payload.village ||
       (!r.selfAdmin && numbersChanged(r))));
-// A change request for a village that has no administrator (yet) is decided
-// by the main administrator directly instead of waiting forever.
+// A request for a village that has no ACTIVE Village Admin is decided by the
+// Main Admin directly instead of waiting forever.
+export const activeAssignment = (store, village) => {
+  const a = store.get("villageAdmins", village);
+  return a && !a.disabled ? a : null;
+};
 const mainDecides = (store, r) =>
-  r.kind === "update" && !store.get("villageAdmins", r.payload.village);
+  (r.kind === "update" || r.kind === "new") &&
+  !activeAssignment(store, r.payload.village);
 
 export function decisionReason(value) {
   if (
@@ -51,37 +57,23 @@ const cleanText = (value, min, max, label) => {
   return value.trim();
 };
 
-// A sign-in stays valid for 12 hours; the live assignment is verified each use,
-// so replacing or removing the administrator revokes active sessions too.
-// The session also records the assignment version and password date at
-// sign-in: re-assignment, a password change or reset, and restore all end
-// existing village-administrator sessions immediately.
+// The logged-in Village Admin in admin mode (see server/auth.mjs).
 export function activeAdminMember(store, req) {
-  const v = req.session.villageAdmin;
-  if (!v || v.until <= Date.now()) return null;
-  const m = store.get("members", v.memberId);
+  const m = req.villageAdminMember;
   if (!m) return null;
-  const a = store.get("villageAdmins", m.village);
-  return a &&
-    a.memberId === m.id &&
-    a.version === v.version &&
-    a.passChangedAt === v.passChangedAt
-    ? m
-    : null;
+  const a = activeAssignment(store, m.village);
+  return a && a.memberId === m.id ? m : null;
 }
 
 export function villageState(store, req) {
   const vaMember = req.isAdmin ? null : activeAdminMember(store, req);
-  const ownerMe = store
-    .all("members")
-    .find((m) => m.owner === req.session.owner);
   const queue = store.all("requests").filter(needsVerification);
   const describe = ({ owner, ...r }) => ({
     ...r,
     payload: publicProfile(r.payload),
     old: r.old ? publicProfile(r.old) : undefined,
     stage: r.verification || mainDecides(store, r) ? "main" : "village",
-    hasVillageAdmin: !!store.get("villageAdmins", r.payload.village),
+    hasVillageAdmin: !!activeAssignment(store, r.payload.village),
     existingMember: req.isAdmin
       ? store.all("members").find((m) => m.phone === r.payload.phone)?.id
       : undefined,
@@ -108,18 +100,21 @@ export function villageState(store, req) {
       .sort((a, b) => a.order - b.order)
       .map((v) => ({
         ...v,
-        hasAdmin: !!store.get("villageAdmins", v.gu),
+        hasAdmin: !!activeAssignment(store, v.gu),
       })),
     villageAdmin: !!vaMember,
     villageAdminName: vaMember ? vaMember.nameGu || vaMember.name : null,
     villageAdminVillage: vaMember ? vaMember.village : null,
     adminDirectory: {
-      main: store.get("config", "main-admin-contact") || null,
+      main: (() => {
+        const m = store.get("members", mainAdminId(store));
+        return m ? { name: m.nameGu || m.name, nameEn: m.name, phone: m.phone } : null;
+      })(),
       villages: store
         .all("villages")
         .sort((a, b) => a.order - b.order)
         .map((v) => {
-          const a = store.get("villageAdmins", v.gu);
+          const a = activeAssignment(store, v.gu);
           const m = a && store.get("members", a.memberId);
           return {
             village: v.gu,
@@ -130,12 +125,6 @@ export function villageState(store, req) {
           };
         }),
     },
-    villageAdminEligible:
-      !req.isAdmin &&
-      !vaMember &&
-      !!ownerMe &&
-      !!store.get("villageAdmins", ownerMe.village) &&
-      store.get("villageAdmins", ownerMe.village).memberId === ownerMe.id,
     reviewQueue: req.isAdmin
       ? queue.map(describe)
       : vaMember
@@ -162,8 +151,42 @@ export function villageState(store, req) {
           }))
       : [],
     villageAssignments: req.isAdmin
-      ? store.all("villageAdmins").map(({ pass, ...a }) => a)
+      ? store.all("villageAdmins").map(({ pass, ...a }) => {
+          const m = store.get("members", a.memberId);
+          return {
+            ...a,
+            name: m?.name || "",
+            nameGu: m?.nameGu || "",
+            phone: m?.phone || "",
+            mustSetPin: !!m?.cred?.temp,
+          };
+        })
       : [],
+    // "Forgot PIN?" requests (Section 4): a Village Admin sees their own
+    // village; the Main Admin sees every village.
+    pinResetRequests:
+      req.isAdmin || vaMember
+        ? store
+            .all("pinResets")
+            .filter((f) => req.isAdmin || f.village === vaMember.village)
+            .map((f) => {
+              const m = store.get("members", f.memberId);
+              return m
+                ? {
+                    id: f.id,
+                    memberId: m.id,
+                    name: m.name,
+                    nameGu: m.nameGu,
+                    phone: m.phone,
+                    village: m.village,
+                    at: f.at,
+                    isVillageAdmin: accountRole(store, m) === ROLES.VILLAGE_ADMIN,
+                  }
+                : null;
+            })
+            .filter(Boolean)
+            .filter((f) => req.isAdmin || f.memberId !== vaMember.id)
+        : [],
     rejectedApplications: req.isAdmin ? store.all("rejections") : [],
     applicationStage: own ? (own.verification ? "main" : "village") : null,
     lastDecision:
@@ -179,6 +202,7 @@ export function assertVerified(store, r) {
   if (
     !r.verification ||
     !a ||
+    a.disabled ||
     a.memberId !== r.verification.memberId ||
     a.version !== r.verification.assignmentVersion
   )
@@ -208,80 +232,88 @@ const resetStaged = (store, village) => {
   }
 };
 
-// Shared by the administrator endpoint and development seed scripts.
-export function enrollAdministrator(
+// Section 3: create a Village Admin (Main Admin only). The person becomes an
+// approved member of that village if they are not one already, and gets a
+// TEMP PIN for their first login. Shared by the endpoint, seed scripts and tests.
+export function createVillageAdmin(
   store,
-  {
-    village,
-    name,
-    phone,
-    currentLocation = "",
-    pass,
-    reason = "Seeded administrator",
-    actor = "seed",
-  },
+  { village, name, mobile, currentLocation = "", actor = "seed" },
 ) {
   const v =
-    typeof village === "string" ? store.get("villages", village) : village;
+    typeof village === "string"
+      ? store.get("villages", village) ||
+        store.all("villages").find((x) => x.en.toLowerCase() === village.toLowerCase())
+      : village;
   if (!v) fail("Village not found", 404);
-  const fullName = cleanText(name, 3, 120, "name");
-  const parts = nameParts(fullName);
-  const digits = String(phone || "").replace(/\D/g, "");
-  if (!/^[6-9]\d{9}$/.test(digits))
-    fail("નંબર બરાબર લખો · Enter a valid 10-digit mobile number");
+  if (activeAssignment(store, v.gu))
+    fail("This village already has an active Village Admin", 409, "VILLAGE_TAKEN");
+  const digits = mobileDigits(mobile);
+  if (!isMobile(digits))
+    fail("Enter a valid mobile number", 400, "MOBILE_FORMAT", { field: "mobile" });
+  let m = store.all("members").find((x) => x.phone === digits);
+  if (m && m.village !== v.gu)
+    fail("This mobile number belongs to a member of another village", 409, "MEMBER_OTHER_VILLAGE", { field: "mobile" });
+  if (m && m.id === mainAdminId(store))
+    fail("The Main Admin cannot be a Village Admin", 409, "FORBIDDEN", { field: "mobile" });
   if (
-    store
-      .all("members")
-      .some((m) => m.phone === digits || m.phone2 === digits) ||
-    store.all("requests").some((r) => r.payload?.phone === digits)
+    !m &&
+    (store.all("members").some((x) => x.phone2 === digits) ||
+      store.all("requests").some((r) => r.payload?.phone === digits || r.payload?.phone2 === digits))
   )
-    fail(
-      "આ નંબર પહેલેથી નોંધાયેલ છે · This phone already has a profile or request",
-      409,
+    fail("This mobile number is already in use", 409, "PHONE_IN_USE", { field: "mobile" });
+  if (!m) {
+    const fullName = cleanText(name, 3, 120, "name");
+    const parts = nameParts(fullName);
+    const p = profile(
+      {
+        firstName: parts.firstName,
+        middleName: parts.middleName,
+        surname: parts.surname || parts.firstName,
+        nameGu: fullName,
+        phone: digits,
+        village: v.gu,
+        ...(currentLocation ? { currentLocation } : {}),
+      },
+      store.all("villages"),
     );
-  const location =
-    currentLocation === undefined || currentLocation === ""
-      ? ""
-      : cleanText(currentLocation, 0, 240, "current location");
-  const p = {
-    firstName: parts.firstName,
-    middleName: parts.middleName,
-    surname: parts.surname,
-    name: fullName,
-    nameGu: fullName,
-    phone: digits,
-    phone2: "",
-    label2: "work",
-    village: v.gu,
-    tehsil: "મહુવા",
-    district: "ભાવનગર",
-    ...(location ? { currentLocation: location } : {}),
-  };
-  const memberId = randomUUID();
-  store.put("members", {
-    ...p,
-    id: memberId,
-    owner: randomUUID(),
-    createdAt: Date.now(),
-    approvedAt: Date.now(),
-    approvedBy: actor,
-    consentAt: Date.now(),
-    consentVersion: "administrator-enrollment-v1",
-  });
+    m = {
+      ...p,
+      id: randomUUID(),
+      owner: randomUUID(),
+      createdAt: Date.now(),
+      approvedAt: Date.now(),
+      approvedBy: actor,
+      consentAt: Date.now(),
+      consentVersion: "village-admin-created-v1",
+    };
+  }
   store.put("villageAdmins", {
     id: v.gu,
-    memberId,
+    memberId: m.id,
     version: randomUUID(),
     assignedAt: Date.now(),
     assignedBy: actor,
-    reason,
-    username: digits,
-    pass: passwordHash(pass),
-    passChangedAt: Date.now(),
+    reason: "Created by the Main Admin",
   });
-  store.audit(actor, "village-admin.enroll:" + reason, memberId);
-  return memberId;
+  const pin = issueTempPin(store, m, actor, "village-admin.create");
+  for (const f of store.all("pinResets").filter((x) => x.memberId === m.id))
+    store.del("pinResets", f.id);
+  resetStaged(store, v.gu);
+  return {
+    pin,
+    kind: "village-admin",
+    memberId: m.id,
+    name: m.name,
+    nameGu: m.nameGu,
+    phone: m.phone,
+    village: v.gu,
+    villageEn: v.en,
+  };
 }
+// Older scripts call the previous name.
+export const enrollAdministrator = (store, options) =>
+  createVillageAdmin(store, { ...options, mobile: options.mobile ?? options.phone });
+
 // Development/test helper: mark a staged request as village-verified exactly
 // like the signed-in endpoint does. Production traffic always uses the endpoint.
 export function forwardRequest(
@@ -308,201 +340,111 @@ export function forwardRequest(
   return r;
 }
 
-const credential = (pass) => {
-  if (!strong(pass))
-    fail(
-      "મજબૂત પાસવર્ડ જરૂરી (10+ અક્ષર, મોટા-નાના અક્ષર, આંકડો, ચિહ્ન) · Choose a strong password (10+ characters, upper/lowercase, digit, symbol)",
-    );
-  return pass;
-};
-
 export function installVillageApproval(
   app,
   store,
-  { admin, state, rate, notify = () => {}, clientKey, knownClient, issuePinReset },
+  { admin, state, rate, notify = () => {} },
 ) {
   const villageLabel = (gu) => {
     const v = store.get("villages", gu);
     return { gu, en: v?.en || gu };
   };
-  // Enrolling the first administrators is a main-administrator trust decision:
-  // the person is created as an approved member WITH credentials in one step.
-  app.post("/api/admin/village-admins/:village", admin, (req, res) => {
-    const village = store.get("villages", req.params.village);
-    if (!village) fail("Village not found", 404);
-    const reason = req.body.reason?.trim() || "Administrator change";
-    if (req.body.reason?.trim()) decisionReason(req.body.reason);
-    if (req.body.identityConfirmed !== true)
-      fail("Confirm identity in person before appointment");
-    store.tx(() => {
-      if (req.body.memberId === null) {
-        store.del("villageAdmins", village.gu);
-        resetStaged(store, village.gu);
-        store.audit(
-          req.session.owner,
-          "village-admin.remove:" + reason,
-          village.gu,
-        );
-      } else if (req.body.memberId !== undefined) {
-        const m = store.get("members", req.body.memberId);
-        if (!m || m.village !== village.gu)
-          fail("Choose an approved member of this village");
-        const previous = store.get("villageAdmins", village.gu);
-        if (previous && previous.memberId === m.id)
-          fail("This member already administers the village", 409);
-        store.put("villageAdmins", {
-          id: village.gu,
-          memberId: m.id,
-          version: randomUUID(),
-          assignedAt: Date.now(),
-          assignedBy: req.session.owner,
-          reason,
-          username: m.phone,
-          pass: passwordHash(credential(req.body.pass)),
-          passChangedAt: Date.now(),
-        });
-        resetStaged(store, village.gu);
-        store.audit(
-          req.session.owner,
-          "village-admin.assign:" + reason,
-          village.gu,
-        );
-      } else {
-        enrollAdministrator(store, {
-          village,
-          name: req.body.name,
-          phone: req.body.phone,
-          currentLocation: req.body.currentLocation,
-          pass: credential(req.body.pass),
-          reason,
-          actor: req.session.owner,
-        });
-        // Requests forwarded by the previous administrator return to the
-        // village queue for the new administrator (never stuck).
-        resetStaged(store, village.gu);
-      }
-    });
-    res.json(state(req));
+  // ---- Section 3: Manage Village Admins (Main Admin only) ----------------
+  const villageOf = (req) => {
+    const v = store.get("villages", req.params.village);
+    if (!v) fail("Village not found", 404);
+    return v;
+  };
+  const assignmentOf = (v) => {
+    const a = store.get("villageAdmins", v.gu);
+    if (!a) fail("This village has no Village Admin", 404, "NO_VILLAGE_ADMIN");
+    const m = store.get("members", a.memberId);
+    if (!m) fail("Village Admin record is missing", 404, "NO_VILLAGE_ADMIN");
+    return { a, m };
+  };
+  const issuedFor = (m, v, pin, kind) => ({
+    pin,
+    kind,
+    memberId: m.id,
+    name: m.name,
+    nameGu: m.nameGu,
+    phone: m.phone,
+    village: v.gu,
+    villageEn: v.en,
   });
-
-  app.post("/api/admin/village-admins/:village/password", admin, (req, res) => {
-    const village = store.get("villages", req.params.village);
-    if (!village) fail("Village not found", 404);
-    const a = store.get("villageAdmins", village.gu);
-    if (!a) fail("This village has no administrator", 409);
-    const reason = req.body.reason?.trim() || "Password reset";
-    if (req.body.reason?.trim()) decisionReason(req.body.reason);
-    if (req.body.identityConfirmed !== true)
-      fail("Confirm identity in person before resetting the password");
+  app.post("/api/admin/village-admins/:village/create", admin, (req, res) => {
+    const v = villageOf(req);
+    let issued;
     store.tx(() => {
-      a.pass = passwordHash(credential(req.body.pass));
-      a.passChangedAt = Date.now();
-      store.put("villageAdmins", a);
-      store.audit(
-        req.session.owner,
-        "village-admin.password:" + reason,
-        village.gu,
-      );
-    });
-    res.json(state(req));
-  });
-
-  // Separate sign-in for village administrators. The hidden sun-tap gate and
-  // the main password never appear on this path.
-  app.post("/api/village/login", (req, res) => {
-    rate("village-login:" + req.session.id, 10, 900000);
-    const phone = String(req.body.phone || "").replace(/\D/g, "");
-    if (!/^[6-9]\d{9}$/.test(phone))
-      fail("નંબર બરાબર લખો · Enter a valid 10-digit mobile number");
-    // Wrong passwords are limited per number AND per client, so a stranger
-    // cannot lock a real administrator out from another network.
-    const phoneKey =
-      "village-login-phone:" +
-      phone +
-      ":" +
-      (knownClient(req) ? clientKey(req) : req.session.id);
-    const blocked = (key, max) => (store.get("limits", key)?.until > Date.now() && store.get("limits", key).count >= max);
-    if (blocked(phoneKey, 5) || blocked("village-login-phone:" + phone, 100))
-      fail("ઘણા પ્રયાસો થયા · Too many attempts. Please try again later.", 429);
-    // The administrator signs in with their CURRENT member number, so an
-    // approved number change moves the sign-in with it.
-    const a = store.all("villageAdmins").find((x) => {
-      const m = store.get("members", x.memberId);
-      return m ? m.phone === phone : x.username === phone;
-    });
-    const attempt = String(req.body.pass ?? "");
-    // Always burn a hash comparison so timing does not reveal enrollments.
-    const matches = passwordMatches(
-      attempt,
-      a?.pass || "00000000000000000000000000000000:" + "0".repeat(128),
-    );
-    const m = a && matches ? store.get("members", a.memberId) : null;
-    if (!m || m.village !== a.id) {
-      try {
-        rate(phoneKey, 1e9);
-        rate("village-login-phone:" + phone, 1e9, 3600000);
-      } catch {}
-      fail(
-        "ગામ એડમિન સાઇન ઇન નિષ્ફળ · Village administrator sign-in failed",
-        401,
-      );
-    }
-    req.rotateSession();
-    store.tx(() => {
-      req.session.villageAdmin = {
-        memberId: m.id,
-        until: Date.now() + 12 * 3600000,
-        version: a.version,
-        passChangedAt: a.passChangedAt,
-      };
-      // Notifications continue after the 12-hour sign-in ends, until the
-      // administrator signs out or the assignment/password changes.
-      req.session.villageNotify = {
-        village: a.id,
-        memberId: m.id,
-        version: a.version,
-        passChangedAt: a.passChangedAt,
-      };
-      store.put("sessions", req.session);
-      store.audit(m.id, "village.login", a.id);
-    });
-    res.json(state(req));
-  });
-
-  app.post("/api/village/logout", (req, res) => {
-    if (req.session.villageAdmin) {
-      store.tx(() => {
-        delete req.session.villageAdmin;
-        delete req.session.villageNotify;
-        store.put("sessions", req.session);
-        store.audit(req.session.owner, "village.logout", req.session.owner);
+      issued = createVillageAdmin(store, {
+        village: v,
+        name: req.body.name,
+        mobile: req.body.mobile,
+        actor: req.me.id,
       });
-    }
-    res.json(state(req));
+    });
+    res.json({ ...state(req), issuedPin: issued });
   });
-
-  app.post("/api/village/password", (req, res) => {
-    const me = activeAdminMember(store, req);
-    if (!me) fail("Village administrator sign-in required", 403);
-    const a = store.get("villageAdmins", me.village);
-    if (!a || !passwordMatches(String(req.body.current ?? ""), a.pass))
-      fail(
-        "ગામ એડમિન સાઇન ઇન નિષ્ફળ · Village administrator sign-in failed",
-        401,
-      );
+  app.post("/api/admin/village-admins/:village/edit", admin, (req, res) => {
+    const v = villageOf(req);
+    const { m } = assignmentOf(v);
+    const fullName = cleanText(req.body.name, 3, 120, "name");
+    const parts = nameParts(fullName);
+    const digits = mobileDigits(req.body.mobile);
+    if (!isMobile(digits))
+      fail("Enter a valid mobile number", 400, "MOBILE_FORMAT", { field: "mobile" });
+    const p = profile(
+      {
+        ...m,
+        firstName: parts.firstName,
+        middleName: parts.middleName,
+        surname: parts.surname || parts.firstName,
+        nameGu: m.nameGu === m.name ? fullName : m.nameGu,
+        phone: digits,
+      },
+      store.all("villages"),
+    );
     store.tx(() => {
-      a.pass = passwordHash(credential(req.body.next));
-      a.passChangedAt = Date.now();
-      store.put("villageAdmins", a);
-      // Other devices signed in with the old password are signed out; this
-      // device continues with the new password date.
-      req.session.villageAdmin.passChangedAt = a.passChangedAt;
-      if (req.session.villageNotify)
-        req.session.villageNotify.passChangedAt = a.passChangedAt;
-      store.put("sessions", req.session);
-      store.audit(me.id, "village.password", a.id);
+      try {
+        store.unique(p, m.owner);
+      } catch {
+        fail("This mobile number is already in use", 409, "PHONE_IN_USE", { field: "mobile" });
+      }
+      store.put("members", { ...m, ...p });
+      store.audit(req.me.id, "village-admin.edit", v.gu);
     });
     res.json(state(req));
+  });
+  app.post("/api/admin/village-admins/:village/disable", admin, (req, res) => {
+    const v = villageOf(req);
+    const { a } = assignmentOf(v);
+    store.tx(() => {
+      store.put("villageAdmins", { ...a, disabled: true, disabledAt: Date.now(), disabledBy: req.me.id });
+      store.audit(req.me.id, "village-admin.disable", v.gu);
+    });
+    res.json(state(req));
+  });
+  app.post("/api/admin/village-admins/:village/enable", admin, (req, res) => {
+    const v = villageOf(req);
+    const { a } = assignmentOf(v);
+    store.tx(() => {
+      const { disabled, disabledAt, disabledBy, ...rest } = a;
+      store.put("villageAdmins", { ...rest, version: randomUUID() });
+      resetStaged(store, v.gu);
+      store.audit(req.me.id, "village-admin.enable", v.gu);
+    });
+    res.json(state(req));
+  });
+  app.post("/api/admin/village-admins/:village/reset", admin, (req, res) => {
+    const v = villageOf(req);
+    const { m } = assignmentOf(v);
+    let pin;
+    store.tx(() => {
+      pin = issueTempPin(store, m, req.me.id, "village-admin.reset");
+      for (const f of store.all("pinResets").filter((x) => x.memberId === m.id))
+        store.del("pinResets", f.id);
+    });
+    res.json({ ...state(req), issuedPin: issuedFor(m, v, pin, "village-admin-reset") });
   });
 
   // A village administrator may correct applicant details (spelling, numbers)
@@ -556,7 +498,11 @@ export function installVillageApproval(
     const action = req.params.action;
     if (!["forward", "reject", "close"].includes(action))
       fail("Invalid decision");
-    const reason = req.body.reason?.trim().slice(0, 500) || "";
+    // Section 3: a rejection always carries a reason for the applicant.
+    const reason =
+      action === "reject"
+        ? decisionReason(req.body.reason)
+        : req.body.reason?.trim().slice(0, 500) || "";
     if (action === "forward" && req.body.identityConfirmed !== true)
       fail("Confirm independent identity verification");
     store.tx(() => {
@@ -657,7 +603,7 @@ export function installVillageApproval(
         owner: m.owner,
         kind: "update",
         memberId: m.id,
-        old: m,
+        old: memberRecord(m),
         payload: p,
         createdAt: Date.now(),
         proposedBy: me.id,
@@ -697,7 +643,7 @@ export function installVillageApproval(
         owner: m.owner,
         kind: "delete",
         memberId: m.id,
-        old: m,
+        old: memberRecord(m),
         reason,
         createdAt: Date.now(),
         proposedBy: me.id,
@@ -714,21 +660,63 @@ export function installVillageApproval(
     res.json(state(req));
   });
 
-  // Forgotten app PIN: after confirming the member by phone, the village
-  // administrator creates a one-time code and reads it to them.
+  // Forgotten PIN (Section 4): after confirming the member, the Village
+  // Admin creates a TEMP PIN and shares it through the WhatsApp button.
   app.post("/api/village/members/:id/pin-reset", (req, res) => {
     const me = activeAdminMember(store, req);
-    if (!me) fail("Village administrator sign-in required", 403);
+    if (!me) fail("Village Admin login required", 403, "FORBIDDEN");
     const m = store.get("members", req.params.id);
     if (!m) fail("Member not found", 404);
     if (m.village !== me.village)
-      fail("This member belongs to another village", 403);
+      fail("This member belongs to another village", 403, "FORBIDDEN");
     if (m.id === me.id)
-      fail("Ask the main administrator for your own reset code", 409);
-    if (req.body.identityConfirmed !== true)
-      fail("Confirm you spoke with this member first");
-    rate("pin-reset-issue:" + me.id, 20, 3600000);
-    issuePinReset(req, res, m, me.id, "village");
+      fail("Ask the Main Admin to reset your own PIN", 409, "FORBIDDEN");
+    rate("pin-reset-issue:" + me.id, 30, 3600000);
+    let pin;
+    store.tx(() => {
+      pin = issueTempPin(store, m, me.id, "temp-pin.reset");
+      for (const f of store.all("pinResets").filter((x) => x.memberId === m.id))
+        store.del("pinResets", f.id);
+    });
+    const v = store.get("villages", m.village) || { gu: m.village, en: m.village };
+    res.json({ ...state(req), issuedPin: issuedFor(m, v, pin, "reset") });
+  });
+
+  // "Forgot PIN?" on the Login screen. It never resets anything by itself:
+  // it asks that village's admin (or the Main Admin, for a Village Admin or a
+  // village without an active admin) to create a TEMP PIN.
+  app.post("/api/pin/forgot", (req, res) => {
+    rate("pin-forgot:" + req.session.id, 10, 3600000);
+    const digits = mobileDigits(req.body.mobile);
+    if (!isMobile(digits))
+      fail("Enter a valid mobile number", 400, "MOBILE_FORMAT", { field: "mobile" });
+    const m = store.all("members").find((x) => x.phone === digits);
+    // Same answer whether or not the number exists (no member lookup).
+    if (m && accountRole(store, m) !== ROLES.MAIN_ADMIN) {
+      rate("pin-forgot-member:" + m.id, 5, 86400000);
+      const existing = store.all("pinResets").find((f) => f.memberId === m.id);
+      if (!existing) {
+        store.put("pinResets", { id: randomUUID(), memberId: m.id, village: m.village, at: Date.now() });
+        const toMain =
+          accountRole(store, m) === ROLES.VILLAGE_ADMIN || !activeAssignment(store, m.village);
+        const place = villageLabel(m.village);
+        notify(toMain ? "main" : "village:" + m.village, {
+          kind: "pin-reset-request",
+          titleGu: "પિન ભૂલી જવાની વિનંતી",
+          titleEn: "Forgot PIN request",
+          bodyGu: (m.nameGu || m.name) + " · " + place.gu,
+          bodyEn: m.name + " · " + place.en,
+        });
+      }
+    }
+    res.json({ ok: true });
+  });
+  app.post("/api/village/pin-requests/:id/dismiss", (req, res) => {
+    const me = activeAdminMember(store, req);
+    if (!me && !req.isAdmin) fail("Admin login required", 403, "FORBIDDEN");
+    const f = store.get("pinResets", req.params.id);
+    if (f && (req.isAdmin || f.village === me.village)) store.del("pinResets", f.id);
+    res.json(state(req));
   });
 
   // Old codes can no longer grant access, including codes issued before migration.

@@ -213,125 +213,10 @@ export function AllAdminDirectory({ data, lang, onClose }) {
   );
 }
 
-// Separate, visible sign-in for village administrators. The hidden sun-tap
-// gate and the main-administrator password are never part of this flow.
-export function VillageAdminLogin({ lang, onAction, onClose, onMainAdmin }) {
-  const h = React.createElement,
-    B = (gu, en) => bilingual(gu, en, lang);
-  const [phone, setPhone] = React.useState(""),
-    [pass, setPass] = React.useState(""),
-    [busy, setBusy] = React.useState(false),
-    [error, setError] = React.useState("");
-  return h(
-    "div",
-    { className: "preferences-scrim" },
-    h(
-      "section",
-      {
-        className: "preferences-panel workflow-panel",
-        role: "dialog",
-        "aria-modal": true,
-        "aria-label":
-          lang === "gu" ? "ગામ એડમિન સાઇન ઇન" : "Village administrator sign in",
-        tabIndex: -1,
-      },
-      h(
-        "header",
-        { className: "workflow-heading" },
-        h(
-          "h2",
-          { className: "workflow-title" },
-          B("ગામ એડમિન સાઇન ઇન", "Village administrator sign in"),
-        ),
-        h(
-          "button",
-          {
-            type: "button",
-            className: "workflow-chip workflow-back",
-            title: B("પાછા જાઓ", "Back"),
-            "aria-label": B("પાછા જાઓ", "Back"),
-            onClick: onClose,
-          },
-          h("i", {
-            className: "ph-duotone ph-arrow-left",
-            "aria-hidden": true,
-          }),
-        ),
-      ),
-      h(
-        "p",
-        null,
-        B(
-          "આ સાઇન ઇન ગામના એડમિન માટે છે. મુખ્ય એડમિન નીચેના બટનથી અલગ પ્રવેશ કોડ અને પાસવર્ડ વડે સાઇન ઇન કરે છે.",
-          "This sign-in is for village administrators. The main administrator uses the separate button below, with its own access code and password.",
-        ),
-      ),
-      error && h("p", { role: "alert" }, errorText(error, lang)),
-      h(
-        "form",
-        {
-          onSubmit: async (e) => {
-            e.preventDefault();
-            if (busy) return;
-            setBusy(true);
-            setError("");
-            try {
-              await onAction("village/login", { phone, pass });
-            } catch (err) {
-              setError(err.message);
-            } finally {
-              setBusy(false);
-            }
-          },
-        },
-        h(
-          "label",
-          { className: "workflow-field" },
-          B("ફોન નંબર", "Phone number"),
-          h("input", {
-            value: phone,
-            inputMode: "numeric",
-            autoComplete: "off",
-            maxLength: 13,
-            onChange: (e) => setPhone(e.target.value),
-          }),
-        ),
-        h(
-          "label",
-          { className: "workflow-field" },
-          B("પાસવર્ડ", "Password"),
-          h("input", {
-            type: "password",
-            value: pass,
-            autoComplete: "off",
-            onChange: (e) => setPass(e.target.value),
-          }),
-        ),
-        h(
-          "button",
-          { type: "submit", disabled: busy, className: "lq-primary" },
-          B("સાઇન ઇન", "Sign in"),
-        ),
-      ),
-      onMainAdmin &&
-        h(
-          "button",
-          {
-            type: "button",
-            className: "workflow-main-admin",
-            onClick: onMainAdmin,
-          },
-          h("i", { className: "ph-duotone ph-crown-simple", "aria-hidden": true }),
-          " ",
-          B("મુખ્ય એડમિન સાઇન ઇન", "Main administrator sign in"),
-        ),
-    ),
-  );
-}
 // Every section tab carries an icon (Swiggy-style tabs).
 const WORKFLOW_TAB_ICONS = {
   requests: "ph-tray",
-  villages: "ph-key",
+  villages: "ph-user-gear",
   pins: "ph-lock-key",
   rejections: "ph-x-circle",
   removed: "ph-user-minus",
@@ -343,6 +228,8 @@ export function VillageWorkflow({
   lang,
   onAction,
   onClose,
+  onAdminLogout,
+  flash = () => {},
   initialTab = "requests",
 }) {
   const h = React.createElement,
@@ -364,28 +251,29 @@ export function VillageWorkflow({
       setBusy(false);
     }
   }
-  // Calls that return a value (PIN reset codes) instead of new state.
-  act.raw = async (path, body) => {
+  // Forms that show their own errors (Village Admin form).
+  act.strict = async (path, body) => {
     setBusy(true);
     setError("");
     try {
-      return await onAction.raw(path, body);
+      await onAction(path, body);
     } finally {
       setBusy(false);
     }
   };
+  const pinCount = (data.pinResetRequests || []).length;
   const tabs = main
     ? [
         ["requests", "વિનંતીઓ", "Requests"],
-        ["villages", "પાસવર્ડ રીસેટ", "Password reset"],
-        ["pins", "સભ્ય પિન રીસેટ", "Member PIN reset"],
+        ["villages", STR["va.title"][0], STR["va.title"][1]],
+        ["pins", STR["pinreq.title"][0] + (pinCount ? " · " + pinCount : ""), STR["pinreq.title"][1] + (pinCount ? " · " + pinCount : "")],
         ["rejections", "નામંજૂર / બંધ વિનંતીઓ", "Rejected / closed requests"],
         ["removed", "દૂર કરેલા સભ્યો", "Removed members"],
       ]
     : [
         ["requests", "વિનંતીઓ", "Requests"],
         ["members", "મારા ગામના સભ્યો", "My village members"],
-        ["account", "ખાતું", "Account"],
+        ["pins", STR["pinreq.title"][0] + (pinCount ? " · " + pinCount : ""), STR["pinreq.title"][1] + (pinCount ? " · " + pinCount : "")],
       ];
   return h(
     "div",
@@ -456,9 +344,10 @@ export function VillageWorkflow({
                 type: "button",
                 className: "workflow-chip workflow-signout",
                 disabled: busy,
-                title: B("સાઇન આઉટ", "Sign out"),
-                "aria-label": B("સાઇન આઉટ", "Sign out"),
-                onClick: () => act("village/logout", {}),
+                title: t("nav.adminLogout", lang),
+                "aria-label": t("nav.adminLogout", lang),
+                "data-testid": "Admin logout",
+                onClick: onAdminLogout,
               },
               h("i", {
                 className: "ph-duotone ph-sign-out",
@@ -470,8 +359,9 @@ export function VillageWorkflow({
             {
               type: "button",
               className: "workflow-chip workflow-back",
-              title: B("પાછા જાઓ", "Back to dashboard"),
-              "aria-label": B("પાછા જાઓ", "Back to dashboard"),
+              title: main ? B("પાછા જાઓ", "Back to dashboard") : t("common.back", lang),
+              "aria-label": main ? B("પાછા જાઓ", "Back to dashboard") : t("common.back", lang),
+              "data-testid": "Workflow back",
               onClick: onClose,
             },
             h("i", {
@@ -517,13 +407,10 @@ export function VillageWorkflow({
       !main &&
         tab === "members" &&
         h(WorkflowMembers, { data, lang, act, busy }),
-      !main &&
-        tab === "account" &&
-        h(WorkflowAccount, { data, lang, act, busy }),
       main &&
         tab === "villages" &&
-        h(WorkflowVillageManager, { data, lang, act, busy }),
-      main && tab === "pins" && h(WorkflowPinHelp, { data, lang, onAction }),
+        h(AManageVillageAdmins, { data, lang, act, flash }),
+      tab === "pins" && h(APinRequests, { data, lang, act, main }),
       main &&
         tab === "rejections" &&
         h(
@@ -544,6 +431,21 @@ export function VillageWorkflow({
                   { className: "workflow-card", key: r.id },
                   h("h3", null, r.name),
                   h("p", null, r.phone, r.phone2 ? " · " + r.phone2 : ""),
+                  r.events[r.events.length - 1]?.action === "reject"
+                    ? h(
+                        "button",
+                        {
+                          type: "button",
+                          disabled: busy,
+                          "data-testid": "Allow rejoin",
+                          onClick: async () => {
+                            await act("admin/rejections/" + r.id + "/allow-rejoin", {});
+                            flash(t("rejoin.done", lang));
+                          },
+                        },
+                        t("rejoin.allow", lang),
+                      )
+                    : null,
                   ...r.events
                     .slice()
                     .reverse()
@@ -589,6 +491,21 @@ export function VillageWorkflow({
                   h("h3", null, a.name),
                   h("p", null, a.phone, a.phone2 ? " · " + a.phone2 : ""),
                   h("p", null, a.status),
+                  a.rejoinAllowed
+                    ? h("p", { className: "workflow-status" }, t("rejoin.done", lang))
+                    : h(
+                        "button",
+                        {
+                          type: "button",
+                          disabled: busy,
+                          "data-testid": "Allow rejoin",
+                          onClick: async () => {
+                            await act("admin/archive/" + a.id + "/allow-rejoin", {});
+                            flash(t("rejoin.done", lang));
+                          },
+                        },
+                        t("rejoin.allow", lang),
+                      ),
                   ...(a.history || []).map((e, i) =>
                     h(
                       "p",
@@ -623,16 +540,14 @@ function workflowTools(lang, busy) {
     button(label, onClick, { ...props, className: "lq-danger" });
   const field = (label, props) =>
     h("label", { className: "workflow-field" }, label, h("input", props));
-  // Password field with the show/hide "eye" control. Rendered as its own
-  // component so it may appear conditionally (hooks stay per-component).
-  const secretField = (label, value, setValue, props = {}) =>
-    h(WorkflowSecret, { label, value, setValue, props, lang });
-  return { h, B, field, button, primary, danger, secretField };
+  return { h, B, field, button, primary, danger };
 }
 function WorkflowDecision({ request: r, data, lang, act, busy }) {
   const { h, B, field, button, primary, danger } = workflowTools(lang, busy);
   const main = data.role === "admin";
   const [confirmed, setConfirmed] = React.useState(false),
+    [rejecting, setRejecting] = React.useState(false),
+    [rejectReason, setRejectReason] = React.useState(""),
     [correcting, setCorrecting] = React.useState(false),
     [form, setForm] = React.useState({
       firstName: r.payload.firstName || "",
@@ -910,15 +825,11 @@ function WorkflowDecision({ request: r, data, lang, act, busy }) {
             () => act("village/requests/" + r.id + "/forward", body),
             { disabled: busy || !confirmed },
           ),
-      danger(
-        B("નામંજૂર કરો", "Reject"),
-        () =>
-          act(
-            (main ? "admin" : "village") + "/requests/" + r.id + "/reject",
-            body,
-          ),
-        { disabled: busy },
-      ),
+      !rejecting &&
+        danger(B("નામંજૂર કરો", "Reject"), () => setRejecting(true), {
+          disabled: busy,
+          "data-testid": "Reject start",
+        }),
       !main &&
         button(
           B("વિનંતી બંધ કરો", "Close request"),
@@ -926,6 +837,37 @@ function WorkflowDecision({ request: r, data, lang, act, busy }) {
           { disabled: busy },
         ),
     ),
+    rejecting &&
+      h(
+        "div",
+        { className: "workflow-correction" },
+        h(
+          "label",
+          { className: "workflow-field" },
+          t("review.rejectReason", lang),
+          h("textarea", {
+            value: rejectReason,
+            maxLength: 500,
+            rows: 3,
+            "data-testid": "Reject reason",
+            onChange: (e) => setRejectReason(e.target.value),
+          }),
+        ),
+        h(
+          "div",
+          { className: "workflow-actions" },
+          danger(
+            B("નામંજૂર કરો", "Reject"),
+            () =>
+              act((main ? "admin" : "village") + "/requests/" + r.id + "/reject", {
+                ...body,
+                reason: rejectReason,
+              }),
+            { disabled: busy || rejectReason.trim().length < 5, "data-testid": "Reject confirm" },
+          ),
+          button(t("common.cancel", lang), () => setRejecting(false)),
+        ),
+      ),
   );
 }
 // Village-administrator view of their own community members. Every proposal is
@@ -965,12 +907,23 @@ function WorkflowMembers({ data, lang, act, busy }) {
 }
 function WorkflowMemberCard({ member: m, data, lang, act, busy, pending }) {
   const { h, B, field, button, primary, danger } = workflowTools(lang, busy);
-  const pin = h(PinCodeIssuer, {
-    lang,
-    busy,
-    self: m.id === data.meId,
-    issue: (body) => act.raw("village/members/" + m.id + "/pin-reset", body),
-  });
+  const [confirmPin, setConfirmPin] = React.useState(false);
+  const pin =
+    m.id === data.meId
+      ? null
+      : confirmPin
+        ? h(AConfirm, {
+            title: t("pinreq.create", lang),
+            body: t("pinreq.confirm", lang, { name: bilingual(m.nameGu, m.name, lang) }),
+            yes: t("pinreq.create", lang),
+            no: t("common.cancel", lang),
+            onNo: () => setConfirmPin(false),
+            onYes: async () => {
+              setConfirmPin(false);
+              await act("village/members/" + m.id + "/pin-reset", {});
+            },
+          })
+        : button(t("pinreq.create", lang), () => setConfirmPin(true), { "data-testid": "Member TEMP PIN" });
   const [mode, setMode] = React.useState(null),
     [reason, setReason] = React.useState(""),
     [form, setForm] = React.useState({
@@ -1117,482 +1070,5 @@ function WorkflowMemberCard({ member: m, data, lang, act, busy, pending }) {
           button(B("રદ કરો", "Cancel"), () => setMode(null)),
         ),
       ),
-  );
-}
-function WorkflowAccount({ data, lang, act, busy }) {
-  const { h, B, field, button, primary, danger } = workflowTools(lang, busy);
-  const [current, setCurrent] = React.useState(""),
-    [next, setNext] = React.useState("");
-  return h(
-    "div",
-    null,
-    h(
-      "p",
-      null,
-      B(
-        "સાઇન ઇન 12 કલાક માટે યાદ રહે છે. ગામ એડમિનને મુખ્ય એડમિનનો છુપો પ્રવેશ મળતો નથી.",
-        "Sign-in lasts 12 hours. Village administrators never receive the main administrator's hidden access.",
-      ),
-    ),
-    h(
-      "article",
-      { className: "workflow-card" },
-      h("h3", null, B("પાસવર્ડ બદલો", "Change password")),
-      field(B("હાલનો પાસવર્ડ", "Current password"), {
-        type: "password",
-        value: current,
-        autoComplete: "off",
-        onChange: (e) => setCurrent(e.target.value),
-      }),
-      field(B("નવો પાસવર્ડ", "New password"), {
-        type: "password",
-        value: next,
-        autoComplete: "off",
-        onChange: (e) => setNext(e.target.value),
-      }),
-      h(
-        "div",
-        { className: "workflow-actions" },
-        primary(
-          B("પાસવર્ડ બદલો", "Change password"),
-          () => act("village/password", { current, next }),
-          { disabled: busy || !current || !next },
-        ),
-      ),
-    ),
-    h(
-      "article",
-      { className: "workflow-card" },
-      h("h3", null, B("સાઇન આઉટ", "Sign out")),
-      button(B("ગામ એડમિન સાઇન આઉટ", "Sign out village administrator"), () =>
-        act("village/logout", {}),
-      ),
-    ),
-  );
-}
-// Village administration: one dropdown selects the village; the card below
-// shows that village's current administrator, members and the password reset
-// controls. The village list itself is fixed (seven villages) — there is no
-// add-village feature any more.
-function WorkflowVillageManager({ data, lang, act, busy }) {
-  const { h, B, field, button, primary, danger } = workflowTools(lang, busy);
-  const [villageId, setVillageId] = React.useState("");
-  const villages = data.villages || [];
-  const selected = villages.find((x) => x.id === villageId) || villages[0];
-  return h(
-    "div",
-    null,
-    h(
-      "p",
-      null,
-      B(
-        "ગામ પસંદ કરો — તે ગામના સભ્યો, હાલના એડમિન અને પાસવર્ડ રીસેટ નીચે દેખાશે. ગામની યાદી સાત ગામમાં સ્થિર છે.",
-        "Choose a village — its members, current administrator and password reset appear below. The village list is fixed at seven villages.",
-      ),
-    ),
-    h(
-      "label",
-      { className: "workflow-field" },
-      B("ગામ", "Village"),
-      h(
-        "select",
-        {
-          value: selected ? selected.id : "",
-          "data-testid": "Village select",
-          onChange: (e) => setVillageId(e.target.value),
-        },
-        ...villages.map((x) =>
-          h("option", { key: x.id, value: x.id }, bilingual(x.gu, x.en, lang)),
-        ),
-      ),
-    ),
-    selected
-      ? h(WorkflowAssignment, {
-          key: selected.id,
-          village: selected,
-          data,
-          lang,
-          act,
-          busy,
-        })
-      : h("p", null, B("ગામ નથી.", "No villages.")),
-  );
-}
-function WorkflowAssignment({ village: v, data, lang, act, busy }) {
-  const { h, B, field, button, primary, danger, secretField } = workflowTools(lang, busy);
-  const a = data.villageAssignments.find((a) => a.id === v.id);
-  const admin = a && data.members.find((m) => m.id === a.memberId);
-  const members = data.members
-    .filter((m) => m.village === v.gu)
-    .sort(memberNameOrder(lang));
-  const [selection, setSelection] = React.useState(""),
-    [pass, setPass] = React.useState(""),
-    [confirmed, setConfirmed] = React.useState(false),
-    [firstName, setFirstName] = React.useState(""),
-    [middleName, setMiddleName] = React.useState(""),
-    [surname, setSurname] = React.useState(""),
-    [phone, setPhone] = React.useState(""),
-    [location, setLocation] = React.useState(""),
-    [resetPass, setResetPass] = React.useState("");
-  const name = [firstName, middleName, surname].filter(Boolean).join(" ");
-  return h(
-    "article",
-    { className: "workflow-card" },
-    h("h3", null, bilingual(v.gu, v.en, lang)),
-    h(
-      "p",
-      null,
-      B("હાલના એડમિન: ", "Current administrator: "),
-      admin
-        ? bilingual(admin.nameGu, admin.name, lang) + " · " + admin.phone
-        : B("નિયુક્ત નથી", "Unassigned"),
-    ),
-    h(
-      "p",
-      { className: "workflow-memberlist" },
-      members.length
-        ? members
-            .map((m) => bilingual(m.nameGu, m.name, lang))
-            .join(" · ")
-        : B("હજુ કોઈ સભ્ય નથી.", "No members yet."),
-    ),
-    !a &&
-      h(
-        "form",
-        {
-          onSubmit: (e) => {
-            e.preventDefault();
-            act("admin/village-admins/" + encodeURIComponent(v.id), {
-              name,
-              phone,
-              currentLocation: location,
-              pass,
-              identityConfirmed: confirmed,
-            });
-          },
-        },
-        h(
-          "p",
-          null,
-          B(
-            "પહેલો ગામ એડમિન નોંધાવો (વ્યક્તિગત ઓળખ ખાતરી કરીને):",
-            "Enroll this village's first administrator (verify the person in person):",
-          ),
-        ),
-        field(B("પ્રથમ નામ", "First name"), {
-          value: firstName,
-          required: true,
-          maxLength: 60,
-          onChange: (e) => setFirstName(e.target.value),
-        }),
-        field(B("મધ્ય નામ / પિતાનું નામ", "Middle name / father's name"), {
-          value: middleName,
-          maxLength: 60,
-          onChange: (e) => setMiddleName(e.target.value),
-        }),
-        field(B("અટક", "Surname"), {
-          value: surname,
-          required: true,
-          maxLength: 60,
-          onChange: (e) => setSurname(e.target.value),
-        }),
-        field(B("ફોન નંબર (સાઇન ઇન માટે)", "Phone number (used to sign in)"), {
-          value: phone,
-          required: true,
-          inputMode: "numeric",
-          maxLength: 13,
-          onChange: (e) => setPhone(e.target.value),
-        }),
-        field(B("હાલ : સ્થળ (વૈકલપિક)", "Current location (optional)"), {
-          value: location,
-          maxLength: 240,
-          onChange: (e) => setLocation(e.target.value),
-        }),
-        secretField(
-          B("પ્રારંભિક પાસવર્ડ (વ્યક્તિને જણાવો)", "Initial password (share it with the person)"),
-          pass,
-          setPass,
-          { required: true },
-        ),
-        h(
-          "label",
-          { className: "workflow-check" },
-          h("input", {
-            type: "checkbox",
-            checked: confirmed,
-            onChange: (e) => setConfirmed(e.target.checked),
-          }),
-          B("વ્યક્તિની ઓળખ ખાતરી કરી છે.", "I have confirmed this person's identity."),
-        ),
-        h(
-          "button",
-          { disabled: busy || !confirmed, type: "submit" },
-          B("ગામ એડમિન નોંધાવો", "Enroll administrator"),
-        ),
-      ),
-    a &&
-      h(
-        "div",
-        null,
-        h(
-          "label",
-          { className: "workflow-field" },
-          B("નવો એડમિન પસંદ કરો", "Choose a new administrator"),
-          h(
-            "select",
-            {
-              value: selection,
-              "data-testid": "New admin select",
-              onChange: (e) => setSelection(e.target.value),
-            },
-            h("option", { value: "" }, "—"),
-            h(
-              "option",
-              { value: "remove" },
-              lang === "gu"
-                ? "નિયુક્તિ દૂર કરો · Remove assignment"
-                : "Remove assignment · નિયુક્તિ દૂર કરો",
-            ),
-            ...members
-              .filter((m) => m.id !== a.memberId)
-              .map((m) =>
-                h(
-                  "option",
-                  { key: m.id, value: m.id },
-                  (lang === "gu" ? m.nameGu : m.name) + " · " + m.phone,
-                ),
-              ),
-          ),
-        ),
-        selection &&
-          selection !== "remove" &&
-          secretField(B("નવા એડમિનનો પાસવર્ડ", "New administrator's password"), pass, setPass),
-        h(
-          "label",
-          { className: "workflow-check" },
-          h("input", {
-            type: "checkbox",
-            checked: confirmed,
-            onChange: (e) => setConfirmed(e.target.checked),
-          }),
-          B(
-            "ઓળખ અને આ અધિકારની ખાતરી કરું છું.",
-            "I confirm the identity and this permission change.",
-          ),
-        ),
-        h(
-          "div",
-          { className: "workflow-actions" },
-          primary(
-            B("નિયુક્તિ સાચવો", "Save assignment"),
-            () =>
-              act("admin/village-admins/" + encodeURIComponent(v.id), {
-                identityConfirmed: confirmed,
-                ...(selection === "remove"
-                  ? { memberId: null }
-                  : selection
-                    ? { memberId: selection, pass }
-                    : {}),
-              }),
-            {
-              disabled:
-                busy ||
-                !selection ||
-                !confirmed ||
-                (selection !== "remove" && !pass),
-            },
-          ),
-        ),
-        h(
-          "details",
-          { className: "workflow-reset" },
-          h("summary", null, B("પાસવર્ડ રીસેટ કરો", "Reset password")),
-          secretField(B("નવો પાસવર્ડ", "New password"), resetPass, setResetPass),
-          primary(
-            B("પાસવર્ડ રીસેટ કરો", "Reset password"),
-            () =>
-              act(
-                "admin/village-admins/" +
-                  encodeURIComponent(v.id) +
-                  "/password",
-                {
-                  pass: resetPass,
-                  identityConfirmed: confirmed,
-                },
-              ),
-            { disabled: busy || !resetPass || !confirmed },
-          ),
-        ),
-      ),
-  );
-}
-
-// Forgotten member PIN: the administrator confirms the member by phone,
-// then reads the one-time code to them (valid for 15 minutes).
-function PinCodeIssuer({ lang, busy, issue, self }) {
-  const h = React.createElement,
-    B = (gu, en) => bilingual(gu, en, lang);
-  const [open, setOpen] = React.useState(false),
-    [confirmed, setConfirmed] = React.useState(false),
-    [code, setCode] = React.useState(""),
-    [error, setError] = React.useState("");
-  if (self) return null;
-  if (!open)
-    return h(
-      "button",
-      { type: "button", disabled: busy, onClick: () => setOpen(true) },
-      B("પિન રીસેટ કોડ", "PIN reset code"),
-    );
-  return h(
-    "div",
-    { className: "workflow-correction pin-issuer" },
-    code
-      ? h(
-          "div",
-          { role: "status" },
-          h("p", null, B("આ કોડ સભ્યને ફોન પર વાંચી સંભળાવો:", "Read this code to the member on the phone:")),
-          h("p", { className: "pin-code", "data-testid": "Issued PIN code" }, code.slice(0, 3) + " " + code.slice(3)),
-          h("p", null, B("૧૫ મિનિટ માન્ય · એક જ વાર ચાલે.", "Valid for 15 minutes · works once.")),
-          h("button", { type: "button", onClick: () => { setOpen(false); setCode(""); setConfirmed(false); } }, B("થઈ ગયું", "Done")),
-        )
-      : h(
-          "div",
-          null,
-          h(
-            "label",
-            { className: "workflow-check" },
-            h("input", {
-              type: "checkbox",
-              checked: confirmed,
-              onChange: (e) => setConfirmed(e.target.checked),
-            }),
-            B(
-              "મેં આ સભ્ય સાથે ફોન પર વાત કરી અને અવાજથી ઓળખ્યા છે.",
-              "I spoke with this member on the phone and recognised them.",
-            ),
-          ),
-          h(
-            "div",
-            { className: "workflow-actions" },
-            h(
-              "button",
-              {
-                type: "button",
-                className: "lq-primary",
-                disabled: busy || !confirmed,
-                onClick: async () => {
-                  setError("");
-                  try {
-                    const r = await issue({ identityConfirmed: true });
-                    setCode(r.code);
-                  } catch (e) {
-                    setError(errorText(e.message, lang));
-                  }
-                },
-              },
-              B("કોડ બનાવો", "Create code"),
-            ),
-            h("button", { type: "button", onClick: () => setOpen(false) }, B("રદ કરો", "Cancel")),
-          ),
-          error && h("p", { role: "alert" }, error),
-        ),
-  );
-}
-function WorkflowPinHelp({ data, lang, onAction }) {
-  const h = React.createElement,
-    B = (gu, en) => bilingual(gu, en, lang);
-  const [query, setQuery] = React.useState(""),
-    [busy, setBusy] = React.useState(false);
-  const q = query.trim().toLowerCase();
-  const digits = q.replace(/\D/g, "");
-  const found = q.length < 2
-    ? []
-    : data.members
-        .filter(
-          (m) =>
-            (m.name || "").toLowerCase().includes(q) ||
-            (m.nameGu || "").includes(query.trim()) ||
-            (digits.length >= 3 && (m.phone || "").includes(digits)),
-        )
-        .slice(0, 20);
-  return h(
-    "div",
-    null,
-    h(
-      "p",
-      null,
-      B(
-        "સભ્ય પિન ભૂલી જાય તો સામાન્ય રીતે તેમના ગામના એડમિન કોડ આપે છે. ગામના એડમિન ન હોય ત્યારે અહીંથી કોડ બનાવો.",
-        "When a member forgets their PIN their village administrator normally gives the code. Create one here when that is not possible.",
-      ),
-    ),
-    h(
-      "label",
-      { className: "workflow-field" },
-      B("નામ કે નંબર શોધો", "Search name or number"),
-      h("input", { value: query, onChange: (e) => setQuery(e.target.value) }),
-    ),
-    ...found.map((m) =>
-      h(
-        "article",
-        { className: "workflow-card", key: m.id },
-        h("h3", null, bilingual(m.nameGu, m.name, lang)),
-        h("p", null, m.phone, " · ", data.villages.find((v) => v.gu === m.village)?.[lang] || m.village),
-        h(PinCodeIssuer, {
-          lang,
-          busy,
-          self: false,
-          issue: async (body) => {
-            setBusy(true);
-            try {
-              return await onAction.raw("admin/members/" + m.id + "/pin-reset", body);
-            } finally {
-              setBusy(false);
-            }
-          },
-        }),
-      ),
-    ),
-  );
-}
-
-function WorkflowSecret({ label, value, setValue, props, lang }) {
-  const h = React.createElement,
-    B = (gu, en) => bilingual(gu, en, lang);
-  const [shown, setShown] = React.useState(false);
-  return h(
-    "label",
-    { className: "workflow-field" },
-    label,
-    h(
-      "div",
-      { className: "workflow-secret" },
-      h("input", {
-        type: shown ? "text" : "password",
-        value,
-        autoComplete: "off",
-        ...props,
-        onChange: (e) => setValue(e.target.value),
-      }),
-      h(
-        "button",
-        {
-          type: "button",
-          className: "workflow-eye",
-          title: shown
-            ? B("પાસવર્ડ છુપાવો", "Hide password")
-            : B("પાસવર્ડ બતાવો", "Show password"),
-          "aria-label": shown
-            ? B("પાસવર્ડ છુપાવો", "Hide password")
-            : B("પાસવર્ડ બતાવો", "Show password"),
-          "aria-pressed": shown,
-          onClick: () => setShown(!shown),
-        },
-        h("i", {
-          className: shown ? "ph-duotone ph-eye-slash" : "ph-duotone ph-eye",
-          "aria-hidden": true,
-        }),
-      ),
-    ),
   );
 }

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { fixture, example, VA_PASS } from "./helpers.mjs";
+import { fixture, example, MAIN, VA_PIN, MEMBER_PIN } from "./helpers.mjs";
 
 const reason = "Known personally in this village";
 const forward = { reason, identityConfirmed: true };
@@ -9,13 +9,10 @@ test("applications stay closed until the main administrator enrolls a village ad
   const f = await fixture(t),
     guest = f.client();
   const blocked = await guest("enrollment", example, 409);
-  assert.match(blocked.error, /This village has no administrator yet/);
-  await f.admin("admin/village-admins/" + encodeURIComponent("થોરાળા"), {
+  assert.equal(blocked.code, "NO_VILLAGE_ADMIN");
+  await f.admin("admin/village-admins/" + encodeURIComponent("થોરાળા") + "/create", {
     name: "Thorala Administrator",
-    phone: "7990000010",
-    pass: "Village@2026!",
-    reason,
-    identityConfirmed: true,
+    mobile: "7990000010",
   });
   await guest("enrollment", example);
   assert.equal((await guest("state")).applicationStage, "village");
@@ -24,82 +21,74 @@ test("applications stay closed until the main administrator enrolls a village ad
   await guest(`village/requests/${r.id}/forward`, forward, 403);
 });
 
-test("village administrators sign in separately and member sessions hold no admin power", async (t) => {
+test("Village Admins log in with mobile + PIN; powers exist only in admin mode and follow the live assignment", async (t) => {
   const f = await fixture(t),
     anyone = f.client();
   await f.ensureAdmin("Thorala");
-  const assignment = f.store.get("villageAdmins", "થોરાળા");
+  const vaMember = f.store.get("members", f.store.get("villageAdmins", "થોરાળા").memberId);
   const applicant = f.client();
   await applicant("enrollment", { ...example, phone: "9000000002" });
   const r = f.store.all("requests")[0];
-  await anyone(
-    "village/login",
-    { phone: assignment.username, pass: "Wrong@2026" },
-    401,
-  );
-  await anyone("village/login", { phone: "8000000000", pass: VA_PASS }, 401);
-  await anyone("village/login", { phone: assignment.username, pass: VA_PASS });
-  assert.equal((await anyone("state")).villageAdmin, true);
-  assert.match((await anyone("state")).villageAdminName, /^Administrator/);
-  // Signed-in administrator acts only on their own village queue.
+  assert.equal((await anyone("login", { mobile: vaMember.phone, secret: "1470" }, 401)).code, "WRONG_PIN");
+  assert.equal((await anyone("login", { mobile: "8000000000", secret: VA_PIN }, 404)).code, "NOT_REGISTERED");
+  let s = await anyone("login", { mobile: vaMember.phone, secret: VA_PIN });
+  assert.equal(s.villageAdmin, true);
+  assert.equal(s.account.role, "VILLAGE_ADMIN");
+  assert.match(s.villageAdminName, /^Administrator/);
+  // Admins land on the directory as members too.
+  assert.ok(s.members.length >= 2);
   await anyone(`village/requests/${r.id}/forward`, forward);
   await f.admin(`admin/requests/${r.id}/approve`, {});
-  await anyone("village/logout", {});
-  assert.equal((await anyone("state")).villageAdmin, false);
-  // A member who is later appointed administrator gains no power in their own
-  // browser session; they must use the separate administrator sign-in.
-  const memberSession = f.client();
-  await memberSession("enrollment", { ...example, phone: "9000000003" });
-  const own = f.store
-    .all("requests")
-    .find((x) => x.payload.phone === "9000000003");
-  const va2 = f.client();
-  await va2("village/login", { phone: assignment.username, pass: VA_PASS });
-  await va2(`village/requests/${own.id}/forward`, forward);
-  await f.admin(`admin/requests/${own.id}/approve`, {});
-  const appointed = f.store
-    .all("members")
-    .find((m) => m.phone === "9000000003");
-  await f.admin("admin/village-admins/" + encodeURIComponent("થોરાળા"), {
-    memberId: appointed.id,
-    pass: VA_PASS,
-    reason,
-    identityConfirmed: true,
-  });
-  assert.equal((await va2("state")).villageAdmin, false);
-  const state = await memberSession("state");
-  assert.equal(state.villageAdmin, false);
-  assert.equal(state.villageAdminEligible, true);
-  assert.deepEqual(state.reviewQueue, []);
+  // "Log out" from admin mode: still a member, no admin power.
+  s = await anyone("admin/logout", {});
+  assert.equal(s.villageAdmin, false);
+  assert.equal(s.role, "member");
   const later = f.client();
   await later("enrollment", { ...example, phone: "9000000008" });
-  const laterRequest = f.store
-    .all("requests")
-    .find((x) => x.payload.phone === "9000000008");
-  await memberSession(
-    `village/requests/${laterRequest.id}/forward`,
-    forward,
-    403,
-  );
-  const va3 = f.client();
-  await va3("village/login", { phone: appointed.phone, pass: VA_PASS });
-  await va3(`village/requests/${laterRequest.id}/forward`, forward);
+  const laterRequest = f.store.all("requests").find((x) => x.payload.phone === "9000000008");
+  await anyone(`village/requests/${laterRequest.id}/forward`, forward, 403);
+  await anyone("admin/enter", { secret: VA_PIN });
+  await anyone(`village/requests/${laterRequest.id}/forward`, forward);
   await f.admin(`admin/requests/${laterRequest.id}/approve`, {});
+  // An existing member can be made the Village Admin (after the old one is
+  // disabled): they get a TEMP PIN and their old login ends.
+  const memberSession = f.client();
+  const member = await f.enroll(memberSession, { ...example, phone: "9000000003" });
+  await f.admin("admin/village-admins/" + encodeURIComponent("થોરાળા") + "/disable", {});
+  assert.equal((await anyone("state")).villageAdmin, false);
+  const promoted = await f.admin("admin/village-admins/" + encodeURIComponent("થોરાળા") + "/create", {
+    name: "ignored for existing members",
+    mobile: member.phone,
+  });
+  assert.equal(promoted.issuedPin.memberId, member.id, "same member record");
+  assert.equal((await memberSession("state")).account, null);
+  s = await f.firstLogin(memberSession, member.phone, promoted.issuedPin.pin, "4826");
+  assert.equal(s.villageAdmin, true);
+  // A member of ANOTHER village cannot be made this village's admin.
+  const sathra = await f.enroll(f.client(), { ...example, phone: "9000000014", village: "Sathra" });
+  await f.admin("admin/village-admins/" + encodeURIComponent("થોરાળા") + "/disable", {});
+  assert.equal(
+    (await f.admin("admin/village-admins/" + encodeURIComponent("થોરાળા") + "/create", { name: "X Y", mobile: sathra.phone }, 409)).code,
+    "MEMBER_OTHER_VILLAGE",
+  );
 });
 
-test("local rejection works without a reason, retains phone and decision, never enters removed-members archive", async (t) => {
+test("local rejection needs a reason, retains phone and decision, never enters removed-members archive", async (t) => {
   const f = await fixture(t),
     guest = f.client();
   await f.ensureAdmin("Thorala");
   await guest("enrollment", example);
   let r = f.store.all("requests")[0];
-  // Reasons and categories are no longer collected from administrators.
-  await f.va("થોરાળા")(`village/requests/${r.id}/reject`, {});
+  // Village Admins reject WITH a reason (Section 3).
+  await f.va("થોરાળા")(`village/requests/${r.id}/reject`, {}, 400);
+  await f.va("થોરાળા")(`village/requests/${r.id}/reject`, { reason: "Not known in the village" });
   const main = await f.admin("state");
   assert.equal(main.rejectedApplications[0].phone, example.phone);
   assert.equal(main.archive.length, 0);
   assert.equal((await guest("state")).lastDecision.action, "reject");
   assert.deepEqual((await f.va("થોરાળા")("state")).rejectedApplications, []);
+  assert.equal((await guest("enrollment", example, 409)).code, "STATUS_REJECTED");
+  await f.admin("admin/rejections/" + main.rejectedApplications[0].id + "/allow-rejoin", {});
   await guest("enrollment", example);
   r = f.store.all("requests")[0];
   await f.va("થોરાળા")(`village/requests/${r.id}/close`, {
@@ -107,10 +96,10 @@ test("local rejection works without a reason, retains phone and decision, never 
     category: "other",
   });
   assert.equal(f.store.all("rejections").length, 1);
-  assert.equal(f.store.all("rejections")[0].events.length, 2);
+  assert.equal(f.store.all("rejections")[0].events.length, 3);
 });
 
-test("reassignment revokes authority immediately and invalidates outstanding verification", async (t) => {
+test("disabling a Village Admin revokes authority at once; the Main Admin decides that village until a new admin exists", async (t) => {
   const f = await fixture(t),
     applicant = f.client();
   await f.ensureAdmin("Thorala");
@@ -121,31 +110,25 @@ test("reassignment revokes authority immediately and invalidates outstanding ver
     phone: "7990000012",
   });
   await applicant("enrollment", { ...example, phone: "9000000004" });
-  const r = f.store
-    .all("requests")
-    .find((x) => x.payload.phone === "9000000004");
+  const r = f.store.all("requests").find((x) => x.payload.phone === "9000000004");
   await f.va("થોરાળા")(`village/requests/${r.id}/forward`, forward);
-  await f.admin("admin/village-admins/" + encodeURIComponent("થોરાળા"), {
-    memberId: next.id,
-    pass: "Village@2026!",
-    reason,
-    identityConfirmed: true,
-  });
+  await f.admin("admin/village-admins/" + encodeURIComponent("થોરાળા") + "/disable", {});
   assert.equal((await f.va("થોરાળા")("state")).villageAdmin, false);
-  await f.admin(`admin/requests/${r.id}/approve`, {}, 409);
   await f.va("થોરાળા")(`village/requests/${r.id}/forward`, forward, 403);
+  // Re-enabling restores the same admin; their phone opens the admin tools
+  // again with the PIN.
+  await f.admin("admin/village-admins/" + encodeURIComponent("થોરાળા") + "/enable", {});
+  assert.equal((await f.va("થોરાળા")("state")).account.role, "VILLAGE_ADMIN");
+  assert.equal((await f.va("થોરાળા")("admin/enter", { secret: VA_PIN })).villageAdmin, true);
+  // New admin: the old forward is invalid and the new admin verifies again.
+  await f.admin("admin/village-admins/" + encodeURIComponent("થોરાળા") + "/disable", {});
+  const created = await f.admin("admin/village-admins/" + encodeURIComponent("થોરાળા") + "/create", {
+    name: "Replacement Admin",
+    mobile: next.phone,
+  });
+  await f.admin(`admin/requests/${r.id}/approve`, {}, 409);
   const fresh = f.client();
-  await fresh(
-    "village/login",
-    { phone: "9000000004", pass: "Village@2026!" },
-    401,
-  );
-  await fresh(
-    "village/login",
-    { phone: example.phone, pass: "Village@2026!" },
-    401,
-  );
-  await fresh("village/login", { phone: next.phone, pass: "Village@2026!" });
+  await f.firstLogin(fresh, next.phone, created.issuedPin.pin, "4826");
   await fresh(`village/requests/${r.id}/forward`, forward);
   await f.admin(`admin/requests/${r.id}/approve`, {});
 });
@@ -171,17 +154,9 @@ test("village queues are scoped, self verification is denied, arbitrary villages
     { ...example, phone: "9000000006", village: "Invented" },
     400,
   );
-  const assignment = f.store.get("villageAdmins", "થોરાળા");
-  // The administrator's phone can be claimed on a new device, but only the
-  // main administrator can complete such a replacement.
-  await f.va("થોરાળા")("enrollment", {
-    ...example,
-    phone: assignment.username,
-  });
-  const own = f.store
-    .all("requests")
-    .find((x) => x.payload.phone === assignment.username);
-  await f.va("થોરાળા")(`village/requests/${own.id}/forward`, forward, 403);
+  // An approved number (here the Village Admin's own) cannot register again.
+  const vaPhone = f.store.get("members", f.store.get("villageAdmins", "થોરાળા").memberId).phone;
+  assert.equal((await f.client()("enrollment", { ...example, phone: vaPhone }, 409)).code, "STATUS_APPROVED");
 });
 
 test("the village list is fixed at seven villages and adding villages is removed", async (t) => {
@@ -272,6 +247,8 @@ test("deleted member rejoins through both stages, archive person and numbers rem
   await f.admin(`admin/members/${member.id}/delete`, {});
   assert.equal((await old("state")).role, "guest");
   const fresh = f.client();
+  assert.equal((await fresh("enrollment", example, 409)).code, "STATUS_REMOVED");
+  await f.admin("admin/archive/" + f.store.all("archive")[0].id + "/allow-rejoin", {});
   await fresh("enrollment", example);
   let r = f.store.all("requests")[0];
   await f.va("થોરાળા")(`village/requests/${r.id}/forward`, forward);
@@ -292,27 +269,16 @@ test("deleted member rejoins through both stages, archive person and numbers rem
   assert.equal(f.store.all("rejections").length, 0);
 });
 
-test("new device gets no automatic access; verified replacement revokes the previous owner", async (t) => {
+test("a member on a new phone logs in with the same PIN; there is no second registration", async (t) => {
   const f = await fixture(t),
     old = f.client();
-  const member = await f.enroll(old, example);
+  await f.enroll(old, example);
   const fresh = f.client();
-  await fresh("enrollment", example);
-  const r = f.store.all("requests")[0];
+  assert.equal((await fresh("enrollment", example, 409)).code, "STATUS_APPROVED");
   assert.deepEqual((await fresh("state")).members, []);
-  await f.va("થોરાળા")(`village/requests/${r.id}/forward`, forward);
-  await f.admin(`admin/requests/${r.id}/approve`, {}, 409);
-  await f.admin(`admin/requests/${r.id}/approve`, {
-    replaceExistingMemberId: member.id,
-    identityConfirmed: true,
-    reason,
-  });
-  assert.equal((await old("state")).role, "guest");
-  assert.equal((await fresh("state")).role, "member");
-  assert.equal(
-    f.store.all("members").filter((m) => m.phone === example.phone).length,
-    1,
-  );
+  const s = await fresh("login", { mobile: example.phone, secret: MEMBER_PIN });
+  assert.equal(s.role, "member");
+  assert.equal((await old("state")).role, "member", "both phones stay logged in");
 });
 
 test("phone collision checking covers primary and secondary numbers", async (t) => {
@@ -327,46 +293,25 @@ test("phone collision checking covers primary and secondary numbers", async (t) 
   );
 });
 
-test("village admin passwords can be changed by the admin and reset by the main administrator", async (t) => {
+test("a Village Admin changes their own PIN; the Main Admin resets it with a TEMP PIN", async (t) => {
   const f = await fixture(t);
   await f.ensureAdmin("Thorala");
-  const assignment = f.store.get("villageAdmins", "થોરાળા");
+  const phone = f.store.get("members", f.store.get("villageAdmins", "થોરાળા").memberId).phone;
   const va = f.va("થોરાળા");
-  await va(
-    "village/password",
-    { current: "Wrong@2026", next: "Newer@2026!" },
-    401,
-  );
-  await va("village/password", { current: VA_PASS, next: "weak" }, 400);
-  await va("village/password", { current: VA_PASS, next: "Newer@2026!" });
-  const afterChange = f.client();
-  await afterChange(
-    "village/login",
-    { phone: assignment.username, pass: VA_PASS },
-    401,
-  );
-  await afterChange("village/login", {
-    phone: assignment.username,
-    pass: "Newer@2026!",
-  });
-  await f.admin(
-    "admin/village-admins/" + encodeURIComponent("થોરાળા") + "/password",
-    {
-      pass: "Reset@2026!",
-      reason,
-      identityConfirmed: true,
-    },
-  );
-  const afterReset = f.client();
-  await afterReset(
-    "village/login",
-    { phone: assignment.username, pass: "Newer@2026!" },
-    401,
-  );
-  await afterReset("village/login", {
-    phone: assignment.username,
-    pass: "Reset@2026!",
-  });
+  assert.equal((await va("pin/change", { current: "1470", next: "3579", confirm: "3579" }, 401)).code, "WRONG_OLD_PIN");
+  assert.equal((await va("pin/change", { current: VA_PIN, next: "357", confirm: "357" }, 400)).code, "PIN_FORMAT");
+  assert.equal((await va("pin/change", { current: VA_PIN, next: "4321", confirm: "4321" }, 400)).code, "PIN_WEAK");
+  assert.equal((await va("pin/change", { current: VA_PIN, next: "3579", confirm: "3578" }, 400)).code, "PIN_MISMATCH");
+  assert.equal((await va("pin/change", { current: VA_PIN, next: VA_PIN, confirm: VA_PIN }, 400)).code, "PIN_SAME");
+  const ok = await va("pin/change", { current: VA_PIN, next: "3579", confirm: "3579" });
+  assert.equal(ok.ok, true);
+  assert.equal(ok.villageAdmin, true, "this phone stays logged in");
+  assert.equal((await f.client()("login", { mobile: phone, secret: VA_PIN }, 401)).code, "WRONG_PIN");
+  await f.client()("login", { mobile: phone, secret: "3579" });
+  const reset = await f.admin("admin/village-admins/" + encodeURIComponent("થોરાળા") + "/reset", {});
+  assert.equal((await f.client()("login", { mobile: phone, secret: "3579" }, 401)).code, "WRONG_PIN");
+  const s = await f.client()("login", { mobile: phone, secret: reset.issuedPin.pin });
+  assert.equal(s.account.mustSetPin, true);
 });
 
 test("backup roundtrip preserves governance and rejection records but strips credentials and requires fresh verification", async (t) => {
@@ -499,37 +444,37 @@ test("main administrator may move a request to another village, restarting verif
   await f.admin(`admin/requests/${r.id}/approve`, {});
 });
 
-test("administrator changes and password resets no longer require a reason", async (t) => {
+test("Village Admin create, edit, disable and reset need no reason; edits keep the TEMP PIN private", async (t) => {
   const f = await fixture(t);
-  await f.ensureAdmin("Thorala");
-  const replacement = f.client();
-  const next = await f.enroll(replacement, { ...example, name: "Reasonless Replacement", phone: "9000000013" });
-  await f.admin("admin/village-admins/" + encodeURIComponent("થોરાળા"), {
-    memberId: next.id,
-    pass: "Village@2026!",
-    identityConfirmed: true,
-  });
-  const assignment = f.store.get("villageAdmins", "થોરાળા");
-  assert.equal(assignment.memberId, next.id);
-  await f.admin("admin/village-admins/" + encodeURIComponent("થોરાળા") + "/password", {
-    pass: "Reset@2026!",
-    identityConfirmed: true,
-  });
+  const g = encodeURIComponent("થોરાળા");
+  const created = await f.admin("admin/village-admins/" + g + "/create", { name: "Thorala Admin Person", mobile: "7990000077" });
+  assert.equal(created.issuedPin.kind, "village-admin");
+  assert.equal(created.issuedPin.villageEn, "Thorala");
+  let s = await f.admin("state");
+  const row = s.villageAssignments.find((a) => a.id === "થોરાળા");
+  assert.deepEqual([row.name, row.phone, row.mustSetPin, !!row.disabled], ["Thorala Admin Person", "7990000077", true, false]);
+  assert.equal(JSON.stringify(s).includes(created.issuedPin.pin + '"'), false, "never shown again");
+  s = await f.admin("admin/village-admins/" + g + "/edit", { name: "Thorala Admin Renamed", mobile: "7990000078" });
+  assert.equal(s.villageAssignments.find((a) => a.id === "થોરાળા").phone, "7990000078");
+  assert.equal((await f.admin("admin/village-admins/" + g + "/edit", { name: "Xx Yy Zz", mobile: MAIN.mobile }, 409)).code, "PHONE_IN_USE");
+  await f.admin("admin/village-admins/" + g + "/disable", {});
+  assert.equal((await f.admin("state")).villages.find((v) => v.gu === "થોરાળા").hasAdmin, false);
+  await f.admin("admin/village-admins/" + g + "/enable", {});
   const fresh = f.client();
-  await fresh("village/login", { phone: next.phone, pass: "Reset@2026!" });
+  const reset = await f.admin("admin/village-admins/" + g + "/reset", {});
+  await f.firstLogin(fresh, "7990000078", reset.issuedPin.pin, "5802");
+  assert.equal((await fresh("state")).villageAdmin, true);
+  assert.equal((await f.admin("admin/village-admins/" + encodeURIComponent("નથી") + "/create", { name: "X Y", mobile: "7990000079" }, 404)).error, "Village not found");
 });
 
 test("the all-admins directory lists contactable administrators for everyone", async (t) => {
   const f = await fixture(t);
   await f.ensureAdmin("Thorala");
-  await f.admin("admin/main-admin-contact", {
-    name: "Main Administrator",
-    phone: "9000000000",
-  });
   const guest = f.client();
   const directory = (await guest("state")).adminDirectory;
-  assert.equal(directory.main.name, "Main Administrator");
-  assert.equal(directory.main.phone, "9000000000");
+  // The Main Admin's contact comes from the seeded account.
+  assert.equal(directory.main.name, MAIN.name);
+  assert.equal(directory.main.phone, MAIN.mobile);
   const thorala = directory.villages.find((v) => v.village === "થોરાળા");
   assert.match(thorala.admin.name, /^Administrator/);
   assert.equal(thorala.admin.phone, "7991000000");

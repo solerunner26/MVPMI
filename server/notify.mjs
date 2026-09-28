@@ -18,26 +18,13 @@ import { fail, hash, isRecord } from "./store.mjs";
 
 export const recipientKeys = (store, session, now = Date.now()) => {
   const keys = ["owner:" + session.owner];
-  const admin = store.get("config", "admin");
-  if (
-    session.mainNotify &&
-    admin &&
-    session.mainNotify.changedAt === admin.changedAt
-  )
-    keys.push("main");
-  const v = session.villageNotify;
-  if (v) {
-    const a = store.get("villageAdmins", v.village);
-    const m = a && store.get("members", a.memberId);
-    if (
-      a &&
-      m &&
-      a.memberId === v.memberId &&
-      a.version === v.version &&
-      a.passChangedAt === v.passChangedAt &&
-      m.village === v.village
-    )
-      keys.push("village:" + v.village);
+  // Admin notifications follow the logged-in account's current role.
+  const auth = session.auth;
+  const m = auth && store.get("members", auth.memberId);
+  if (m && m.cred?.stamp === auth.stamp && !auth.mustSetPin) {
+    if (store.get("config", "main-admin")?.memberId === m.id) keys.push("main");
+    const a = store.get("villageAdmins", m.village);
+    if (a && a.memberId === m.id && !a.disabled) keys.push("village:" + m.village);
   }
   return session.blocked ? [] : keys;
 };
