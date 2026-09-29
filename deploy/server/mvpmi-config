@@ -5,6 +5,7 @@
 #   sudo mvpmi-config main-admin                   # sets the Main Admin (first start of a new database)
 #   sudo mvpmi-config first-login                  # shows the backup passphrase
 #   sudo mvpmi-config reset-main-admin             # forgotten Main Admin password (asks for a new one)
+#   sudo mvpmi-config clear-directory              # client hand-over: delete ALL contacts, keep only the Main Admin login
 #   sudo mvpmi-config list                         # setting names only (no values)
 set -euo pipefail
 ENV=/etc/mvpmi.env
@@ -32,8 +33,8 @@ case "${1:-}" in
       [[ "$value" != *$'\n'* ]] || { echo "one line only"; exit 1; }
       printf 'MAIN_ADMIN_%s=%s\n' "$key" "$value" >> "$tmp"
     done
-    read -r -s -p "MAIN_ADMIN_PASSWORD (8+ characters, hidden): " value; echo
-    [ "${#value}" -ge 8 ] || { echo "at least 8 characters"; rm -f "$tmp"; exit 1; }
+    read -r -s -p "MAIN_ADMIN_PASSWORD (4+ characters, hidden): " value; echo
+    [ "${#value}" -ge 4 ] || { echo "at least 4 characters"; rm -f "$tmp"; exit 1; }
     printf 'MAIN_ADMIN_PASSWORD=%s\n' "$value" >> "$tmp"
     install -m 640 -o root -g mvpmi "$tmp" "$ENV"; rm -f "$tmp"
     systemctl restart mvpmi
@@ -41,6 +42,16 @@ case "${1:-}" in
     ;;
   reset-main-admin)
     cd /opt/mvpmi/app && sudo -u mvpmi env "$(grep '^DB_PATH=' "$ENV")" node scripts/reset-main-admin.js
+    ;;
+  clear-directory)
+    echo "This DELETES every member, registration, Village Admin, archive record, notification and login,"
+    echo "and old local backups. Only the Main Admin login and the village list stay. It cannot be undone."
+    read -r -p "Type DELETE to continue: " answer
+    [ "$answer" = "DELETE" ] || { echo "Nothing changed."; exit 1; }
+    systemctl stop mvpmi
+    (cd /opt/mvpmi/app && sudo -u mvpmi env "$(grep '^DB_PATH=' "$ENV")" node scripts/clear-directory.mjs --yes) || { systemctl start mvpmi; exit 1; }
+    systemctl start mvpmi
+    echo "Done. The Main Admin logs in with the mobile number and 'Main Admin? Log in with password'."
     ;;
   first-login)
     cat /root/mvpmi-first-login.txt

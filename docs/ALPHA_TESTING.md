@@ -1,5 +1,14 @@
 # Alpha test — version 1.1
 
+> **Update for 1.2.0 (30 Sep 2026):** this guide's PIN steps are replaced.
+> Members and Village Admins log in with the **mobile number only** (no PIN,
+> no TEMP PIN, no Reset PIN). Only the Main Admin has a password (any 4+
+> characters). An optional phone PIN lives in **My Profile** (off by default;
+> forgot it = sign out and log in again). Hand-over: on the server run
+> `sudo mvpmi-config clear-directory` (type DELETE) to remove every contact and
+> keep only the Main Admin.
+
+
 The goal of the alpha is to find errors with a small group of real users
 before the wider release. This version changes how everyone logs in, so
 every tester starts fresh.

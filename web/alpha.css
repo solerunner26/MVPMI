@@ -752,3 +752,145 @@
     transition: none;
   }
 }
+
+/* ---- Directory header: 3 lines (logo+name+search / icons / villages) ------- */
+.app.lq .alpha-dirhead {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: max(6px, env(safe-area-inset-top)) 10px 6px;
+  flex: 0 0 auto;
+}
+.app.lq .alpha-dirline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.app.lq .alpha-dirline-search input {
+  flex: 1 1 90px;
+  min-width: 0;
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--gbd);
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--f-md);
+  outline: none;
+}
+.app.lq .alpha-dirline-search input:focus-visible {
+  box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.35);
+}
+.app.lq .alpha-dirlogo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  flex: 0 0 auto;
+}
+.app.lq .alpha-dirname {
+  flex: 0 1 auto;
+  max-width: 34%;
+  font-size: calc(13px * var(--fs));
+  font-weight: 800;
+  line-height: 1.15;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.app.lq .alpha-diricons {
+  justify-content: space-between;
+  gap: 4px;
+}
+/* Own name green, every admin red (dark themes get lighter tones). */
+.app.lq .alpha-row-name.is-me {
+  color: #17692f;
+}
+.app.lq .alpha-row-name.is-admin {
+  color: #c62828;
+}
+.app.lq[data-theme="dark"] .alpha-row-name.is-me {
+  color: #5ee08a;
+}
+.app.lq[data-theme="dark"] .alpha-row-name.is-admin {
+  color: #ff7b7b;
+}
+
+/* ---- Errors at the very top ------------------------------------------------ */
+.alpha-error-banner {
+  position: fixed;
+  z-index: 100000;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: max(10px, env(safe-area-inset-top)) 12px 12px;
+  background: #b3261e;
+  color: #fff;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  max-height: 45vh;
+  overflow: auto;
+  outline: none;
+}
+.alpha-error-banner > i {
+  font-size: 26px;
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+.alpha-error-body {
+  flex: 1;
+  min-width: 0;
+}
+.alpha-error-body strong {
+  display: block;
+  font-size: calc(16px * var(--fs, 1));
+}
+.alpha-error-body p {
+  margin: 4px 0;
+  font-size: calc(15px * var(--fs, 1));
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.alpha-error-body small {
+  opacity: 0.9;
+  font-size: calc(12px * var(--fs, 1));
+}
+.alpha-error-close {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: transparent;
+  color: #fff;
+  font-size: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.workflow-why {
+  margin: 8px 0;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--gbd);
+  background: var(--chip);
+  font-size: var(--f-sm);
+}
+.workflow-why p {
+  margin: 4px 0 0;
+}
+.alpha-sr-only {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

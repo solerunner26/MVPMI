@@ -92,3 +92,9 @@ export function verifyOfflineUnlock(secret) {
   if (!data?.unlock) return false;
   return derivePinHash(String(secret), data.unlock.salt, 20000) === data.unlock.hash;
 }
+
+// The PIN lock was turned off: forget the saved verifier.
+export function forgetOfflineUnlock() {
+  const data = loadOffline();
+  if (data) write({ ...data, unlock: null });
+}

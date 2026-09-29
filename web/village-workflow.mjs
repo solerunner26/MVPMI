@@ -217,7 +217,6 @@ export function AllAdminDirectory({ data, lang, onClose }) {
 const WORKFLOW_TAB_ICONS = {
   requests: "ph-tray",
   villages: "ph-user-gear",
-  pins: "ph-lock-key",
   rejections: "ph-x-circle",
   removed: "ph-user-minus",
   members: "ph-users-three",
@@ -229,6 +228,7 @@ export function VillageWorkflow({
   onAction,
   onClose,
   onAdminLogout,
+  onError,
   flash = () => {},
   initialTab = "requests",
 }) {
@@ -245,8 +245,13 @@ export function VillageWorkflow({
     setError("");
     try {
       await onAction(path, body);
+      return true;
     } catch (e) {
-      setError(e.message);
+      // A persistent banner at the top of the screen shows exactly what is
+      // wrong; the local line is only the fallback.
+      if (onError) onError(e, path);
+      else setError(e.message);
+      return false;
     } finally {
       setBusy(false);
     }
@@ -261,19 +266,16 @@ export function VillageWorkflow({
       setBusy(false);
     }
   };
-  const pinCount = (data.pinResetRequests || []).length;
   const tabs = main
     ? [
         ["requests", "વિનંતીઓ", "Requests"],
         ["villages", STR["va.title"][0], STR["va.title"][1]],
-        ["pins", STR["pinreq.title"][0] + (pinCount ? " · " + pinCount : ""), STR["pinreq.title"][1] + (pinCount ? " · " + pinCount : "")],
         ["rejections", "નામંજૂર / બંધ વિનંતીઓ", "Rejected / closed requests"],
         ["removed", "દૂર કરેલા સભ્યો", "Removed members"],
       ]
     : [
         ["requests", "વિનંતીઓ", "Requests"],
         ["members", "મારા ગામના સભ્યો", "My village members"],
-        ["pins", STR["pinreq.title"][0] + (pinCount ? " · " + pinCount : ""), STR["pinreq.title"][1] + (pinCount ? " · " + pinCount : "")],
       ];
   return h(
     "div",
@@ -400,6 +402,7 @@ export function VillageWorkflow({
                   lang,
                   act,
                   busy,
+                  flash,
                 }),
               )
             : h("p", null, B("કોઈ વિનંતી બાકી નથી.", "No requests waiting.")),
@@ -410,7 +413,6 @@ export function VillageWorkflow({
       main &&
         tab === "villages" &&
         h(AManageVillageAdmins, { data, lang, act, flash }),
-      tab === "pins" && h(APinRequests, { data, lang, act, main }),
       main &&
         tab === "rejections" &&
         h(
@@ -542,7 +544,9 @@ function workflowTools(lang, busy) {
     h("label", { className: "workflow-field" }, label, h("input", props));
   return { h, B, field, button, primary, danger };
 }
-function WorkflowDecision({ request: r, data, lang, act, busy }) {
+const villageAdminOf = (data, village) =>
+  (data.adminDirectory?.villages || []).find((v) => v.village === village)?.admin || null;
+function WorkflowDecision({ request: r, data, lang, act, busy, flash = () => {} }) {
   const { h, B, field, button, primary, danger } = workflowTools(lang, busy);
   const main = data.role === "admin";
   const [confirmed, setConfirmed] = React.useState(false),
@@ -783,15 +787,21 @@ function WorkflowDecision({ request: r, data, lang, act, busy }) {
           { className: "workflow-actions" },
           primary(
             B("સુધારો સાચવો", "Save correction"),
-            () =>
-              act(
-                (main ? "admin" : "village") +
-                  "/requests/" +
-                  r.id +
-                  "/correct",
-                form,
-              ),
-            { disabled: busy },
+            async () => {
+              if (
+                await act(
+                  (main ? "admin" : "village") +
+                    "/requests/" +
+                    r.id +
+                    "/correct",
+                  form,
+                )
+              ) {
+                setCorrecting(false);
+                flash(t("common.saved", lang));
+              }
+            },
+            { disabled: busy, "data-testid": "Save correction" },
           ),
           button(B("રદ કરો", "Cancel"), () => setCorrecting(false)),
         ),
@@ -809,15 +819,55 @@ function WorkflowDecision({ request: r, data, lang, act, busy }) {
         "I independently confirmed this person’s identity.",
       ),
     ),
+    main && (!ready || !confirmed)
+      ? h(
+          "div",
+          { className: "workflow-why", role: "status", "data-testid": "Approval blockers" },
+          h("strong", null, B("અંતિમ મંજૂરી કેમ બંધ છે:", "Why Final approval is off:")),
+          !ready
+            ? h(
+                "p",
+                null,
+                B(
+                  "ગામ એડમિને પહેલા ચકાસણી કરીને આગળ મોકલવું પડશે.",
+                  "The Village Admin must verify and forward this request first.",
+                ),
+                villageAdminOf(data, r.payload.village)
+                  ? h(
+                      "span",
+                      null,
+                      " ",
+                      villageAdminOf(data, r.payload.village).name,
+                      " · ",
+                      h("a", { href: "tel:+91" + villageAdminOf(data, r.payload.village).phone, "data-testid": "Call village admin" }, villageAdminOf(data, r.payload.village).phone),
+                    )
+                  : null,
+              )
+            : null,
+          !confirmed
+            ? h(
+                "p",
+                null,
+                B(
+                  "‘વ્યક્તિની ઓળખ સ્વતંત્ર રીતે ખાતરી કરી છે’ ખાનું ટિક કરો.",
+                  "Tick “I independently confirmed this person’s identity”.",
+                ),
+              )
+            : null,
+        )
+      : null,
     h(
       "div",
       { className: "workflow-actions" },
       main
         ? primary(
             B("અંતિમ મંજૂરી", "Final approval"),
-            () => act("admin/requests/" + r.id + "/approve", body),
+            async () => {
+              if (await act("admin/requests/" + r.id + "/approve", body)) flash(t("approve.done", lang));
+            },
             {
               disabled: busy || !ready || !confirmed,
+              "data-testid": "Final approval",
             },
           )
         : primary(
@@ -907,23 +957,6 @@ function WorkflowMembers({ data, lang, act, busy }) {
 }
 function WorkflowMemberCard({ member: m, data, lang, act, busy, pending }) {
   const { h, B, field, button, primary, danger } = workflowTools(lang, busy);
-  const [confirmPin, setConfirmPin] = React.useState(false);
-  const pin =
-    m.id === data.meId
-      ? null
-      : confirmPin
-        ? h(AConfirm, {
-            title: t("pinreq.create", lang),
-            body: t("pinreq.confirm", lang, { name: bilingual(m.nameGu, m.name, lang) }),
-            yes: t("pinreq.create", lang),
-            no: t("common.cancel", lang),
-            onNo: () => setConfirmPin(false),
-            onYes: async () => {
-              setConfirmPin(false);
-              await act("village/members/" + m.id + "/pin-reset", {});
-            },
-          })
-        : button(t("pinreq.create", lang), () => setConfirmPin(true), { "data-testid": "Member TEMP PIN" });
   const [mode, setMode] = React.useState(null),
     [reason, setReason] = React.useState(""),
     [form, setForm] = React.useState({
@@ -943,7 +976,6 @@ function WorkflowMemberCard({ member: m, data, lang, act, busy, pending }) {
     h("h3", null, bilingual(m.nameGu, m.name, lang)),
     h("p", null, m.phone, m.phone2 ? " · " + m.phone2 : ""),
     m.currentLocation && h("p", null, "હાલ : ", m.currentLocation),
-    pin,
     // Server-confirmed proposal state: a clear "forwarded" confirmation so
     // the administrator sees the action was taken and where it is now.
     pending &&

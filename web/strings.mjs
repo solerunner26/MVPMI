@@ -5,7 +5,6 @@ export const STR = {
   // ---- Section 0: terms -------------------------------------------------
   "term.password": ["પાસવર્ડ", "Password"],
   "term.pin": ["પિન", "PIN"],
-  "term.tempPin": ["કામચલાઉ પિન", "TEMP PIN"],
   "role.MAIN_ADMIN": ["મુખ્ય એડમિન", "Main Admin"],
   "role.VILLAGE_ADMIN": ["ગામ એડમિન", "Village Admin"],
   "role.MEMBER": ["સભ્ય", "Member"],
@@ -21,19 +20,10 @@ export const STR = {
   ],
   "err.WRONG_PIN": ["પિન ખોટો છે.", "Wrong PIN."],
   "err.WRONG_PASSWORD": ["પાસવર્ડ ખોટો છે.", "Wrong password."],
-  "err.WRONG_OLD_PIN": ["જૂનો પિન ખોટો છે.", "The old PIN is wrong."],
   "err.WRONG_OLD_PASSWORD": ["જૂનો પાસવર્ડ ખોટો છે.", "The old password is wrong."],
   "err.PIN_FORMAT": ["પિન બરાબર ૪ આંકડાનો હોવો જોઈએ.", "The PIN must be exactly 4 digits."],
-  "err.PIN_WEAK": [
-    "આ પિન ખૂબ સહેલો છે (જેમ કે 1111, 1234). બીજો પિન પસંદ કરો.",
-    "This PIN is too easy (like 1111 or 1234). Choose another PIN.",
-  ],
   "err.PIN_MISMATCH": ["બંને નવા પિન એકસરખા નથી.", "The two new PINs do not match."],
-  "err.PIN_SAME": ["નવો પિન જૂના પિન જેવો જ છે.", "The new PIN is the same as the old PIN."],
-  "err.PASSWORD_FORMAT": [
-    "પાસવર્ડ ઓછામાં ઓછો ૮ અક્ષરનો હોવો જોઈએ.",
-    "The password must be at least 8 characters.",
-  ],
+  "err.PASSWORD_FORMAT": ["પાસવર્ડ ઓછામાં ઓછો ૪ અક્ષરનો હોવો જોઈએ.", "The password must be at least 4 characters."],
   "err.PASSWORD_MISMATCH": ["બંને નવા પાસવર્ડ એકસરખા નથી.", "The two new passwords do not match."],
   "err.PASSWORD_SAME": [
     "નવો પાસવર્ડ જૂના પાસવર્ડ જેવો જ છે.",
@@ -67,10 +57,6 @@ export const STR = {
     "આ નંબર યાદીમાંથી દૂર કરાયો છે. તમારા ગામના એડમિનનો સંપર્ક કરો.",
     "This number was removed. Contact your village admin.",
   ],
-  "err.NO_PIN_YET": [
-    "તમારો પિન હજુ બન્યો નથી. ગામના એડમિન પાસેથી કામચલાઉ પિન મેળવો.",
-    "Your PIN has not been created yet. Ask your village admin for a TEMP PIN.",
-  ],
   "err.ACCOUNT_DISABLED": [
     "આ એડમિન ખાતું બંધ કરેલ છે. મુખ્ય એડમિનનો સંપર્ક કરો.",
     "This admin account is disabled. Contact the Main Admin.",
@@ -90,12 +76,18 @@ export const STR = {
   ],
   "err.SESSION": ["ફરી લોગિન કરો.", "Please log in again."],
   "err.LOCKED": ["એપ લોક છે. પિન નાખો.", "The app is locked. Enter your PIN."],
-  "err.SET_PIN_FIRST": ["પહેલા તમારો નવો પિન બનાવો.", "Set your new PIN first."],
   "err.FORBIDDEN": ["આ કામ કરવાની પરવાનગી નથી.", "You are not allowed to do this."],
   "err.GENERIC": [
     "કામ પૂર્ણ થઈ શક્યું નથી. ફરી પ્રયાસ કરો.",
     "Could not complete this. Please try again.",
   ],
+  "err.bannerTitle": ["કાર્ય પૂર્ણ થયું નથી", "Could not complete this"],
+  "err.technical": ["તકનીકી વિગત", "Technical details"],
+  "err.VERIFY_FIRST": ["પહેલા ગામ એડમિને ચકાસણી કરવી પડશે, પછી જ મુખ્ય એડમિન અંતિમ મંજૂરી આપી શકે.", "The Village Admin must verify this request first; only then can the Main Admin give final approval."],
+  "err.VERIFY_FIRST_WHO": ["પહેલા {name} ({phone}) એ ચકાસણી કરીને આગળ મોકલવું પડશે. તેમને ફોન કરો: એડમિન સાધનો → વિનંતીઓ → ‘ચકાસીને આગળ મોકલો’.", "{name} ({phone}) must verify and forward this request first. Call them: Admin tools → Requests → “Verify & forward”."],
+  "err.PASSWORD_REQUIRED": ["આ મુખ્ય એડમિનનો નંબર છે. પાસવર્ડ નાખો.", "This is the Main Admin number. Enter the password."],
+  "approve.done": ["સભ્ય મંજૂર થયા. તેઓ મોબાઇલ નંબરથી લોગિન કરી શકે છે.", "Member approved. They can log in with their mobile number."],
+  "err.bannerClose": ["બંધ કરો", "Dismiss"],
 };
 
 // ---- Section 1: offline ------------------------------------------------
@@ -147,80 +139,69 @@ Object.assign(STR, {
   "field.noAdminYet": ["એડમિન નિયુક્ત નથી", "no admin yet"],
   "field.pin": ["પિન", "PIN"],
   "field.password": ["પાસવર્ડ", "Password"],
-  "field.oldPin": ["જૂનો પિન", "Old PIN"],
-  "field.newPin": ["નવો પિન", "New PIN"],
-  "field.newPin2": ["નવો પિન ફરી લખો", "Re-enter new PIN"],
   "field.oldPassword": ["જૂનો પાસવર્ડ", "Old password"],
   "field.newPassword": ["નવો પાસવર્ડ", "New password"],
   "field.newPassword2": ["નવો પાસવર્ડ ફરી લખો", "Re-enter new password"],
-  "field.pinHint": ["૪ આંકડા. 1111, 1234 જેવા સહેલા પિન નહીં.", "4 digits. Not an easy PIN like 1111 or 1234."],
-  "field.passwordHint": ["ઓછામાં ઓછા ૮ અક્ષર: અક્ષરો, આંકડા અને ચિહ્નો.", "At least 8 characters: letters, numbers and symbols."],
+  "field.passwordHint": ["ઓછામાં ઓછા ૪ અક્ષર. કોઈ પણ પાસવર્ડ ચાલશે.", "At least 4 characters. Any password is fine."],
   "err.NAME": ["પ્રથમ નામ અને અટક લખો (દરેક ઓછામાં ઓછા ૨ અક્ષર).", "Enter the first name and surname (at least 2 letters each)."],
   "err.VILLAGE": ["યાદીમાંથી ગામ પસંદ કરો.", "Choose a village from the list."],
   "err.PHONE2": ["બીજો નંબર ૧૦ આંકડાનો અને પહેલાથી અલગ હોવો જોઈએ.", "The second number must have 10 digits and differ from the first."],
-  "err.TEMP_USED": ["આ કામચલાઉ પિન વપરાઈ ગયો છે. એડમિન પાસેથી નવો કામચલાઉ પિન મેળવો.", "This TEMP PIN was already used. Ask your admin for a new TEMP PIN."],
   "err.MEMBER_OTHER_VILLAGE": ["આ નંબર બીજા ગામના સભ્યનો છે.", "This number belongs to a member of another village."],
   "err.BIOMETRIC_FAILED": ["ફિંગરપ્રિન્ટથી ખૂલ્યું નહીં. પિન વાપરો.", "Fingerprint unlock failed. Use your PIN."],
-  "err.LOCK_FORCED": ["એડમિન માટે એપ લોક હંમેશા ચાલુ રહે છે.", "The app lock is always on for admins."],
   "err.LOCK_OFF": ["પહેલા એપ લોક ચાલુ કરો.", "Turn on the app lock first."],
-  "err.PIN_ALREADY_SET": ["પિન પહેલેથી બની ગયો છે.", "The PIN is already set."],
   "err.attemptsLeft": ["{n} પ્રયાસ બાકી.", "{n} attempts left."],
 });
 
 // ---- Section 2: Login and Main Admin profile ----------------------------
 Object.assign(STR, {
   "login.title": ["લોગિન", "Log in"],
-  "login.intro": ["તમારો મોબાઇલ નંબર અને ૪ આંકડાનો પિન નાખો.", "Enter your mobile number and 4-digit PIN."],
+  "login.intro": ["લોગિન કરવા તમારો મોબાઇલ નંબર નાખો.", "Enter your mobile number to log in."],
   "login.introPassword": ["મુખ્ય એડમિન: મોબાઇલ નંબર અને પાસવર્ડ નાખો.", "Main Admin: enter your mobile number and password."],
   "login.submit": ["લોગિન કરો", "Log in"],
+  "login.useMobile": ["મોબાઇલ નંબરથી લોગિન", "Log in with mobile number only"],
   "login.usePassword": ["મુખ્ય એડમિન? પાસવર્ડથી લોગિન", "Main Admin? Log in with password"],
-  "login.usePin": ["પિનથી લોગિન", "Log in with PIN"],
-  "login.forgot": ["પિન ભૂલી ગયા?", "Forgot PIN?"],
   "login.register": ["નવા સભ્ય? નોંધણી કરો", "New member? Register"],
-  "login.approvedNotice": ["તમારી નોંધણી મંજૂર થઈ! એડમિને વોટ્સએપ પર મોકલેલા કામચલાઉ પિનથી લોગિન કરો.", "Your registration is approved! Log in with the TEMP PIN your admin sent on WhatsApp."],
+  "login.approvedNotice": ["તમારી નોંધણી મંજૂર થઈ! ‘લોગિન કરો’ દબાવો.", "Your registration is approved! Tap “Log in”."],
   "login.allAdmins": ["એડમિનનો સંપર્ક", "Contact an admin"],
   "profile.title": ["મારી પ્રોફાઇલ", "My Profile"],
   "profile.role": ["ભૂમિકા", "Role"],
   "profile.changePassword": ["પાસવર્ડ બદલો", "Change Password"],
-  "profile.changePin": ["પિન બદલો", "Change PIN"],
   "profile.requestChange": ["માહિતી બદલવાની વિનંતી", "Request profile change"],
   "profile.requestRemoval": ["યાદીમાંથી દૂર થવાની વિનંતી", "Request removal"],
+  "profile.mainAdminNote": ["પાસવર્ડ ભૂલી જાઓ તો સર્વર પરથી જ રીસેટ થાય છે (એપમાં નહીં).", "A forgotten password is reset on the server only (not in the app)."],
+  "profile.lockSection": ["ફોન લોક (વૈકલ્પિક)", "Phone lock (optional)"],
   "profile.pendingChange": ["તમારી ફેરફારની વિનંતી મંજૂરીની રાહમાં છે.", "Your change request is waiting for approval."],
   "profile.pendingRemoval": ["દૂર થવાની વિનંતી મંજૂરીની રાહમાં છે.", "Your removal request is waiting for approval."],
-  "profile.mainAdminNote": ["પાસવર્ડ ભૂલી જાઓ તો સર્વર પરથી જ રીસેટ થાય છે (એપમાં નહીં).", "A forgotten password is reset on the server only (not in the app)."],
   "password.changed": ["પાસવર્ડ સફળતાપૂર્વક બદલાયો", "Password changed successfully"],
 });
 
 // ---- Section 3: Village Admins and TEMP PIN ------------------------------
 Object.assign(STR, {
   "va.title": ["ગામ એડમિન વ્યવસ્થા", "Manage Village Admins"],
-  "va.intro": ["દરેક ગામમાં એક જ સક્રિય ગામ એડમિન હોય છે.", "Each village has at most one active Village Admin."],
+  "va.intro": ["ગામ પસંદ કરો. દરેક ગામમાં એક જ સક્રિય ગામ એડમિન હોય છે. ગામ એડમિન ફક્ત મોબાઇલ નંબરથી લોગિન કરે છે.", "Choose a village. Each village has one active Village Admin, who logs in with the mobile number only."],
   "va.none": ["ગામ એડમિન નથી", "No Village Admin"],
   "va.active": ["સક્રિય", "Active"],
   "va.disabled": ["બંધ", "Disabled"],
-  "va.waitingPin": ["પહેલું લોગિન બાકી (કામચલાઉ પિન)", "First login pending (TEMP PIN)"],
+  "va.pick": ["ગામ પસંદ કરો", "Choose a village"],
+  "va.pickHint": ["ગામ પસંદ કરો — તેના ગામ એડમિન અહીં દેખાશે.", "Choose a village to see and manage its Village Admin."],
+  "va.statusLabel": ["સ્થિતિ", "Status"],
   "va.create": ["ગામ એડમિન બનાવો", "Create Village Admin"],
   "va.edit": ["ફેરફાર", "Edit"],
   "va.disable": ["બંધ કરો", "Disable"],
   "va.enable": ["ફરી ચાલુ કરો", "Enable"],
-  "va.reset": ["પિન રીસેટ", "Reset PIN"],
   "va.formCreate": ["નવા ગામ એડમિન · {village}", "New Village Admin · {village}"],
   "va.formEdit": ["ગામ એડમિનમાં ફેરફાર · {village}", "Edit Village Admin · {village}"],
   "va.existingMember": ["આ ગામના હાલના સભ્યનો નંબર આપશો તો તે જ સભ્ય ગામ એડમિન બનશે.", "If the number belongs to an existing member of this village, that member becomes the Village Admin."],
   "va.confirmDisable": ["{name} ને ગામ એડમિન તરીકે બંધ કરવા છે? તેઓ સભ્ય તરીકે ચાલુ રહેશે.", "Disable {name} as Village Admin? They stay a member."],
-  "va.confirmReset": ["{name} માટે નવો કામચલાઉ પિન બનાવવો છે? તેમનો હાલનો પિન તરત બંધ થશે.", "Create a new TEMP PIN for {name}? Their current PIN stops working at once."],
   "va.disabledDone": ["ગામ એડમિન બંધ કર્યા", "Village Admin disabled"],
   "va.enabledDone": ["ગામ એડમિન ફરી ચાલુ કર્યા", "Village Admin enabled"],
-  "temp.title": ["કામચલાઉ પિન", "TEMP PIN"],
-  "temp.once": ["આ પિન ફક્ત એક જ વાર બતાવવામાં આવે છે. હમણાં જ વોટ્સએપ પર મોકલો.", "This PIN is shown only once. Share it on WhatsApp now."],
-  "temp.onCard": ["પહેલા લોગિન સુધી આ પિન ગામ એડમિનના કાર્ડ પર તમને જ દેખાશે. વોટ્સએપ પર મોકલો અથવા ફોન કરીને જણાવો.", "Until their first login you can see this PIN again on the Village Admin's card. Share it on WhatsApp or tell them in a phone call."],
+  "vac.title": ["ગામ એડમિન બની ગયા", "Village Admin created"],
+  "vac.body": ["{name} હવે મોબાઇલ નંબર {phone} થી લોગિન કરી શકશે. પિન કે પાસવર્ડ જરૂરી નથી.", "{name} can now log in with the mobile number {phone}. No PIN or password is needed."],
+  "vac.share": ["વોટ્સએપ પર જણાવો", "Tell on WhatsApp"],
+  "vac.call": ["ફોન કરો", "Call"],
+  "vac.msg": ["{app}\nતમે {village} ગામના ગામ એડમિન છો.\nએપમાં તમારા મોબાઇલ નંબર {phone} થી લોગિન કરો.\n—\n{appEn}\nYou are the Village Admin for {villageEn}.\nLog in to the app with your mobile number {phone}.", "{appEn}\nYou are the Village Admin for {villageEn}.\nLog in to the app with your mobile number {phone}.\n—\n{app}\nતમે {village} ગામના ગામ એડમિન છો.\nએપમાં તમારા મોબાઇલ નંબર {phone} થી લોગિન કરો."],
   "temp.call": ["ફોન કરો", "Call"],
-  "va.handover": ["પહેલા લોગિન માટે કામચલાઉ પિન", "TEMP PIN for first login"],
   "temp.share": ["વોટ્સએપ પર મોકલો", "Share on WhatsApp"],
-  "temp.sharedHint": ["પહેલા લોગિન પછી તેમને પોતાનો નવો પિન બનાવવો પડશે.", "After their first login they must set their own PIN."],
-  "temp.msgVillageAdmin": ["{app}\nતમે {village} ગામના ગામ એડમિન છો.\nકામચલાઉ પિન: {pin}\nપહેલા લોગિન પછી પિન બદલો.\n—\n{appEn}\nYou are the Village Admin for {villageEn}.\nTEMP PIN: {pin}\nChange it after first login.", "{appEn}\nYou are the Village Admin for {villageEn}.\nTEMP PIN: {pin}\nChange it after first login.\n—\n{app}\nતમે {village} ગામના ગામ એડમિન છો.\nકામચલાઉ પિન: {pin}\nપહેલા લોગિન પછી પિન બદલો."],
-  "temp.msgMember": ["{app}\nતમારી નોંધણી મંજૂર થઈ છે.\nમોબાઇલ: {phone}\nકામચલાઉ પિન: {pin}\nપહેલા લોગિન પછી પિન બદલો.\n—\n{appEn}\nYour registration is approved.\nMobile: {phone}\nTEMP PIN: {pin}\nChange it after first login.", "{appEn}\nYour registration is approved.\nMobile: {phone}\nTEMP PIN: {pin}\nChange it after first login.\n—\n{app}\nતમારી નોંધણી મંજૂર થઈ છે.\nમોબાઇલ: {phone}\nકામચલાઉ પિન: {pin}\nપહેલા લોગિન પછી પિન બદલો."],
-  "temp.msgReset": ["{app}\nતમારો નવો કામચલાઉ પિન: {pin}\nમોબાઇલ: {phone}\nપહેલા લોગિન પછી પિન બદલો.\n—\n{appEn}\nYour new TEMP PIN: {pin}\nMobile: {phone}\nChange it after first login.", "{appEn}\nYour new TEMP PIN: {pin}\nMobile: {phone}\nChange it after first login.\n—\n{app}\nતમારો નવો કામચલાઉ પિન: {pin}\nમોબાઇલ: {phone}\nપહેલા લોગિન પછી પિન બદલો."],
   "review.forwardDone": ["મુખ્ય એડમિનને મોકલ્યું", "Forwarded to the Main Admin"],
   "review.rejectReason": ["નામંજૂરીનું કારણ (અરજદારને દેખાશે)", "Reason for rejection (the applicant sees it)"],
 });
@@ -238,66 +219,55 @@ Object.assign(STR, {
   "pending.title": ["મંજૂરીની રાહમાં", "Pending approval"],
   "pending.village": ["તમારી નોંધણી મળી ગઈ છે. પહેલા તમારા ગામના એડમિન ચકાસશે.", "Your registration was received. Your village admin checks it first."],
   "pending.main": ["ગામના એડમિને ચકાસ્યું. હવે મુખ્ય એડમિનની મંજૂરી બાકી છે.", "Your village admin verified you. Now waiting for the Main Admin."],
-  "pending.noDirectory": ["મંજૂરી મળે ત્યાં સુધી સંપર્ક યાદી દેખાશે નહીં. મંજૂરી પછી એડમિન વોટ્સએપ પર કામચલાઉ પિન મોકલશે.", "The directory stays closed until you are approved. After approval your admin sends a TEMP PIN on WhatsApp."],
+  "pending.noDirectory": ["મંજૂરી મળે ત્યાં સુધી સંપર્ક યાદી દેખાશે નહીં. મંજૂરી પછી અહીંથી જ લોગિન થઈ જશે.", "The directory stays closed until you are approved. After approval you can log in right here."],
   "pending.submitted": ["મોકલ્યાની તારીખ: {date}", "Submitted: {date}"],
   "pending.edit": ["વિગત સુધારો", "Edit details"],
   "pending.withdraw": ["વિનંતી પાછી ખેંચો", "Withdraw registration"],
   "pending.withdrawConfirm": ["તમારી નોંધણી રદ થશે. પછી ફરી નોંધણી કરી શકશો.", "Your registration will be cancelled. You can register again later."],
   "pending.withdrawn": ["નોંધણી રદ થઈ", "Registration withdrawn"],
-  "pending.approved": ["તમારી નોંધણી મંજૂર થઈ! એડમિન વોટ્સએપ પર કામચલાઉ પિન મોકલશે.", "Your registration is approved! Your admin will send a TEMP PIN on WhatsApp."],
+  "pending.approved": ["તમારી નોંધણી મંજૂર થઈ! લોગિન કરી રહ્યા છીએ…", "Your registration is approved! Logging you in…"],
   "pending.rejected": ["તમારી નોંધણી મંજૂર થઈ નથી. તમારા ગામના એડમિનનો સંપર્ક કરો.", "Your registration was not approved. Contact your village admin."],
   "pending.reason": ["કારણ: {reason}", "Reason: {reason}"],
   "pending.sent": ["નોંધણી મોકલાઈ ગઈ", "Registration sent"],
-  "forgot.title": ["પિન ભૂલી ગયા?", "Forgot PIN?"],
-  "forgot.intro": ["તમારો મોબાઇલ નંબર નાખો. તમારા ગામના એડમિનને વિનંતી જશે. તેઓ તમારી ઓળખ ચકાસીને વોટ્સએપ પર નવો કામચલાઉ પિન મોકલશે.", "Enter your mobile number. A request goes to your village admin, who checks it is you and sends a new TEMP PIN on WhatsApp."],
-  "forgot.send": ["વિનંતી મોકલો", "Send request"],
-  "forgot.sent": ["વિનંતી મોકલાઈ. તમારા ગામના એડમિન સંપર્ક કરશે.", "Request sent. Your village admin will contact you."],
-  "pinreq.title": ["પિન ભૂલી ગયાની વિનંતીઓ", "Forgot PIN requests"],
-  "pinreq.none": ["કોઈ વિનંતી નથી.", "No requests."],
-  "pinreq.create": ["કામચલાઉ પિન બનાવો", "Create TEMP PIN"],
-  "pinreq.dismiss": ["રદ કરો", "Dismiss"],
-  "pinreq.confirm": ["{name} સાથે વાત કરીને ખાતરી કરી? નવો કામચલાઉ પિન બનશે અને જૂનો પિન બંધ થશે.", "Did you confirm it is {name}? A new TEMP PIN is created and the old PIN stops working."],
   "rejoin.allow": ["ફરી નોંધણીની છૂટ આપો", "Allow to register again"],
   "rejoin.done": ["હવે આ નંબર ફરી નોંધણી કરી શકશે", "This number can register again"],
 });
 
 // ---- Section 5: TEMP PIN first login, app lock --------------------------
 Object.assign(STR, {
-  "setpin.title": ["તમારો નવો પિન બનાવો", "Set your new PIN"],
-  "setpin.intro": ["તમે કામચલાઉ પિનથી લોગિન કર્યું છે. આગળ વધવા પોતાનો ૪ આંકડાનો પિન બનાવો. આ જ પિન લોગિન અને એપ લોક માટે છે.", "You logged in with a TEMP PIN. Set your own 4-digit PIN to continue. This PIN is for login and the app lock."],
-  "setpin.submit": ["પિન સેટ કરો", "Set PIN"],
   "setpw.title": ["તમારો નવો પાસવર્ડ બનાવો", "Set your new password"],
-  "setpw.intro": ["તમે પહેલી વારના પાસવર્ડથી લોગિન કર્યું છે. તે ફક્ત પહેલા લોગિન માટે છે. આગળ વધવા પોતાનો નવો પાસવર્ડ બનાવો.", "You logged in with the first-time password. It is for the first login only. Choose your own new password to continue."],
+  "setpw.intro": ["તમે પહેલી વારના પાસવર્ડથી લોગિન કર્યું છે. તે ફક્ત પહેલા લોગિન માટે છે. આગળ વધવા પોતાનો નવો પાસવર્ડ બનાવો (ઓછામાં ઓછા ૪ અક્ષર).", "You logged in with the first-time password. It is for the first login only. Choose your own new password to continue (at least 4 characters)."],
   "setpw.submit": ["પાસવર્ડ સેટ કરો", "Set password"],
   "setpw.done": ["પાસવર્ડ સેટ થઈ ગયો", "Password set"],
-  "setpin.done": ["પિન સેટ થઈ ગયો", "PIN set"],
   "setpin.signout": ["આ ફોનમાંથી સાઇન આઉટ", "Sign out of this phone"],
   "lock.title": ["એપ લોક છે", "App locked"],
   "lock.enterPin": ["ખોલવા પિન નાખો", "Enter your PIN to open"],
-  "lock.enterPassword": ["ખોલવા પાસવર્ડ નાખો", "Enter your password to open"],
   "lock.unlock": ["ખોલો", "Unlock"],
   "lock.fingerprint": ["ફિંગરપ્રિન્ટથી ખોલો", "Unlock with fingerprint"],
   "lock.forgot": ["પિન ભૂલી ગયા? સાઇન આઉટ કરો", "Forgot PIN? Sign out"],
-  "lock.forgotConfirm": ["આ ફોનમાંથી સાઇન આઉટ થશે. પછી લોગિન સ્ક્રીન પર 'પિન ભૂલી ગયા?' વાપરો.", "This phone will be signed out. Then use 'Forgot PIN?' on the Login screen."],
-  "lock.offline": ["ઑફલાઇન: આ ફોનમાં છેલ્લે વાપરેલા પિનથી ખુલશે.", "Offline: opens with the PIN last used on this phone."],
-  "lock.offlineNoPin": ["ખોલવા ઇન્ટરનેટ જરૂરી છે.", "Internet is needed to unlock."],
+  "lock.offline": ["ઑફલાઇન: આ ફોનમાં છેલ્લે વાપરેલા પિનથી ખુલશે.", "Offline: opens with the PIN saved on this phone."],
   "lock.wait": ["{min}:{sec} પછી ફરી પ્રયાસ કરો", "Try again in {min}:{sec}"],
-  "settings.lock": ["એપ ખોલતી વખતે પિન પૂછો", "Ask for PIN when opening the app"],
-  "settings.lockHelp": ["ચાલુ હોય ત્યારે એપ ખોલતાં અને ૧ મિનિટથી વધુ પાછળ રહ્યા પછી યાદી લોક થાય છે.", "When on, the directory locks when the app opens and after 1 minute or more in the background."],
-  "settings.lockForced": ["એડમિન માટે હંમેશા ચાલુ", "Always on for admins"],
+  "lock.toggle": ["આ એપને પિનથી લોક કરો", "Lock this app with a PIN"],
+  "lock.toggleHelp": ["વૈકલ્પિક — તમે ઇચ્છો તો જ. એપ ખોલતી વખતે અને ૧ મિનિટથી વધુ પાછળ રહ્યા પછી ૪ આંકડાનો પિન પૂછશે. પિન ભૂલી જાઓ તો સાઇન આઉટ કરી ફરી લોગિન કરો — એડમિનની જરૂર નથી.", "Optional — only if you want it. Asks for a 4-digit PIN when the app opens and after 1 minute or more in the background. Forgot the PIN? Sign out and log in again — no admin needed."],
+  "lock.on": ["પિન લોક ચાલુ", "PIN lock is on"],
+  "lock.setTitle": ["એપ માટે પિન બનાવો", "Set a PIN for this app"],
+  "lock.changeTitle": ["એપનો પિન બદલો", "Change the app PIN"],
+  "lock.change": ["પિન બદલો", "Change PIN"],
+  "lock.set": ["પિન સેટ કરો", "Set PIN"],
+  "lock.newPin": ["નવો પિન (૪ આંકડા)", "New PIN (4 digits)"],
+  "lock.newPin2": ["પિન ફરી લખો", "Re-enter PIN"],
+  "lock.setDone": ["પિન લોક ચાલુ થયું", "PIN lock is on"],
+  "lock.offDone": ["પિન લોક બંધ", "PIN lock is off"],
+  "lock.fingerprint2": ["ફિંગરપ્રિન્ટથી ખોલવાની છૂટ", "Allow fingerprint unlock"],
+  "lock.fingerprintOn": ["ફિંગરપ્રિન્ટ ચાલુ", "Fingerprint unlock on"],
+  "lock.fingerprintOff": ["ફિંગરપ્રિન્ટ બંધ", "Fingerprint unlock off"],
   "settings.fingerprint": ["ફિંગરપ્રિન્ટથી ખોલવાની છૂટ", "Allow fingerprint unlock"],
   "settings.fingerprintHelp": ["ફોનની પોતાની ફિંગરપ્રિન્ટ વ્યવસ્થા વપરાય છે.", "Uses the phone's own fingerprint system."],
-  "settings.lockOn": ["એપ લોક ચાલુ", "App lock on"],
-  "settings.lockOffDone": ["એપ લોક બંધ", "App lock off"],
-  "settings.fingerprintOn": ["ફિંગરપ્રિન્ટ ચાલુ", "Fingerprint unlock on"],
-  "settings.fingerprintOff": ["ફિંગરપ્રિન્ટ બંધ", "Fingerprint unlock off"],
 });
 
 // ---- Section 6: change dialogs ------------------------------------------
 Object.assign(STR, {
-  "change.pinTitle": ["પિન બદલો", "Change PIN"],
   "change.passwordTitle": ["પાસવર્ડ બદલો", "Change Password"],
-  "change.pinDone": ["પિન સફળતાપૂર્વક બદલાયો", "PIN changed successfully"],
   "change.passwordDone": ["પાસવર્ડ સફળતાપૂર્વક બદલાયો", "Password changed successfully"],
   "change.submit": ["બદલો", "Change"],
   "change.otherPhones": ["બીજા ફોનમાં ફરી લોગિન કરવું પડશે.", "Other phones will need to log in again."],
@@ -314,7 +284,6 @@ Object.assign(STR, {
   "nav.adminLogout": ["એડમિનમાંથી લોગ આઉટ", "Log out of admin"],
   "nav.adminLoggedOut": ["એડમિનમાંથી લોગ આઉટ થયા. તમે સભ્ય તરીકે ચાલુ છો.", "Logged out of admin. You are still logged in as a member."],
   "nav.adminEnterTitle": ["એડમિન સાધનો ખોલો", "Open admin tools"],
-  "nav.adminEnterPin": ["એડમિન સાધનો ખોલવા તમારો પિન નાખો.", "Enter your PIN to open the admin tools."],
   "nav.adminEnterPassword": ["એડમિન સાધનો ખોલવા તમારો પાસવર્ડ નાખો.", "Enter your password to open the admin tools."],
   "nav.open": ["ખોલો", "Open"],
   "edit.title": ["માહિતી બદલવાની વિનંતી", "Request profile change"],
@@ -329,17 +298,15 @@ Object.assign(STR, {
   "removal.sent": ["દૂર થવાની વિનંતી મોકલાઈ", "Removal request sent"],
   "settings.title": ["સેટિંગ્સ", "Settings"],
   "settings.language": ["ભાષા", "Language"],
-  "settings.theme": ["દેખાવ", "Appearance"],
-  "settings.light": ["આછો", "Light"],
-  "settings.dark": ["ઘેરો", "Dark"],
   "settings.textSize": ["અક્ષરનું માપ", "Text size"],
+  "settings.textReset": ["૧૦૦% પર પાછા", "Reset to 100%"],
+  "settings.textResetDone": ["અક્ષરનું માપ ૧૦૦%", "Text size reset to 100%"],
   "settings.notifications": ["ફોન સૂચનાઓ", "Phone notifications"],
   "settings.admins": ["બધા એડમિન", "All admins"],
   "settings.signout": ["આ ફોનમાંથી સાઇન આઉટ", "Sign out of this phone"],
   "settings.signoutConfirm": ["આ ફોન પરથી બધી માહિતી સાફ થશે અને લોગિન સ્ક્રીન ખૂલશે.", "Everything is cleared from this phone and the Login screen opens."],
-  "settings.security": ["સુરક્ષા", "Security"],
   "settings.account": ["ખાતું", "Account"],
-  "settings.display": ["દેખાવ અને ભાષા", "Display & language"],
+  "settings.display": ["દેખાવ", "Display"],
   "settings.version": ["આવૃત્તિ", "Version"],
 });
 
@@ -364,8 +331,14 @@ Object.assign(STR, {
   "dir.work": ["ધંધાનો નંબર", "Work"],
   "dir.other": ["બીજો નંબર", "Other"],
   "dir.hideChips": ["ગામની પટ્ટી છુપાવો", "Hide village bar"],
+  "dir.allShort": ["બધા", "All"],
+  "dir.filterBtn": ["ફિલ્ટર", "Filter"],
+  "dir.profileBtn": ["મારી પ્રોફાઇલ", "My Profile"],
+  "dir.darkOn": ["ઘેરો દેખાવ", "Dark theme"],
+  "dir.lightOn": ["આછો દેખાવ", "Light theme"],
+  "dir.languageBtn": ["ભાષા બદલો", "Change language"],
+  "dir.searchBtn": ["શોધો", "Search"],
   "dir.showChips": ["ગામની પટ્ટી બતાવો", "Show village bar"],
-  "dir.you": ["તમે", "You"],
   "dir.invalidNumber": ["આ નંબર બરાબર નથી.", "This phone number is invalid."],
 });
 
@@ -386,9 +359,21 @@ export function errorMessage(error, lang = "gu") {
     const left = Math.max(0, Math.ceil((error.until - Date.now()) / 1000));
     return t("err.LOCKED_OUT", lang, { min: Math.floor(left / 60), sec: left % 60 });
   }
+  if (error.code === "VERIFY_FIRST" && error.info?.admin) {
+    const a = error.info.admin;
+    return t("err.VERIFY_FIRST_WHO", lang, {
+      name: lang === "en" ? a.name : a.nameGu || a.name,
+      phone: a.phone,
+    });
+  }
   if (error.code && STR["err." + error.code]) return t("err." + error.code, lang);
   if (error.network) return t("err.NETWORK", lang);
-  return typeof errorText === "function"
-    ? errorText(error.message || String(error), lang)
-    : t("err.GENERIC", lang);
+  if (typeof errorText !== "function") return t("err.GENERIC", lang);
+  const raw = String(error.message || error);
+  const shown = errorText(raw, lang);
+  // Gujarati falls back to a generic sentence for English-only server
+  // messages; keep the real reason next to it so the person can see what is
+  // wrong.
+  const plain = typeof singleLanguageStatus === "function" ? singleLanguageStatus(raw, "en") : raw;
+  return lang === "gu" && !/[\u0a80-\u0aff]/.test(raw) && shown !== plain ? shown + " (" + plain + ")" : shown;
 }

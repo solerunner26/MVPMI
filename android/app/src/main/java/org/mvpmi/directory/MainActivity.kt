@@ -110,6 +110,21 @@ class MainActivity : Activity() {
         fun biometricForget() {
             runOnUiThread { Biometric.forget(this@MainActivity) }
         }
+
+        /** True while the person's optional PIN lock is on: hides the screen
+         *  from screenshots and the recent-apps preview. */
+        @android.webkit.JavascriptInterface
+        fun setScreenPrivacy(on: Boolean) {
+            runOnUiThread {
+                getPreferences(MODE_PRIVATE).edit().putBoolean("screenPrivacy", on).apply()
+                applyScreenPrivacy(on)
+            }
+        }
+    }
+
+    private fun applyScreenPrivacy(on: Boolean) {
+        if (on) window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
+        else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
     }
 
     private fun sendBiometric(kind: String, key: String) {
@@ -136,9 +151,11 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Community phone numbers must not appear in screenshots, screen
-        // recordings or the recent-apps preview.
-        window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
+        // The app must stay visible in the recent-apps list like any other
+        // app. Screenshots and the recents preview are blocked ONLY while the
+        // person's optional PIN lock is on (the page tells us through
+        // setScreenPrivacy; the choice is remembered for the next start).
+        applyScreenPrivacy(getPreferences(MODE_PRIVATE).getBoolean("screenPrivacy", false))
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.rgb(36, 20, 19)) }
         // Android 15+ always draws edge-to-edge: coloured bars sit behind the
         // status and navigation icons so the (white) icons stay visible.
@@ -158,6 +175,9 @@ class MainActivity : Activity() {
         root.addView(content, LinearLayout.LayoutParams(-1, 0, 1f))
         root.addView(navigationBar, LinearLayout.LayoutParams(-1, 0))
         web = WebView(this)
+        // Lets the phone's password manager (Google Password Manager) offer to
+        // save the Main Admin's password; members have no password.
+        web.importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_YES
         content.addView(web, FrameLayout.LayoutParams(-1, -1))
         setContentView(root)
         if (Build.VERSION.SDK_INT >= 33) unregisterBack = ModernBack.register(this) { navigateBack() }

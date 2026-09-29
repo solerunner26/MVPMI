@@ -31,20 +31,26 @@ test("Android static configuration: minimal permissions, HTTPS-only, no device/c
 });
 test("Android static source: secure window, narrow bridge, no SSL bypass, no clipboard copy", () => {
   const source = read("app/src/main/java/org/mvpmi/directory/MainActivity.kt");
-  assert.ok(source.includes("FLAG_SECURE"), "screenshots of the directory are blocked");
+  // The window is NOT secure by default (the app must stay visible in the
+  // recent-apps list); it becomes secure only while the optional PIN lock is on.
+  assert.ok(source.includes("FLAG_SECURE"), "screenshots are blocked while the PIN lock is on");
+  assert.ok(source.includes("fun setScreenPrivacy(on: Boolean)"));
+  assert.match(source, /applyScreenPrivacy\(getPreferences\(MODE_PRIVATE\)\.getBoolean\("screenPrivacy", false\)\)/, "off by default");
+  assert.equal(/setFlags\(WindowManager\.LayoutParams\.FLAG_SECURE[^)]*\)\s*\n\s*val root/.test(source), false, "no unconditional secure flag in onCreate");
+  assert.ok(source.includes("IMPORTANT_FOR_AUTOFILL_YES"), "the phone may offer to save the Main Admin password");
   assert.ok(source.includes("allowFileAccess = false"));
   assert.ok(source.includes("allowContentAccess = false"));
   assert.ok(source.includes("MIXED_CONTENT_NEVER_ALLOW"));
   assert.ok(source.includes("Intent.ACTION_DIAL"));
   assert.ok(source.includes("request.isForMainFrame"));
   assert.ok(source.includes("onReceivedHttpError"));
-  // The web bridge is deliberate and narrow: nine annotated methods (save
-  // sheet, print sheet, notification, device registration, pull now and the
-  // four fingerprint-unlock calls).
+  // The web bridge is deliberate and narrow: ten annotated methods (save
+  // sheet, print sheet, notification, device registration, pull now, the
+  // four fingerprint-unlock calls and the screen-privacy switch).
   assert.ok(source.includes('addJavascriptInterface(Bridge(), "mvpmiBridge")'));
   assert.equal(
     (source.match(/@android\.webkit\.JavascriptInterface/g) || []).length,
-    9,
+    10,
   );
   const biometric = read("app/src/main/java/org/mvpmi/directory/Biometric.kt");
   assert.ok(biometric.includes("android.hardware.biometrics.BiometricPrompt"), "the phone's own biometric prompt");

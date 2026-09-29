@@ -176,11 +176,21 @@ export function assertVerified(store, r) {
     a.disabled ||
     a.memberId !== r.verification.memberId ||
     a.version !== r.verification.assignmentVersion
-  )
+  ) {
+    const va = a && !a.disabled ? store.get("members", a.memberId) : null;
     fail(
-      "પહેલા ગામના એડમિનની ચકાસણી જરૂરી છે · Village verification is required first",
+      "પહેલા ગામના એડમિનની ચકાસણી જરૂરી છે · Village verification is required first" +
+        (va ? ` (${va.name}, ${va.phone})` : ""),
       409,
+      "VERIFY_FIRST",
+      {
+        info: {
+          village: r.payload.village,
+          admin: va ? { name: va.name, nameGu: va.nameGu, phone: va.phone } : null,
+        },
+      },
     );
+  }
   const verifier = store.get("members", a.memberId);
   if (
     !verifier ||

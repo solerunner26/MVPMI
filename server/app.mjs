@@ -271,7 +271,20 @@ export function createApp({
       requestAt: mine?.createdAt || null,
       members:
         (req.isAdmin || me) && !hidden
-          ? store.all("members").map(publicProfile)
+          ? (() => {
+              const mainId = mainAdminId(store);
+              const vaIds = new Set(
+                store
+                  .all("villages")
+                  .map((v) => activeAssignment(store, v.gu)?.memberId)
+                  .filter(Boolean),
+              );
+              // adminRole lets the app show admin names in red.
+              return store.all("members").map((m) => ({
+                ...publicProfile(m),
+                adminRole: m.id === mainId ? "MAIN_ADMIN" : vaIds.has(m.id) ? "VILLAGE_ADMIN" : undefined,
+              }));
+            })()
           : [],
       ...lock,
       latestNotificationAt: notifier.latestAt(req.session),
@@ -1180,6 +1193,7 @@ export function createApp({
       ...(err.code && status < 500 ? { code: err.code } : {}),
       ...(err.until && status < 500 ? { until: err.until } : {}),
       ...(err.field && status < 500 ? { field: err.field } : {}),
+      ...(err.info && status < 500 ? { info: err.info } : {}),
       ...(Number.isFinite(err.left) && status < 500 ? { left: err.left } : {}),
       error:
         err.type === "entity.parse.failed"

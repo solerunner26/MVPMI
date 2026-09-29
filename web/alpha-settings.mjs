@@ -57,55 +57,19 @@ export function ASettingsScreen(p) {
       ),
       ah(
         ASection,
-        { title: t("settings.security", lang) },
-        ah(AMenuItem, {
-          icon: "password",
-          label: t(main ? "profile.changePassword" : "profile.changePin", lang),
-          onClick: main ? p.onChangePassword : p.onChangePin,
-          testId: main ? "Settings change password" : "Settings change PIN",
-        }),
-        ah(ASwitch, {
-          label: t("settings.lock", lang),
-          help: t("settings.lockHelp", lang),
-          on: account.lockOn,
-          note: account.lockForced ? t("settings.lockForced", lang) : "",
-          disabled: account.lockForced || p.offline,
-          onToggle: p.onToggleLock,
-          testId: "Settings app lock",
-        }),
-        p.biometricAvailable && account.lockOn && !main
-          ? ah(ASwitch, {
-              label: t("settings.fingerprint", lang),
-              help: t("settings.fingerprintHelp", lang),
-              on: account.biometricOn,
-              disabled: p.offline,
-              onToggle: p.onToggleBiometric,
-              testId: "Settings fingerprint",
-            })
-          : null,
-      ),
-      ah(
-        ASection,
         { title: t("settings.display", lang) },
-        ah(
-          "div",
-          { className: "alpha-segment", role: "group", "aria-label": t("settings.language", lang) },
-          ah("span", { className: "alpha-segment-label" }, t("settings.language", lang)),
-          ah("button", { type: "button", "aria-pressed": lang === "gu", onClick: () => p.onLang("gu"), "data-testid": "Settings Gujarati" }, "ગુજરાતી"),
-          ah("button", { type: "button", "aria-pressed": lang === "en", onClick: () => p.onLang("en"), "data-testid": "Settings English" }, "English"),
-        ),
-        ah(
-          "div",
-          { className: "alpha-segment", role: "group", "aria-label": t("settings.theme", lang) },
-          ah("span", { className: "alpha-segment-label" }, t("settings.theme", lang)),
-          ah("button", { type: "button", "aria-pressed": p.theme !== "dark", onClick: () => p.onTheme("light"), "data-testid": "Settings light" }, t("settings.light", lang)),
-          ah("button", { type: "button", "aria-pressed": p.theme === "dark", onClick: () => p.onTheme("dark"), "data-testid": "Settings dark" }, t("settings.dark", lang)),
-        ),
         ah(
           "label",
           { className: "alpha-range" },
           ah("span", null, t("settings.textSize", lang), ah("output", null, p.fsPct + "%")),
           ah("input", { type: "range", min: 85, max: 165, step: 5, value: p.fsPct, onChange: (e) => p.onFs(Number(e.target.value)), "aria-label": t("settings.textSize", lang), "data-testid": "Settings text size" }),
+        ),
+        ah(
+          AButton,
+          { onClick: () => p.onFs(100), disabled: p.fsPct === 100, "data-testid": "Settings text size reset" },
+          ah(AIcon, { name: "arrow-counter-clockwise" }),
+          " ",
+          t("settings.textReset", lang),
         ),
       ),
       p.notificationPanel
@@ -126,7 +90,7 @@ export function ASettingsScreen(p) {
   );
 }
 
-export function AProfileScreen({ lang, account, member, onBack, onChangePin, onChangePassword, onRequestChange, onRequestRemoval, pendingChange, pendingRemoval }) {
+export function AProfileScreen({ lang, account, member, onBack, onChangePassword, onSettings, onRequestChange, onRequestRemoval, pendingChange, pendingRemoval, offline, onToggleLock, onChangeLockPin, biometricAvailable, onToggleBiometric }) {
   const main = account.role === "MAIN_ADMIN";
   const m = member || account;
   const rows = [
@@ -155,15 +119,40 @@ export function AProfileScreen({ lang, account, member, onBack, onChangePin, onC
       pendingRemoval ? ah(ANotice, { kind: "info" }, t("profile.pendingRemoval", lang)) : null,
       main ? ah("p", { className: "alpha-hint" }, t("profile.mainAdminNote", lang)) : null,
       ah(
+        ASection,
+        { title: t("profile.lockSection", lang) },
+        ah(ASwitch, {
+          label: t("lock.toggle", lang),
+          help: t("lock.toggleHelp", lang),
+          on: account.lockOn,
+          disabled: offline,
+          onToggle: onToggleLock,
+          testId: "Profile PIN lock",
+        }),
+        account.lockOn ? ah(AMenuItem, { icon: "password", label: t("lock.change", lang), onClick: onChangeLockPin, testId: "Profile change lock PIN" }) : null,
+        biometricAvailable && account.lockOn
+          ? ah(ASwitch, {
+              label: t("lock.fingerprint2", lang),
+              on: account.biometricOn,
+              disabled: offline,
+              onToggle: onToggleBiometric,
+              testId: "Profile fingerprint",
+            })
+          : null,
+      ),
+      ah(
         "div",
         { className: "alpha-actions alpha-actions-column" },
-        ah(
-          AButton,
-          { kind: "primary", onClick: main ? onChangePassword : onChangePin, "data-testid": main ? "Profile change password" : "Profile change PIN" },
-          ah(AIcon, { name: "password" }),
-          " ",
-          t(main ? "profile.changePassword" : "profile.changePin", lang),
-        ),
+        main
+          ? ah(
+              AButton,
+              { kind: "primary", onClick: onChangePassword, "data-testid": "Profile change password" },
+              ah(AIcon, { name: "password" }),
+              " ",
+              t("profile.changePassword", lang),
+            )
+          : null,
+        ah(AButton, { onClick: onSettings, "data-testid": "Profile settings" }, ah(AIcon, { name: "gear" }), " ", t("settings.title", lang)),
         main ? null : ah(AButton, { onClick: onRequestChange, "data-testid": "Profile request change" }, t("profile.requestChange", lang)),
         main ? null : ah(AButton, { kind: "danger", onClick: onRequestRemoval, "data-testid": "Profile request removal" }, t("profile.requestRemoval", lang)),
       ),

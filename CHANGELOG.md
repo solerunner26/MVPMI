@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.2.0 — alpha 1 (30 September 2026)
+
+- **No PIN to log in.** Members and Village Admins log in with their mobile
+  number only (also on a new phone). Only the Main Admin has a password:
+  any 4+ characters, offered to Google Password Manager.
+- **Optional phone PIN** only inside My Profile (off by default, never
+  forced, forgot = sign out and in again, no admin needed). The app never
+  locks or hides itself unless this is on; screenshots are blocked only then.
+- **Approvals:** errors show in a banner at the top with the real reason;
+  Save correction and Final approval work; the page explains why Final
+  approval is off and who the Village Admin is.
+- **Directory:** new 3-line header (logo, name, search / Filter, My Profile,
+  Admin Tools, Dark theme, Language / village chips). "You" removed; own name
+  green, admins red. Language and theme moved out of Settings.
+- Text size has a Reset (100%). Manage Village Admins uses a village drop-down.
+- **Hand-over:** `sudo mvpmi-config clear-directory` deletes all contacts and
+  keeps only the Main Admin login.
+
 ## 1.1.0 — alpha (September 2026)
 
 - Owner decisions (28 Sep): the seeded Main Admin password works for the

@@ -22,7 +22,7 @@ function registrationErrors(f) {
   return e;
 }
 
-export function ARegisterScreen({ lang, onLang, villages, api, initial, editing, onBack, onSubmitted, onGoLogin, onForgot }) {
+export function ARegisterScreen({ lang, onLang, villages, api, initial, editing, onBack, onSubmitted, onGoLogin }) {
   const [form, setForm] = React.useState(() => ({ ...emptyRegistration(), ...(initial || {}) }));
   const [consent, setConsent] = React.useState(!!editing);
   const [showPhone2, setShowPhone2] = React.useState(!!initial?.phone2);
@@ -161,7 +161,6 @@ export function ARegisterScreen({ lang, onLang, villages, api, initial, editing,
                     "div",
                     { className: "alpha-actions" },
                     ah(AButton, { kind: "primary", onClick: () => onGoLogin(form.phone), "data-testid": "Status go to login" }, t("reg.goLogin", lang)),
-                    ah(AButton, { onClick: () => onForgot(form.phone), "data-testid": "Status forgot PIN" }, t("login.forgot", lang)),
                   )
                 : null,
             )

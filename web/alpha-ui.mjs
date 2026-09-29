@@ -4,9 +4,6 @@
 // same; every text comes from web/strings.mjs through t().
 const ah = (...args) => React.createElement(...args);
 
-export const ALPHA_WEAK_PINS = [
-  "0000", "1111", "2222", "3333", "4444", "5555", "6666", "7777", "8888", "9999", "1234", "4321",
-];
 export const digitsOnly = (value, max = 10) => String(value ?? "").replace(/\D/g, "").slice(0, max);
 export const validMobile = (value) => /^[6-9]\d{9}$/.test(String(value ?? ""));
 export const formatMobile = (value) => {
@@ -19,11 +16,11 @@ export function AIcon({ name, className = "" }) {
 }
 
 // 48 px round glass icon button with an accessible name.
-export function AIconButton({ icon, label, onClick, badge, testId, pressed, disabled, className = "" }) {
+export function AIconButton({ icon, label, onClick, badge, testId, pressed, disabled, className = "", type = "button" }) {
   return ah(
     "button",
     {
-      type: "button",
+      type,
       className: "workflow-chip alpha-icon-button " + className,
       "aria-label": label,
       title: label,
@@ -76,7 +73,9 @@ export function AField({ label, hint, error, children, invalid, className = "" }
 }
 
 // PIN (4 digits, number keyboard) or PASSWORD field with a show/hide eye.
-export function ASecretInput({ value, onChange, mode = "pin", invalid, testId, autoFocus, lang, label, onEnter }) {
+// `autoComplete` lets a password field take part in Google Password Manager
+// ("current-password" / "new-password"); the PIN field never does.
+export function ASecretInput({ value, onChange, mode = "pin", invalid, testId, autoFocus, lang, label, onEnter, autoComplete, name }) {
   const [shown, setShown] = React.useState(false);
   const pin = mode === "pin";
   return ah(
@@ -85,11 +84,12 @@ export function ASecretInput({ value, onChange, mode = "pin", invalid, testId, a
     ah("input", {
       type: shown ? "text" : "password",
       value,
+      name,
       "aria-label": label,
       "aria-invalid": invalid ? "true" : undefined,
       "data-testid": testId,
       autoFocus,
-      autoComplete: "off",
+      autoComplete: autoComplete || "off",
       inputMode: pin ? "numeric" : undefined,
       pattern: pin ? "[0-9]*" : undefined,
       maxLength: pin ? 4 : 128,
@@ -112,6 +112,42 @@ export function ASecretInput({ value, onChange, mode = "pin", invalid, testId, a
       ah(AIcon, { name: shown ? "eye-slash" : "eye" }),
     ),
   );
+}
+
+// A persistent error at the very TOP of the screen (over every panel and
+// dialog). It stays until dismissed or the next action starts, so nobody has
+// to guess why "Save" or "Final approval" did nothing.
+export function AErrorBanner({ error, lang, onClose }) {
+  const ref = React.useRef(null);
+  React.useEffect(() => {
+    try {
+      ref.current?.scrollIntoView?.({ block: "nearest" });
+      ref.current?.focus?.();
+    } catch {}
+  }, [error]);
+  if (!error) return null;
+  const e = error.error || {};
+  const message = error.message || alphaError(e, lang);
+  const technical = [e.status ? "HTTP " + e.status : "", e.code || "", error.action || ""].filter(Boolean).join(" · ");
+  // Rendered straight into <body> so no panel or dialog can cover it.
+  let fs = "1";
+  try {
+    fs = getComputedStyle(document.querySelector(".app")).getPropertyValue("--fs").trim() || "1";
+  } catch {}
+  const banner = ah(
+    "div",
+    { className: "alpha-error-banner", role: "alert", "aria-live": "assertive", tabIndex: -1, ref, "data-testid": "Error banner", style: { "--fs": fs } },
+    ah(AIcon, { name: "warning-circle" }),
+    ah(
+      "div",
+      { className: "alpha-error-body" },
+      ah("strong", null, error.title || t("err.bannerTitle", lang)),
+      ah("p", { "data-testid": "Error banner message" }, message),
+      technical ? ah("small", null, t("err.technical", lang) + ": " + technical) : null,
+    ),
+    ah("button", { type: "button", className: "alpha-error-close", onClick: onClose, "aria-label": t("err.bannerClose", lang), "data-testid": "Error banner close" }, ah(AIcon, { name: "x" })),
+  );
+  return typeof ReactDOM !== "undefined" && ReactDOM.createPortal ? ReactDOM.createPortal(banner, document.body) : banner;
 }
 
 // Dialog sheet on the existing glass scrim.
@@ -183,11 +219,8 @@ export function alphaError(error, lang) {
     : main;
 }
 
-// ---- Section 6: one dialog for every PIN / PASSWORD change ----------------
-// Keeps the dialog open on every error, keeps what was typed, highlights the
-// wrong field and shows the exact reason in the chosen language.
-export function AChangeSecretDialog({ lang, mode = "pin", api, onDone, onClose }) {
-  const pin = mode === "pin";
+// ---- Main Admin: change password (any password, at least 4 characters) ----
+export function AChangeSecretDialog({ lang, api, onDone, onClose }) {
   const [form, setForm] = React.useState({ current: "", next: "", confirm: "" });
   const [error, setError] = React.useState(null);
   const [busy, setBusy] = React.useState(false);
@@ -197,18 +230,10 @@ export function AChangeSecretDialog({ lang, mode = "pin", api, onDone, onClose }
     if (error && error.code !== "LOCKED_OUT") setError(null);
   };
   const check = () => {
-    if (pin) {
-      if (!/^\d{4}$/.test(form.current)) return { code: "PIN_FORMAT", field: "current" };
-      if (!/^\d{4}$/.test(form.next)) return { code: "PIN_FORMAT", field: "next" };
-      if (ALPHA_WEAK_PINS.includes(form.next)) return { code: "PIN_WEAK", field: "next" };
-      if (form.next === form.current) return { code: "PIN_SAME", field: "next" };
-      if (form.confirm !== form.next) return { code: "PIN_MISMATCH", field: "confirm" };
-    } else {
-      if (!form.current) return { code: "WRONG_OLD_PASSWORD", field: "current" };
-      if (form.next.length < 8) return { code: "PASSWORD_FORMAT", field: "next" };
-      if (form.next === form.current) return { code: "PASSWORD_SAME", field: "next" };
-      if (form.confirm !== form.next) return { code: "PASSWORD_MISMATCH", field: "confirm" };
-    }
+    if (!form.current) return { code: "WRONG_OLD_PASSWORD", field: "current" };
+    if (form.next.length < 4) return { code: "PASSWORD_FORMAT", field: "next" };
+    if (form.next === form.current) return { code: "PASSWORD_SAME", field: "next" };
+    if (form.confirm !== form.next) return { code: "PASSWORD_MISMATCH", field: "confirm" };
     return null;
   };
   const submit = async () => {
@@ -221,27 +246,29 @@ export function AChangeSecretDialog({ lang, mode = "pin", api, onDone, onClose }
     setBusy(true);
     setError(null);
     try {
-      await api(pin ? "pin/change" : "password/change", form);
-      onDone(t(pin ? "change.pinDone" : "change.passwordDone", lang));
+      await api("password/change", form);
+      onDone(t("change.passwordDone", lang), form.next);
     } catch (e) {
       setError({ code: e.code || (e.network ? "NETWORK" : undefined), field: e.field, left: e.left, until: e.until, message: e.message, network: e.network });
     } finally {
       setBusy(false);
     }
   };
-  const field = (key, label) =>
+  const field = (key, label, complete) =>
     ah(
       AField,
       { label, invalid: error?.field === key, className: "alpha-secret-field" },
       ah(ASecretInput, {
         value: form[key],
         onChange: set(key),
-        mode: pin ? "pin" : "password",
+        mode: "password",
         invalid: error?.field === key,
         testId: "Change " + key,
         label,
         lang,
         autoFocus: key === "current",
+        autoComplete: complete,
+        name: complete === "current-password" ? "password" : "new-password",
         onEnter: submit,
       }),
     );
@@ -251,12 +278,7 @@ export function AChangeSecretDialog({ lang, mode = "pin", api, onDone, onClose }
       : alphaError(error, lang);
   return ah(
     ASheet,
-    {
-      title: t(pin ? "change.pinTitle" : "change.passwordTitle", lang),
-      onClose,
-      closeLabel: t("common.close", lang),
-      testId: pin ? "Change PIN dialog" : "Change Password dialog",
-    },
+    { title: t("change.passwordTitle", lang), onClose, closeLabel: t("common.close", lang), testId: "Change Password dialog" },
     ah(
       "form",
       {
@@ -267,10 +289,10 @@ export function AChangeSecretDialog({ lang, mode = "pin", api, onDone, onClose }
           submit();
         },
       },
-      field("current", t(pin ? "field.oldPin" : "field.oldPassword", lang)),
-      field("next", t(pin ? "field.newPin" : "field.newPassword", lang)),
-      field("confirm", t(pin ? "field.newPin2" : "field.newPassword2", lang)),
-      ah("p", { className: "alpha-hint" }, t(pin ? "field.pinHint" : "field.passwordHint", lang), " ", t("change.otherPhones", lang)),
+      field("current", t("field.oldPassword", lang), "current-password"),
+      field("next", t("field.newPassword", lang), "new-password"),
+      field("confirm", t("field.newPassword2", lang), "new-password"),
+      ah("p", { className: "alpha-hint" }, t("field.passwordHint", lang), " ", t("change.otherPhones", lang)),
       message ? ah(ANotice, { kind: "error", testId: "Change error" }, message) : null,
       ah(
         "div",
@@ -282,53 +304,77 @@ export function AChangeSecretDialog({ lang, mode = "pin", api, onDone, onClose }
   );
 }
 
-// ---- Section 3/5: the TEMP PIN is shown ONCE, with a WhatsApp button -------
-export function tempPinMessage(issued, lang) {
-  const key =
-    issued.kind === "village-admin"
-      ? "temp.msgVillageAdmin"
-      : issued.kind === "member"
-        ? "temp.msgMember"
-        : "temp.msgReset";
-  return t(key, lang, {
+// ---- My Profile: turn the optional phone PIN lock on / change its PIN ------
+// The PIN belongs to this phone only; nobody else (no admin) ever needs it.
+export function ALockPinDialog({ lang, changing, api, onDone, onClose }) {
+  const [pin, setPin] = React.useState("");
+  const [confirm, setConfirm] = React.useState("");
+  const [error, setError] = React.useState(null);
+  const [busy, setBusy] = React.useState(false);
+  const submit = async () => {
+    if (busy) return;
+    if (!/^\d{4}$/.test(pin)) return setError({ code: "PIN_FORMAT", field: "pin" });
+    if (confirm !== pin) return setError({ code: "PIN_MISMATCH", field: "confirm" });
+    setBusy(true);
+    setError(null);
+    try {
+      const data = await api("lock/preference", { on: true, pin, confirm });
+      onDone(data, pin);
+    } catch (e) {
+      setError({ code: e.code || (e.network ? "NETWORK" : undefined), field: e.field, message: e.message, network: e.network });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return ah(
+    ASheet,
+    { title: t(changing ? "lock.changeTitle" : "lock.setTitle", lang), onClose, closeLabel: t("common.close", lang), testId: "Lock PIN dialog" },
+    ah(
+      "form",
+      {
+        className: "alpha-form",
+        noValidate: true,
+        onSubmit: (e) => {
+          e.preventDefault();
+          submit();
+        },
+      },
+      ah(AField, { label: t("lock.newPin", lang), invalid: error?.field === "pin" }, ah(ASecretInput, { value: pin, mode: "pin", lang, label: t("lock.newPin", lang), invalid: error?.field === "pin", testId: "Lock pin", autoFocus: true, onChange: (v) => { setPin(v); setError(null); } })),
+      ah(AField, { label: t("lock.newPin2", lang), invalid: error?.field === "confirm" }, ah(ASecretInput, { value: confirm, mode: "pin", lang, label: t("lock.newPin2", lang), invalid: error?.field === "confirm", testId: "Lock pin confirm", onChange: (v) => { setConfirm(v); setError(null); }, onEnter: submit })),
+      ah("p", { className: "alpha-hint" }, t("lock.toggleHelp", lang)),
+      error ? ah(ANotice, { kind: "error", testId: "Lock pin error" }, alphaError(error, lang)) : null,
+      ah(
+        "div",
+        { className: "alpha-actions" },
+        ah(AButton, { kind: "primary", type: "submit", disabled: busy, "data-testid": "Lock pin save" }, busy ? t("common.wait", lang) : t("lock.set", lang)),
+        ah(AButton, { onClick: onClose }, t("common.cancel", lang)),
+      ),
+    ),
+  );
+}
+
+// ---- Village Admin created: hand-over by call or WhatsApp (no PIN) ---------
+export function villageAdminMessage(issued, lang) {
+  return t("vac.msg", lang, {
     app: t("app.community", "gu") + " · " + t("app.title", "gu"),
     appEn: t("app.community", "en") + " · " + t("app.title", "en"),
     village: issued.village || "",
     villageEn: issued.villageEn || issued.village || "",
-    pin: issued.pin,
     phone: formatMobile(issued.phone),
   });
 }
-export function ATempPinDialog({ issued, lang, onClose }) {
-  const href = "https://wa.me/91" + issued.phone + "?text=" + encodeURIComponent(tempPinMessage(issued, lang));
-  const who = (lang === "en" ? issued.name : issued.nameGu || issued.name) + " · " + formatMobile(issued.phone);
+export function AVillageAdminCreatedDialog({ issued, lang, onClose }) {
+  const who = lang === "en" ? issued.name : issued.nameGu || issued.name;
   return ah(
     ASheet,
-    { title: t("temp.title", lang), onClose, closeLabel: t("common.done", lang), testId: "TEMP PIN dialog" },
-    ah("p", { className: "alpha-sheet-body" }, who),
-    ah("div", { className: "alpha-temp-pin", "data-testid": "TEMP PIN value", "aria-label": t("temp.title", lang) + " " + issued.pin.split("").join(" ") }, issued.pin),
-    // A Village Admin's TEMP PIN stays on their card for the Main Admin until
-    // the first login, so he can also hand it over in a phone call.
-    ah(ANotice, { kind: "info" }, t(String(issued.kind).startsWith("village-admin") ? "temp.onCard" : "temp.once", lang), " ", t("temp.sharedHint", lang)),
+    { title: t("vac.title", lang), onClose, closeLabel: t("common.done", lang), testId: "Village Admin created dialog" },
+    ah("p", { className: "alpha-sheet-body", "data-testid": "Village Admin created text" }, t("vac.body", lang, { name: who, phone: formatMobile(issued.phone) })),
     ah(
       "div",
       { className: "alpha-actions" },
-      ah(
-        "a",
-        {
-          role: "button",
-          className: "lq-primary lq-btn alpha-button alpha-whatsapp",
-          href,
-          target: "_blank",
-          rel: "noopener noreferrer",
-          "data-testid": "Share on WhatsApp",
-        },
-        ah(AIcon, { name: "whatsapp-logo" }),
-        " ",
-        t("temp.share", lang),
-      ),
-      ah(ACallLink, { phone: issued.phone, lang, testId: "TEMP PIN call" }),
-      ah(AButton, { onClick: onClose, "data-testid": "TEMP PIN done" }, t("common.done", lang)),
+      ah(AWhatsAppLink, { issued, lang, testId: "Share on WhatsApp" }),
+      ah(ACallLink, { phone: issued.phone, lang, testId: "Village Admin call" }),
+      ah(AButton, { onClick: onClose, "data-testid": "Village Admin created done" }, t("common.done", lang)),
     ),
   );
 }
@@ -338,14 +384,14 @@ export function AWhatsAppLink({ issued, lang, testId }) {
     {
       role: "button",
       className: "lq-btn alpha-button alpha-whatsapp",
-      href: "https://wa.me/91" + issued.phone + "?text=" + encodeURIComponent(tempPinMessage(issued, lang)),
+      href: "https://wa.me/91" + issued.phone + "?text=" + encodeURIComponent(villageAdminMessage(issued, lang)),
       target: "_blank",
       rel: "noopener noreferrer",
       "data-testid": testId,
     },
     ah(AIcon, { name: "whatsapp-logo" }),
     " ",
-    t("temp.share", lang),
+    t("vac.share", lang),
   );
 }
 export function ACallLink({ phone, lang, testId }) {
@@ -354,6 +400,6 @@ export function ACallLink({ phone, lang, testId }) {
     { role: "button", className: "lq-btn alpha-button", href: "tel:+91" + phone, "data-testid": testId },
     ah(AIcon, { name: "phone" }),
     " ",
-    t("temp.call", lang),
+    t("vac.call", lang),
   );
 }

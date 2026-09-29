@@ -234,6 +234,8 @@ class Component extends DesignComponent {
       workflowOpen: false,
       allAdminsOpen: false,
       searchOpen: false,
+      createdAdmin: null,
+      topError: null,
     };
   }
   _engageLock() {
@@ -261,8 +263,12 @@ class Component extends DesignComponent {
       this.setState({ alphaDialog: null });
       return true;
     }
-    if (s.issuedPin) {
-      this.setState({ issuedPin: null });
+    if (s.createdAdmin) {
+      this.setState({ createdAdmin: null });
+      return true;
+    }
+    if (s.topError) {
+      this.setState({ topError: null });
       return true;
     }
     if (s.contact) {
@@ -286,8 +292,8 @@ class Component extends DesignComponent {
         this.setState({ screen: s.myRequest ? "pending" : "login" });
         return true;
       case "directory":
-        if (s.searchOpen) {
-          this.setState({ searchOpen: false, query: "" });
+        if (s.query) {
+          this.setState({ query: "" });
           return true;
         }
         if (s.dirVillage) {
@@ -296,10 +302,10 @@ class Component extends DesignComponent {
         }
         return false;
       case "settings":
-        this.set("screen", "directory");
+        this.set("screen", s.settingsFrom === "profile" ? "profile" : "directory");
         return true;
       case "profile":
-        this.set("screen", s.profileFrom === "admin" && s.role === "admin" ? "admin" : "settings");
+        this.set("screen", s.profileFrom === "admin" && s.role === "admin" ? "admin" : s.profileFrom === "settings" ? "settings" : "directory");
         return true;
       case "edit":
       case "adminedit":
@@ -527,7 +533,7 @@ class Component extends DesignComponent {
       );
     }
     const current = this.state;
-    const { issuedPin, ...rest } = data;
+    const { created, ...rest } = data;
     const patch = {
       ...rest,
       connected: true,
@@ -535,8 +541,8 @@ class Component extends DesignComponent {
       offline: false,
       lastConfirmed: Date.now(),
     };
-    // A TEMP PIN is shown ONCE (Sections 3 and 5).
-    if (issuedPin) patch.issuedPin = issuedPin;
+    // A newly created Village Admin: hand-over dialog (call / WhatsApp).
+    if (created) patch.createdAdmin = created;
     const accountChanged = (current.account?.id || null) !== (data.account?.id || null);
     const roleChanged =
       current.loaded &&
@@ -558,15 +564,35 @@ class Component extends DesignComponent {
     if (!data.villageAdmin && data.role !== "admin" && current.workflowOpen) patch.workflowOpen = false;
     if (data.locked) {
       if (!wasLocked) this._resumeScreen = current.screen;
-      Object.assign(patch, this._overlaysClosed(), { screen: "lock", issuedPin: null });
+      Object.assign(patch, this._overlaysClosed(), { screen: "lock" });
     }
     this.setState(patch);
+    this.syncScreenPrivacy(!!data.account?.lockOn);
+    // Approved on this phone: log in by itself, nothing to type.
+    if (data.approvedHere && !data.account && !this._autoLogin) {
+      this._autoLogin = true;
+      this.api("login/approved", {})
+        .then((d) => this.onLoggedIn(d))
+        .catch(() => {})
+        .finally(() => {
+          this._autoLogin = false;
+        });
+    }
     this.persistOffline(data);
     // One-time notices for the member (approved, change approved …).
     if (data.account?.notice && this._noticeShown !== data.account.notice.at) {
       this._noticeShown = data.account.notice.at;
       if (data.account.notice.kind === "approved") this.flashKey("pending.approved");
     }
+  }
+  // Android: screenshots and the recent-apps preview are blocked only while the
+  // person's optional PIN lock is on; otherwise the app is visible as usual.
+  syncScreenPrivacy(on) {
+    if (this._screenPrivacy === on) return;
+    this._screenPrivacy = on;
+    try {
+      androidBridge()?.setScreenPrivacy?.(on);
+    } catch {}
   }
   // Keep the offline copy in step with what the server just said.
   persistOffline(data) {
@@ -598,6 +624,7 @@ class Component extends DesignComponent {
   clearAccess() {
     if (!this._alive) return;
     clearOffline();
+    this.syncScreenPrivacy(false);
     this.setState({
       ...clone(SEED),
       ...this._overlaysClosed(),
@@ -608,10 +635,10 @@ class Component extends DesignComponent {
       villageAdmin: false,
       reviewQueue: [],
       villageAssignments: [],
-      pinResetRequests: [],
       rejectedApplications: [],
       locked: false,
-      issuedPin: null,
+      createdAdmin: null,
+      topError: null,
       screen: "login",
       query: "",
       dirVillage: "",
@@ -726,17 +753,26 @@ class Component extends DesignComponent {
   async run(fn) {
     if (this._busy) return;
     this._busy = true;
-    this.setState({ busy: true });
+    this.setState({ busy: true, ...(this.state.topError ? { topError: null } : {}) });
     try {
       await fn();
     } catch (e) {
-      this.flash(errorMessage(e, "gu"), errorMessage(e, "en"));
+      this.showError(e);
       if (/authentication|approval|blocked/i.test(e.message) || e.code === "SESSION" || e.code === "LOCKED")
         await this.refresh();
     } finally {
       this._busy = false;
       if (this._alive) this.setState({ busy: false });
     }
+  }
+  // A persistent error at the very top of the screen (see AErrorBanner): it
+  // says what went wrong and stays until dismissed.
+  showError(e, action) {
+    if (!this._alive) return;
+    this.setState({ topError: { error: e, action: action ? String(action).replace(/^\/?(api\/)?/, "") : "" } });
+  }
+  showNotice(title, message) {
+    this.setState({ topError: { title, message, error: {} } });
   }
   mutate(path, body = {}, screen) {
     return this.run(async () => {
@@ -838,7 +874,7 @@ class Component extends DesignComponent {
     this._resumeScreen = null;
     this.apply(data, false, this.home(data));
     if (data.account && !data.account.mustSetPin) {
-      rememberOfflineUnlock(data.account.id, secret);
+      if (data.account.lockOn && secret) rememberOfflineUnlock(data.account.id, secret);
       if (data.account.adminMode) this.offerNotifications();
     }
     this._afterState();
@@ -860,7 +896,7 @@ class Component extends DesignComponent {
           throw Object.assign(new Error("locked"), { code: "LOCKED_OUT", until: this._offlineUntil });
         }
         throw Object.assign(new Error("wrong"), {
-          code: s.account?.role === "MAIN_ADMIN" ? "WRONG_PASSWORD" : "WRONG_PIN",
+          code: "WRONG_PIN",
           left: 5 - this._offlineFails,
         });
       }
@@ -923,7 +959,7 @@ class Component extends DesignComponent {
           androidBridge()?.biometricForget?.();
         } catch {}
         await this.refresh();
-        this.flashKey("settings.fingerprintOff");
+        this.flashKey("lock.fingerprintOff");
       });
       return;
     }
@@ -931,18 +967,28 @@ class Component extends DesignComponent {
       this.run(async () => {
         await this.api("lock/biometric", { key });
         await this.refresh();
-        this.flashKey("settings.fingerprintOn");
+        this.flashKey("lock.fingerprintOn");
       }),
     );
   }
+  // My Profile → "Lock this app with a PIN". Turning it on asks for a 4-digit
+  // PIN; turning it off needs nothing. Nothing else ever locks the app.
   toggleLock() {
     const a = this.state.account;
-    if (!a || a.lockForced) return;
-    this.run(async () => {
-      await this.api("lock/preference", { on: !a.lockOn });
-      await this.refresh();
-      this.flashKey(a.lockOn ? "settings.lockOffDone" : "settings.lockOn");
-    });
+    if (!a) return;
+    if (a.lockOn) {
+      this.run(async () => {
+        await this.api("lock/preference", { on: false });
+        forgetOfflineUnlock();
+        try {
+          androidBridge()?.biometricForget?.();
+        } catch {}
+        await this.refresh();
+        this.flashKey("lock.offDone");
+      });
+      return;
+    }
+    this.setState({ alphaDialog: { type: "lockPin", changing: false } });
   }
   signOutOfPhone() {
     this.setState({
@@ -987,20 +1033,33 @@ class Component extends DesignComponent {
     const s = this.state;
     if (!s.account) return;
     if (!s.account.adminMode) {
-      this.setState({ alphaDialog: { type: "adminEnter" } });
+      if (s.account.role === "MAIN_ADMIN") {
+        this.setState({ alphaDialog: { type: "adminEnter" } });
+        return;
+      }
+      // A Village Admin logs in with the mobile number only: open directly.
+      this.run(async () => {
+        const data = await this.api("admin/enter", {});
+        this.apply(data);
+        this._showAdminTools(data);
+      });
       return;
     }
     // Always open the admin tools with the latest queue from the server.
     this.run(async () => {
-      this.apply(await this.api("state"));
-      if (s.account.role === "MAIN_ADMIN") this.setState({ screen: "admin", tab: "home", statsVillage: null });
-      else this.setState({ workflowOpen: true, workflowTab: "requests" });
+      const data = await this.api("state");
+      this.apply(data);
+      this._showAdminTools(data);
     });
+  }
+  _showAdminTools(data) {
+    if (data.account?.role === "MAIN_ADMIN") this.setState({ screen: "admin", tab: "home", statsVillage: null });
+    else this.setState({ workflowOpen: true, workflowTab: "requests" });
   }
   pendingAdminCount(s = this.state) {
     if (s.role === "admin")
-      return (s.newRequests || []).length + (s.updateRequests || []).length + (s.deleteRequests || []).length + (s.pinResetRequests || []).length;
-    if (s.villageAdmin) return (s.reviewQueue || []).length + (s.pinResetRequests || []).length;
+      return (s.newRequests || []).length + (s.updateRequests || []).length + (s.deleteRequests || []).length;
+    if (s.villageAdmin) return (s.reviewQueue || []).length;
     return 0;
   }
   myMember(s = this.state) {
@@ -1046,7 +1105,6 @@ class Component extends DesignComponent {
             this.offerNotifications();
           },
           onGoLogin: (mobile) => this.setState({ screen: "login", loginMobile: mobile }),
-          onForgot: (mobile) => this.setState({ screen: "login", loginMobile: mobile, alphaDialog: { type: "forgot", mobile } }),
         });
       case "pending":
         return h(APendingScreen, {
@@ -1086,10 +1144,9 @@ class Component extends DesignComponent {
           onLang,
           api,
           account: s.account,
-          onDone: (data, pin) => {
+          onDone: (data) => {
             this.apply(data, false, "directory");
-            rememberOfflineUnlock(data.account?.id, pin);
-            this.flashKey(data.account?.role === "MAIN_ADMIN" ? "setpw.done" : "setpin.done");
+            this.flashKey("setpw.done");
           },
           onSignOut: () => this.signOutOfPhone(),
         });
@@ -1111,24 +1168,19 @@ class Component extends DesignComponent {
           lang,
           account: s.account,
           offline: !!s.offline,
-          theme: s.theme,
           fsPct: s.fsPct,
           pendingChange: (s.updateRequests || []).some((u) => u.memberId === s.account.id),
           pendingRemoval: (s.deleteRequests || []).some((u) => u.memberId === s.account.id),
-          biometricAvailable: this.biometricAvailable(),
           notificationPanel: s.offline ? null : h(NotificationSettings, { lang, api }),
           version: this.appVersion(),
           onBack: () => this.handleBack(),
-          onLang,
-          onTheme: (value) => this.set("theme", value),
-          onFs: (value) => this.set("fsPct", normalizeTextSize(value)),
+          onFs: (value) => {
+            this.set("fsPct", normalizeTextSize(value));
+            if (normalizeTextSize(value) === 100) this.flashKey("settings.textResetDone");
+          },
           onProfile: () => this.setState({ screen: "profile", profileFrom: "settings" }),
           onRequestChange: () => this.openEditRequest(),
           onRequestRemoval: () => this.askRemovalRequest(),
-          onChangePin: () => this.setState({ alphaDialog: { type: "changePin" } }),
-          onChangePassword: () => this.setState({ alphaDialog: { type: "changePassword" } }),
-          onToggleLock: () => this.toggleLock(),
-          onToggleBiometric: () => this.toggleBiometric(),
           onAdmins: goAdmins,
           onSignOut: () => this.signOutOfPhone(),
         });
@@ -1140,9 +1192,14 @@ class Component extends DesignComponent {
           member: this.myMember(),
           pendingChange: (s.updateRequests || []).some((u) => u.memberId === s.account.id),
           pendingRemoval: (s.deleteRequests || []).some((u) => u.memberId === s.account.id),
+          offline: !!s.offline,
+          biometricAvailable: this.biometricAvailable(),
           onBack: () => this.handleBack(),
-          onChangePin: () => this.setState({ alphaDialog: { type: "changePin" } }),
           onChangePassword: () => this.setState({ alphaDialog: { type: "changePassword" } }),
+          onToggleLock: () => this.toggleLock(),
+          onChangeLockPin: () => this.setState({ alphaDialog: { type: "lockPin", changing: true } }),
+          onToggleBiometric: () => this.toggleBiometric(),
+          onSettings: () => this.setState({ screen: "settings", settingsFrom: "profile" }),
           onRequestChange: () => this.openEditRequest(),
           onRequestRemoval: () => this.askRemovalRequest(),
         });
@@ -1186,15 +1243,16 @@ class Component extends DesignComponent {
           villages: s.villages || VILLAGE_LIST,
           meId: s.account?.id,
           query: s.query || "",
-          searchOpen: !!s.searchOpen,
           village: s.dirVillage || "",
           chipsVisible: s.chipsVisible !== false,
+          theme: s.theme,
           onQuery: (value) => this.set("query", value),
-          onSearchOpen: (open) => this.setState({ searchOpen: open, query: open ? s.query : "" }),
           onVillage: (value) => this.set("dirVillage", value),
           onToggleChips: () => this.set("chipsVisible", s.chipsVisible === false),
           onOpenContact: (m) => this.setState({ contact: m }),
-          onSettings: () => this.set("screen", "settings"),
+          onProfile: () => this.setState({ screen: "profile", profileFrom: "directory" }),
+          onTheme: (value) => this.set("theme", value),
+          onLang,
           showAdmin: !s.offline && (s.account?.role === "MAIN_ADMIN" || s.account?.role === "VILLAGE_ADMIN"),
           adminBadge: this.pendingAdminCount(),
           onAdmin: () => this.openAdmin(),
@@ -1215,17 +1273,32 @@ class Component extends DesignComponent {
     const close = () => this.setState({ alphaDialog: null });
     const nodes = [];
     if (s.contact) nodes.push(h(AContactSheet, { key: "contact", m: s.contact, lang, onClose: () => this.setState({ contact: null }) }));
-    if (d?.type === "changePin" || d?.type === "changePassword")
+    if (d?.type === "changePassword")
       nodes.push(
         h(AChangeSecretDialog, {
           key: "change",
           lang,
           api,
-          mode: d.type === "changePin" ? "pin" : "password",
           onClose: close,
           onDone: (message) => {
             close();
             this.flash(message, message);
+            this.refresh();
+          },
+        }),
+      );
+    if (d?.type === "lockPin")
+      nodes.push(
+        h(ALockPinDialog, {
+          key: "lockPin",
+          lang,
+          api,
+          changing: !!d.changing,
+          onClose: close,
+          onDone: (data, pin) => {
+            close();
+            rememberOfflineUnlock(s.account?.id, pin);
+            this.flashKey("lock.setDone");
             this.refresh();
           },
         }),
@@ -1236,7 +1309,6 @@ class Component extends DesignComponent {
           key: "adminEnter",
           lang,
           api,
-          account: s.account,
           onClose: close,
           onDone: (data) => {
             close();
@@ -1245,8 +1317,6 @@ class Component extends DesignComponent {
           },
         }),
       );
-    if (d?.type === "forgot")
-      nodes.push(h(AForgotPinDialog, { key: "forgot", lang, api, initialMobile: d.mobile || "", onClose: close }));
     if (d?.type === "discard")
       nodes.push(
         h(AConfirm, {
@@ -1277,8 +1347,10 @@ class Component extends DesignComponent {
           onNo: close,
         }),
       );
-    if (s.issuedPin)
-      nodes.push(h(ATempPinDialog, { key: "temp", issued: s.issuedPin, lang, onClose: () => this.setState({ issuedPin: null }) }));
+    if (s.createdAdmin)
+      nodes.push(h(AVillageAdminCreatedDialog, { key: "created", issued: s.createdAdmin, lang, onClose: () => this.setState({ createdAdmin: null }) }));
+    if (s.topError)
+      nodes.push(h(AErrorBanner, { key: "topError", error: s.topError, lang, onClose: () => this.setState({ topError: null }) }));
     return nodes.length ? h(React.Fragment, null, ...nodes) : null;
   }
   openEditRequest() {
@@ -1350,7 +1422,9 @@ class Component extends DesignComponent {
                 screen: s.role === "admin" ? s.screen : "directory",
               }),
             onAdminLogout: () => this.adminLogout(),
+            onError: (e, path) => this.showError(e, path),
             onAction: async (path, body) => {
+              if (this.state.topError) this.setState({ topError: null });
               const data = await this.api(path, body);
               this.apply(data);
             },
@@ -1386,15 +1460,8 @@ class Component extends DesignComponent {
         gu: STR["va.title"][0],
         en: STR["va.title"][1],
         count: (s.villageAssignments || []).filter((a) => !a.disabled).length,
-        hint: this.P("બનાવો · બંધ કરો · પિન રીસેટ", "create · disable · reset PIN"),
+        hint: this.P("ગામ પસંદ કરો · બનાવો · બંધ કરો", "choose a village · create · disable"),
         onClick: () => v.openWorkflow("villages"),
-      },
-      {
-        gu: STR["pinreq.title"][0],
-        en: STR["pinreq.title"][1],
-        count: (s.pinResetRequests || []).length,
-        hint: this.P("કામચલાઉ પિન બનાવો", "create a TEMP PIN"),
-        onClick: () => v.openWorkflow("pins"),
       },
       {
         gu: STR["profile.title"][0],
@@ -1422,8 +1489,15 @@ class Component extends DesignComponent {
               const fresh = await this.api("state");
               const queued = (fresh.reviewQueue || []).find((r) => r.id === id);
               if (queued && queued.stage === "village") {
+                // Not ready for the Main Admin yet: open the review panel and
+                // say clearly why, at the top.
                 this.apply(fresh);
+                const va = (fresh.adminDirectory?.villages || []).find((v) => v.village === queued.payload.village)?.admin;
                 this.setState({ workflowOpen: true, workflowTab: "requests" });
+                this.showError(
+                  Object.assign(new Error("Village verification is required first"), { status: 409, code: "VERIFY_FIRST", info: { admin: va ? { name: va.name, nameGu: va.name, phone: va.phone } : null } }),
+                  "admin/requests/approve",
+                );
                 return;
               }
               this.apply(await this.api("admin/requests/" + id + "/approve", {}));
