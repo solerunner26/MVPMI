@@ -181,3 +181,81 @@ jobs:
           files=$(find apk/mvpmi-release-apk -type f 2>/dev/null || true)
           [ -n "$files" ] || { echo "Release build missing: add the signing secrets and COMMUNITY_URL (docs/ANDROID_RELEASE.md)"; exit 1; }
           gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" $files --clobber
+
+  alpha-release:
+    # Alpha pre-release without pushing a tag (owner-approved 2026-09-29):
+    # when .github/alpha-release names a tag (for example v1.1.0-alpha.1) and
+    # all checks above passed on the alpha branch, this job builds the APK for
+    # the live server and publishes it as a GitHub PRE-release (never
+    # "latest", so the server's hourly update is not triggered by it).
+    if: github.event_name == 'push' && github.ref == 'refs/heads/alpha/v1.1-audit'
+    needs: android
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      LIVE_URL: https://samaj.kavigsv.com
+    steps:
+      - uses: actions/checkout@v5
+      - name: Which alpha release?
+        id: tag
+        shell: bash
+        run: |
+          TAG=$(tr -d ' \r\n' < .github/alpha-release 2>/dev/null || true)
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-[a-z]+\.[0-9]+$ ]] || { echo "No alpha tag requested."; echo "tag=" >> "$GITHUB_OUTPUT"; exit 0; }
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "$TAG is already published."; echo "tag=" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+      - if: steps.tag.outputs.tag != ''
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - if: steps.tag.outputs.tag != ''
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - if: steps.tag.outputs.tag != ''
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+      - name: Build the alpha APK for the live server
+        if: steps.tag.outputs.tag != ''
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.MVPMI_KEYSTORE_BASE64 }}
+          MVPMI_KEYSTORE_PASSWORD: ${{ secrets.MVPMI_KEYSTORE_PASSWORD }}
+          MVPMI_KEY_ALIAS: ${{ secrets.MVPMI_KEY_ALIAS }}
+          MVPMI_KEY_PASSWORD: ${{ secrets.MVPMI_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sdkmanager 'platforms;android-36' 'build-tools;36.0.0' >/dev/null
+          TAG="${{ steps.tag.outputs.tag }}"
+          ARGS=("-PcommunityUrl=$LIVE_URL" "-PversionName=${TAG#v}" "-PversionCode=$(( ${{ github.run_number }} + 100 ))" --console=plain)
+          mkdir -p out
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/mvpmi-release.jks"
+            export MVPMI_KEYSTORE_FILE="$RUNNER_TEMP/mvpmi-release.jks"
+            gradle -p android :app:assembleRelease "${ARGS[@]}"
+            cp android/app/build/outputs/apk/release/app-release.apk out/mvpmi.apk
+            rm -f "$RUNNER_TEMP/mvpmi-release.jks"
+            KIND="Signed release build"
+          else
+            gradle -p android :app:assembleDebug "${ARGS[@]}"
+            cp android/app/build/outputs/apk/debug/app-debug.apk out/mvpmi.apk
+            KIND="Test build (debug-signed: uninstall the old app before installing a newer alpha)"
+          fi
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify out/mvpmi.apk
+          printf 'Version: %s\nServer: %s\nSource commit: %s\n%s\n' "${TAG#v}" "$LIVE_URL" "$GITHUB_SHA" "$KIND" > out/BUILD-INFO.txt
+          (cd out && sha256sum mvpmi.apk > SHA256SUMS.txt)
+      - name: Publish the pre-release
+        if: steps.tag.outputs.tag != ''
+        shell: bash
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          gh release create "$TAG" out/mvpmi.apk out/SHA256SUMS.txt out/BUILD-INFO.txt \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
+            --title "MVPMI $TAG (alpha)" --notes-file .github/alpha-release-notes.md
