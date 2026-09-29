@@ -66,7 +66,7 @@ export function ASettingsScreen(p) {
         ),
         ah(
           AButton,
-          { onClick: () => p.onFs(100), disabled: p.fsPct === 100, "data-testid": "Settings text size reset" },
+          { kind: "text", className: "alpha-reset-button", onClick: () => p.onFs(100), disabled: p.fsPct === 100, "data-testid": "Settings text size reset" },
           ah(AIcon, { name: "arrow-counter-clockwise" }),
           " ",
           t("settings.textReset", lang),

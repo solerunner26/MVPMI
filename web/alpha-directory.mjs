@@ -158,6 +158,10 @@ export function ADirectoryScreen({
   const count = (n) => t(n === 1 ? "dir.countOne" : "dir.count", lang, { n });
   const dark = theme === "dark";
   const inputRef = React.useRef(null);
+  // While searching, the community name steps aside so the box gets the whole
+  // line (report A06); it comes back when the box is empty and not focused.
+  const [focused, setFocused] = React.useState(false);
+  const searching = focused || query.length > 0;
   return ah(
     "main",
     { className: "alpha-screen alpha-directory", "data-testid": "Directory screen" },
@@ -167,7 +171,7 @@ export function ADirectoryScreen({
       ah(
         "form",
         {
-          className: "alpha-dirline alpha-dirline-search",
+          className: "alpha-dirline alpha-dirline-search" + (searching ? " is-searching" : ""),
           role: "search",
           onSubmit: (e) => {
             e.preventDefault();
@@ -185,6 +189,8 @@ export function ADirectoryScreen({
           "data-testid": "Search input",
           enterKeyHint: "search",
           autoComplete: "off",
+          onFocus: () => setFocused(true),
+          onBlur: () => setFocused(false),
           onChange: (e) => onQuery(e.target.value),
         }),
         ah(AIconButton, { icon: "magnifying-glass", label: t("dir.searchBtn", lang), onClick: () => inputRef.current?.blur(), testId: "Search", type: "submit" }),

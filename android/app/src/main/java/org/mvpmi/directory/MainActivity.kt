@@ -346,7 +346,8 @@ class MainActivity : Activity() {
             val uri = data?.data
             if (resultCode == RESULT_OK && uri != null) {
                 try {
-                    contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
+                    val out = contentResolver.openOutputStream(uri) ?: throw java.io.IOException("no output stream")
+                    out.use { it.write(bytes) }
                     message(R.string.save_done_gu, R.string.save_done_en)
                 } catch (_: Exception) {
                     message(R.string.save_failed_gu, R.string.save_failed_en)

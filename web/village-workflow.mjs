@@ -640,7 +640,7 @@ function WorkflowDecision({ request: r, data, lang, act, busy, flash = () => {} 
             r.payload.village,
         ),
     r.payload.currentLocation &&
-      h("p", null, "હાલ : ", r.payload.currentLocation),
+      h("p", null, B("હાલ : ", "Location: "), r.payload.currentLocation),
     h(
       "p",
       { className: "workflow-status" },
@@ -975,7 +975,7 @@ function WorkflowMemberCard({ member: m, data, lang, act, busy, pending }) {
     { className: "workflow-card" },
     h("h3", null, bilingual(m.nameGu, m.name, lang)),
     h("p", null, m.phone, m.phone2 ? " · " + m.phone2 : ""),
-    m.currentLocation && h("p", null, "હાલ : ", m.currentLocation),
+    m.currentLocation && h("p", null, B("હાલ : ", "Location: "), m.currentLocation),
     // Server-confirmed proposal state: a clear "forwarded" confirmation so
     // the administrator sees the action was taken and where it is now.
     pending &&
@@ -1060,13 +1060,15 @@ function WorkflowMemberCard({ member: m, data, lang, act, busy, pending }) {
           primary(
             B("મુખ્ય એડમિનને મોકલો", "Send to main administrator"),
             async () => {
-              await act("village/members/" + m.id + "/update", {
+              const ok = await act("village/members/" + m.id + "/update", {
                 ...form,
                 phone2: form.phone2 || "",
                 reason,
                 identityConfirmed: true,
               });
-              // Close the form so the forwarded confirmation is visible.
+              // Close the form only after the server accepted it; on a
+              // failure the typing stays for another try (report A03).
+              if (!ok) return;
               setMode(null);
               setReason("");
             },
@@ -1090,10 +1092,11 @@ function WorkflowMemberCard({ member: m, data, lang, act, busy, pending }) {
           danger(
             B("દૂર કરવાની સૂચના મોકલો", "Send removal proposal"),
             async () => {
-              await act("village/members/" + m.id + "/delete", {
+              const ok = await act("village/members/" + m.id + "/delete", {
                 reason,
                 identityConfirmed: true,
               });
+              if (!ok) return;
               setMode(null);
               setReason("");
             },

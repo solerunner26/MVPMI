@@ -312,8 +312,8 @@ Object.assign(STR, {
 
 // ---- Section 8: directory -----------------------------------------------
 Object.assign(STR, {
-  "dir.search": ["શોધો", "Search"],
-  "dir.searchPlaceholder": ["નામ, નંબર કે ગામ (૩ અક્ષર)", "Name, number or village (3 letters)"],
+  "dir.search": ["નામ, નંબર કે ગામ શોધો", "Search by name, number or village"],
+  "dir.searchPlaceholder": ["શોધો", "Search"],
   "dir.searchShort": ["શોધવા ઓછામાં ઓછા ૩ અક્ષર લખો", "Type at least 3 characters to search"],
   "dir.clear": ["શોધ બંધ કરો", "Close search"],
   "dir.filter": ["ગામ પ્રમાણે", "Filter by village"],

@@ -25,7 +25,10 @@ function lqPlaceLens(group) {
     hh = active.offsetHeight;
   const previous = group.__lqLens;
   if (previous && previous.x === x && previous.w === w && previous.y === y && previous.h === hh) {
-    group.classList.add("lq-ready");
+    // Never write a class that is already there: the MutationObserver in
+    // liquidInstall() watches "class", so a no-op write re-schedules this
+    // refresh every frame (report A05: 60 mutations/second while idle).
+    if (!group.classList.contains("lq-ready")) group.classList.add("lq-ready");
     return;
   }
   group.__lqLens = { x, w, y, h: hh };
@@ -49,7 +52,9 @@ function lqPlaceLens(group) {
   }
   // Mark ready one frame later so the static fallback pill fades out
   // only once the lens is in place.
-  requestAnimationFrame(() => group.classList.add("lq-ready"));
+  requestAnimationFrame(() => {
+    if (!group.classList.contains("lq-ready")) group.classList.add("lq-ready");
+  });
 }
 
 function lqRange(input) {

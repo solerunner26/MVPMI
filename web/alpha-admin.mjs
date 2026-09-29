@@ -108,8 +108,7 @@ export function AManageVillageAdmins({ lang, data, act, flash }) {
                   AButton,
                   {
                     onClick: async () => {
-                      await act("admin/village-admins/" + g(v) + "/enable", {});
-                      flash(t("va.enabledDone", lang));
+                      if (await act("admin/village-admins/" + g(v) + "/enable", {})) flash(t("va.enabledDone", lang));
                     },
                     "data-testid": "VA enable " + v.en,
                   },
@@ -143,8 +142,7 @@ export function AManageVillageAdmins({ lang, data, act, flash }) {
           onYes: async () => {
             const c = confirm;
             setConfirm(null);
-            await act("admin/village-admins/" + g(c.v) + "/disable", {});
-            flash(t("va.disabledDone", lang));
+            if (await act("admin/village-admins/" + g(c.v) + "/disable", {})) flash(t("va.disabledDone", lang));
           },
         })
       : null,

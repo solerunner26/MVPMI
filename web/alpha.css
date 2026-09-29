@@ -184,22 +184,38 @@
   background: var(--grad);
   box-shadow: 0 4px 10px -4px rgba(196, 73, 47, 0.55);
 }
+/* The text column takes exactly the space left of the Call/WhatsApp
+   buttons and never paints under them (report A01). Children stretch to
+   the column, so ellipsis applies; long names wrap to at most two lines. */
+.app.lq .alpha-row-main {
+  overflow: hidden;
+}
 .app.lq .alpha-row-text {
+  flex: 1 1 0;
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
   text-align: left;
 }
 .app.lq .alpha-row-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  max-width: 100%;
   font-size: var(--f-md);
   font-weight: 800;
   line-height: 1.2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 .app.lq .alpha-row-place {
+  display: block;
+  max-width: 100%;
   font-size: var(--f-xs);
   color: var(--ink2);
   overflow: hidden;
@@ -592,6 +608,15 @@
   font-size: 22px;
   color: var(--ind);
 }
+/* Labels start at the same place after the icon. Set on the label itself:
+   the older ".app button:not(...):not(...)" rule is more specific than
+   .alpha-menu-item and would centre inherited text (report A07). */
+.app.lq .alpha-menu-item > span,
+.app.lq .alpha-switch-text {
+  text-align: start;
+  align-items: flex-start;
+  min-width: 0;
+}
 .app.lq .alpha-menu-item > span {
   flex: 1;
   display: flex;
@@ -627,6 +652,7 @@
   padding: 0;
 }
 .app.lq .alpha-switch-text {
+  flex: 1;
   display: flex;
   flex-direction: column;
 }
@@ -768,8 +794,8 @@
   min-width: 0;
 }
 .app.lq .alpha-dirline-search input {
-  flex: 1 1 90px;
-  min-width: 0;
+  flex: 1 1 96px;
+  min-width: 96px;
   height: 42px;
   padding: 0 12px;
   border: 1px solid var(--gbd);
@@ -789,16 +815,21 @@
   border-radius: 8px;
   flex: 0 0 auto;
 }
+/* The name may take up to three short lines and grows with the text size
+   only up to 115% so the search box keeps a usable width (report A06). */
 .app.lq .alpha-dirname {
   flex: 0 1 auto;
-  max-width: 34%;
-  font-size: calc(13px * var(--fs));
+  max-width: 40%;
+  font-size: calc(13px * min(var(--fs), 1.15));
   font-weight: 800;
-  line-height: 1.15;
+  line-height: 1.12;
   overflow: hidden;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
+}
+.app.lq .alpha-dirline-search.is-searching .alpha-dirname {
+  display: none;
 }
 .app.lq .alpha-diricons {
   justify-content: space-between;
@@ -893,4 +924,33 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* Text size Reset: a secondary action, so a compact text button at the end
+   of the row (report A08), still a 48px tap target. */
+.app.lq .alpha-reset-button {
+  align-self: flex-end;
+  width: auto;
+  min-height: 48px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.app.lq .alpha-reset-button:disabled {
+  color: var(--ink2);
+  opacity: 0.6;
+  cursor: default;
+}
+/* Header search at large text (report A06): what you TYPE follows the text
+   size; the one-word placeholder stays small enough to be read in full. */
+.app.lq .alpha-dirline-search input::placeholder {
+  font-size: calc(15px * min(var(--fs), 1.15));
+}
+/* Very narrow phones (320px class): the three-line name keeps its normal
+   size so "Mahuva / Kshatriya / Rajput Samaj" is never cut. */
+@media (max-width: 340px) {
+  .app.lq .alpha-dirname {
+    font-size: 13px;
+  }
 }

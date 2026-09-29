@@ -1543,17 +1543,19 @@ body:has(.app.lq) {
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 4px !important;
   padding: 5px !important;
-  margin: 0 0 16px !important;
+  margin: 0 0 8px !important;
   overflow: visible !important;
   border-radius: 28px !important;
 }
+/* Icon beside the label, 48px tap height (report A08: the old 66px
+   icon-above-label tabs took space without helping scanning). */
 .app.lq .workflow-panel .workflow-tabs > button {
   grid-column: span 2;
-  flex-direction: column !important;
-  gap: 4px !important;
+  flex-direction: row !important;
+  gap: 6px !important;
   min-width: 0 !important;
-  min-height: 66px !important;
-  padding: 9px 6px 8px !important;
+  min-height: 48px !important;
+  padding: 6px 8px !important;
   border-radius: 23px !important;
   white-space: normal !important;
   text-align: center;
@@ -1565,7 +1567,8 @@ body:has(.app.lq) {
   align-items: center;
 }
 .app.lq .workflow-panel .workflow-tabs > button i {
-  font-size: 22px !important;
+  font-size: 18px !important;
+  flex: 0 0 auto;
 }
 /* A last row of two tabs shares the full width; a single last tab too. */
 .app.lq .workflow-panel .workflow-tabs > button:nth-child(3n + 1):nth-last-child(2),

@@ -51,17 +51,21 @@ class Component extends DesignComponent {
   }
   // Android app: the system "save as" sheet offers phone memory and Google
   // Drive. Ordinary browsers: a normal download.
-  download(name, data, type) {
+  // saveDownload() never enters run(): file() already holds the busy guard,
+  // and a nested run() silently returns (test report A02, 30 Sep 2026).
+  async saveDownload(name, data, type) {
     if (androidBridge()) {
-      this.run(async () => {
-        await saveFile(name, type || "application/octet-stream", data);
-        this.flash(
-          "ફાઇલ સેવ કરો — ફોન કે Google Drive પસંદ કરો.",
-          "Choose where to save — phone or Google Drive.",
-        );
-      });
+      await saveFile(name, type || "application/octet-stream", data);
+      this.flash(
+        "ફાઇલ સેવ કરો — ફોન કે Google Drive પસંદ કરો.",
+        "Choose where to save — phone or Google Drive.",
+      );
       return;
     }
+    return super.download(name, data, type);
+  }
+  download(name, data, type) {
+    if (androidBridge()) return this.run(() => this.saveDownload(name, data, type));
     return super.download(name, data, type);
   }
   componentDidMount() {
@@ -831,7 +835,7 @@ class Component extends DesignComponent {
           "File sharing is unavailable in this browser. Download and attach the file in WhatsApp.",
         );
       }
-      this.download(name, blob, blob.type);
+      await this.saveDownload(name, blob, blob.type);
       await this.refresh();
     });
   }
