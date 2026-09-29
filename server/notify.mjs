@@ -21,7 +21,7 @@ export const recipientKeys = (store, session, now = Date.now()) => {
   // Admin notifications follow the logged-in account's current role.
   const auth = session.auth;
   const m = auth && store.get("members", auth.memberId);
-  if (m && m.cred?.stamp === auth.stamp && !auth.mustSetPin) {
+  if (m && (m.cred?.stamp || null) === (auth.stamp || null) && !auth.mustSetPin) {
     if (store.get("config", "main-admin")?.memberId === m.id) keys.push("main");
     const a = store.get("villageAdmins", m.village);
     if (a && a.memberId === m.id && !a.disabled) keys.push("village:" + m.village);

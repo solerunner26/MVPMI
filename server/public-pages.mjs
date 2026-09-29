@@ -55,14 +55,14 @@ export function installPublicPages(app, store, { env = process.env, downloadDir 
 <p class="en">This app is a private phone directory for approved members of the community. There are no ads, no tracking and no sale of data.</p></div>
 <h2>અમે કઈ માહિતી રાખીએ છીએ · What we store</h2>
 <ul><li>નામ (પ્રથમ, પિતાનું, અટક), મોબાઇલ નંબર, બીજો નંબર (વૈકલ્પિક), ગામ, હાલનું સ્થળ (વૈકલ્પિક).<br><span class="en">Name (first, father's/middle, surname), mobile number, optional second number, village and optional current location.</span></li>
-<li>સુરક્ષા માટે: લોગિન સત્ર, એપ-લોક પિનનો હેશ (પિન પોતે નહીં), ખોટા પ્રયાસોની નોંધ, ઉપકરણનું બ્રાઉઝર નામ.<br><span class="en">For security: sign-in session, a hash of your app-lock PIN (never the PIN), a log of failed attempts and the device's browser name.</span></li>
+<li>સુરક્ષા માટે: લોગિન સત્ર, જો તમે વૈકલ્પિક એપ-લોક ચાલુ કરો તો તેના પિનનો હેશ (પિન પોતે નહીં), ખોટા પ્રયાસોની નોંધ, ઉપકરણનું બ્રાઉઝર નામ.<br><span class="en">For security: sign-in session, a hash of the PIN if you turn on the optional app lock (never the PIN itself), a log of failed attempts and the device's browser name.</span></li>
 <li>સૂચનાઓ ચાલુ કરો તો સૂચના મોકલવા માટેનું ઉપકરણ-ટોકન. સૂચનામાં ક્યારેય ફોન નંબર હોતા નથી.<br><span class="en">If you turn on notifications, a device token used only to deliver them. Notifications never contain phone numbers.</span></li></ul>
 <h2>કોણ જોઈ શકે · Who can see it</h2>
 <p>ગામના એડમિન ચકાસે અને મુખ્ય એડમિન મંજૂરી આપે પછી જ તમારી વિગત બીજા મંજૂર સભ્યોને દેખાય છે. ગામના એડમિન ફક્ત પોતાના ગામની વિનંતીઓ જુએ છે.</p>
 <p class="en">Your details become visible to other approved members only after your village administrator verifies you and the main administrator approves. Village administrators see only their own village's requests.</p>
 <h2>સુરક્ષા · Security</h2>
-<p>બધું HTTPS પર એન્ક્રિપ્ટેડ જાય છે. ડિરેક્ટરી પિનથી લોક છે, એપમાં સ્ક્રીનશોટ બંધ છે, અને સર્વરનો બેકઅપ એન્ક્રિપ્ટ કરીને એડમિનના Google Drive માં રાખવામાં આવે છે.</p>
-<p class="en">All traffic is encrypted (HTTPS). The directory is PIN-locked, screenshots are blocked in the app, and server backups are encrypted before they are stored in the administrator's Google Drive.</p>
+<p>બધું HTTPS પર એન્ક્રિપ્ટેડ જાય છે. ડિરેક્ટરી ફક્ત નોંધાયેલા અને મંજૂર સભ્યો જ ખોલી શકે છે, વૈકલ્પિક એપ-લોક ચાલુ હોય ત્યારે સ્ક્રીનશોટ બંધ રહે છે, અને સર્વરનો બેકઅપ એન્ક્રિપ્ટ કરીને એડમિનના Google Drive માં રાખવામાં આવે છે.</p>
+<p class="en">All traffic is encrypted (HTTPS). Only registered, approved members can open the directory, screenshots are blocked while the optional app lock is on, and server backups are encrypted before they are stored in the administrator's Google Drive.</p>
 <h2>માહિતી કાઢવી · Deleting your data</h2>
 <p>એપમાં «મારી પ્રોફાઇલ → યાદીમાંથી મારી માહિતી કાઢવા વિનંતી» વાપરો, અથવા નીચેના સંપર્ક પર જણાવો. વિગતો: <a href="/delete-account">/delete-account</a>.</p>
 <p class="en">Use “Settings → Request removal from directory” in the app, or contact us below. Details: <a href="/delete-account">/delete-account</a>.</p>
@@ -79,7 +79,7 @@ export function installPublicPages(app, store, { env = process.env, downloadDir 
         `<h1>તમારી માહિતી કાઢો<br><span class="en">Delete your account and data</span></h1>
 <small>${community.gu} · ${community.en}</small>
 <h2>એપમાંથી · In the app</h2>
-<ol><li>એપ ખોલો અને પિન નાખો. <span class="en">Open the app and enter your PIN.</span></li>
+<ol><li>એપ ખોલો અને તમારા મોબાઇલ નંબરથી લોગિન કરો. <span class="en">Open the app and log in with your mobile number.</span></li>
 <li>ઉપર જમણે «મારી પ્રોફાઇલ». <span class="en">Tap “My profile” (top right).</span></li>
 <li>«યાદીમાંથી મારી માહિતી કાઢવા વિનંતી» → કારણ લખો → મોકલો. <span class="en">“Request removal from directory” → give a reason → send.</span></li></ol>
 <p>મુખ્ય એડમિન મંજૂર કરે એટલે તમારું નામ અને નંબર ડિરેક્ટરીમાંથી તરત દૂર થાય છે અને તમારા બધા લોગિન બંધ થાય છે.</p>

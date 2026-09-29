@@ -1,16 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { fail, publicProfile, profile, nameParts, memberRecord } from "./store.mjs";
 import {
-  issueTempPin,
   mainAdminId,
   mobileDigits,
   isMobile,
-  accountRole,
 } from "./auth.mjs";
-import { ROLES } from "./terms.mjs";
 
 // Village Admins are delegated, village-scoped reviewers created only by the
-// Main Admin (Section 3). They log in with mobile + PIN like every member; their
+// Main Admin (Section 3). They log in with their mobile number like every member; their
 // authority is re-checked live on every request (a disabled admin loses it at
 // once).
 // Joining requests, village moves and mobile-number changes all pass through
@@ -158,37 +155,9 @@ export function villageState(store, req) {
             name: m?.name || "",
             nameGu: m?.nameGu || "",
             phone: m?.phone || "",
-            mustSetPin: !!m?.cred?.temp,
-            // TEMP PIN still waiting for the first login (Main Admin only).
-            tempPin: req.role === "MAIN_ADMIN" && m?.cred?.temp && !m.cred.consumed ? m.cred.handover || null : null,
           };
         })
       : [],
-    // "Forgot PIN?" requests (Section 4): a Village Admin sees their own
-    // village; the Main Admin sees every village.
-    pinResetRequests:
-      req.isAdmin || vaMember
-        ? store
-            .all("pinResets")
-            .filter((f) => req.isAdmin || f.village === vaMember.village)
-            .map((f) => {
-              const m = store.get("members", f.memberId);
-              return m
-                ? {
-                    id: f.id,
-                    memberId: m.id,
-                    name: m.name,
-                    nameGu: m.nameGu,
-                    phone: m.phone,
-                    village: m.village,
-                    at: f.at,
-                    isVillageAdmin: accountRole(store, m) === ROLES.VILLAGE_ADMIN,
-                  }
-                : null;
-            })
-            .filter(Boolean)
-            .filter((f) => req.isAdmin || f.memberId !== vaMember.id)
-        : [],
     rejectedApplications: req.isAdmin ? store.all("rejections") : [],
     applicationStage: own ? (own.verification ? "main" : "village") : null,
     lastDecision:
@@ -289,6 +258,7 @@ export function createVillageAdmin(
       consentVersion: "village-admin-created-v1",
     };
   }
+  store.put("members", m);
   store.put("villageAdmins", {
     id: v.gu,
     memberId: m.id,
@@ -297,12 +267,9 @@ export function createVillageAdmin(
     assignedBy: actor,
     reason: "Created by the Main Admin",
   });
-  const pin = issueTempPin(store, m, actor, "village-admin.create");
-  for (const f of store.all("pinResets").filter((x) => x.memberId === m.id))
-    store.del("pinResets", f.id);
+  store.audit(actor, "village-admin.create", m.id);
   resetStaged(store, v.gu);
   return {
-    pin,
     kind: "village-admin",
     memberId: m.id,
     name: m.name,
@@ -364,16 +331,6 @@ export function installVillageApproval(
     if (!m) fail("Village Admin record is missing", 404, "NO_VILLAGE_ADMIN");
     return { a, m };
   };
-  const issuedFor = (m, v, pin, kind) => ({
-    pin,
-    kind,
-    memberId: m.id,
-    name: m.name,
-    nameGu: m.nameGu,
-    phone: m.phone,
-    village: v.gu,
-    villageEn: v.en,
-  });
   app.post("/api/admin/village-admins/:village/create", admin, (req, res) => {
     const v = villageOf(req);
     let issued;
@@ -385,7 +342,7 @@ export function installVillageApproval(
         actor: req.me.id,
       });
     });
-    res.json({ ...state(req), issuedPin: issued });
+    res.json({ ...state(req), created: issued });
   });
   app.post("/api/admin/village-admins/:village/edit", admin, (req, res) => {
     const v = villageOf(req);
@@ -437,18 +394,6 @@ export function installVillageApproval(
     });
     res.json(state(req));
   });
-  app.post("/api/admin/village-admins/:village/reset", admin, (req, res) => {
-    const v = villageOf(req);
-    const { m } = assignmentOf(v);
-    let pin;
-    store.tx(() => {
-      pin = issueTempPin(store, m, req.me.id, "village-admin.reset");
-      for (const f of store.all("pinResets").filter((x) => x.memberId === m.id))
-        store.del("pinResets", f.id);
-    });
-    res.json({ ...state(req), issuedPin: issuedFor(m, v, pin, "village-admin-reset") });
-  });
-
   // A village administrator may correct applicant details (spelling, numbers)
   // before forwarding; the correction is audited and never changes ownership.
   app.post("/api/village/requests/:id/correct", (req, res) => {
@@ -659,65 +604,6 @@ export function installVillageApproval(
       bodyGu: (m.nameGu || m.name) + " · " + villageLabel(m.village).gu,
       bodyEn: m.name + " · " + villageLabel(m.village).en,
     });
-    res.json(state(req));
-  });
-
-  // Forgotten PIN (Section 4): after confirming the member, the Village
-  // Admin creates a TEMP PIN and shares it through the WhatsApp button.
-  app.post("/api/village/members/:id/pin-reset", (req, res) => {
-    const me = activeAdminMember(store, req);
-    if (!me) fail("Village Admin login required", 403, "FORBIDDEN");
-    const m = store.get("members", req.params.id);
-    if (!m) fail("Member not found", 404);
-    if (m.village !== me.village)
-      fail("This member belongs to another village", 403, "FORBIDDEN");
-    if (m.id === me.id)
-      fail("Ask the Main Admin to reset your own PIN", 409, "FORBIDDEN");
-    rate("pin-reset-issue:" + me.id, 30, 3600000);
-    let pin;
-    store.tx(() => {
-      pin = issueTempPin(store, m, me.id, "temp-pin.reset");
-      for (const f of store.all("pinResets").filter((x) => x.memberId === m.id))
-        store.del("pinResets", f.id);
-    });
-    const v = store.get("villages", m.village) || { gu: m.village, en: m.village };
-    res.json({ ...state(req), issuedPin: issuedFor(m, v, pin, "reset") });
-  });
-
-  // "Forgot PIN?" on the Login screen. It never resets anything by itself:
-  // it asks that village's admin (or the Main Admin, for a Village Admin or a
-  // village without an active admin) to create a TEMP PIN.
-  app.post("/api/pin/forgot", (req, res) => {
-    rate("pin-forgot:" + req.session.id, 10, 3600000);
-    const digits = mobileDigits(req.body.mobile);
-    if (!isMobile(digits))
-      fail("Enter a valid mobile number", 400, "MOBILE_FORMAT", { field: "mobile" });
-    const m = store.all("members").find((x) => x.phone === digits);
-    // Same answer whether or not the number exists (no member lookup).
-    if (m && accountRole(store, m) !== ROLES.MAIN_ADMIN) {
-      rate("pin-forgot-member:" + m.id, 5, 86400000);
-      const existing = store.all("pinResets").find((f) => f.memberId === m.id);
-      if (!existing) {
-        store.put("pinResets", { id: randomUUID(), memberId: m.id, village: m.village, at: Date.now() });
-        const toMain =
-          accountRole(store, m) === ROLES.VILLAGE_ADMIN || !activeAssignment(store, m.village);
-        const place = villageLabel(m.village);
-        notify(toMain ? "main" : "village:" + m.village, {
-          kind: "pin-reset-request",
-          titleGu: "પિન ભૂલી જવાની વિનંતી",
-          titleEn: "Forgot PIN request",
-          bodyGu: (m.nameGu || m.name) + " · " + place.gu,
-          bodyEn: m.name + " · " + place.en,
-        });
-      }
-    }
-    res.json({ ok: true });
-  });
-  app.post("/api/village/pin-requests/:id/dismiss", (req, res) => {
-    const me = activeAdminMember(store, req);
-    if (!me && !req.isAdmin) fail("Admin login required", 403, "FORBIDDEN");
-    const f = store.get("pinResets", req.params.id);
-    if (f && (req.isAdmin || f.village === me.village)) store.del("pinResets", f.id);
     res.json(state(req));
   });
 

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import ExcelJS from "exceljs";
-import { fixture, example, MAIN, MEMBER_PIN } from "./helpers.mjs";
+import { fixture, example, MAIN } from "./helpers.mjs";
 import {
   hash,
   passwordHash,
@@ -22,11 +22,7 @@ const protectedRoutes = [
   ["village/requests/unknown/forward", { reason: "Attempted action" }],
   ["village/members/unknown/update", { reason: "Attempted action" }],
   ["village/members/unknown/delete", { reason: "Attempted action" }],
-  ["village/members/unknown/pin-reset", {}],
-  ["village/pin-requests/unknown/dismiss", {}],
-  ["admin/members/unknown/pin-reset", {}],
   ["admin/village-admins/" + encodeURIComponent("સથરા") + "/create", { name: "Someone Else", mobile: "9812345678" }],
-  ["admin/village-admins/" + encodeURIComponent("થોરાળા") + "/reset", {}],
   ["admin/village-admins/" + encodeURIComponent("થોરાળા") + "/disable", {}],
   ["admin/village-admins/" + encodeURIComponent("થોરાળા") + "/edit", { name: "X Y Z", mobile: "9812345678" }],
   ["admin/archive/unknown/allow-rejoin", {}],
@@ -55,8 +51,7 @@ for (const [label, body] of [
     for (const path of [
       "enrollment",
       "login",
-      "pin/set",
-      "pin/forgot",
+      "login/approved",
       "lock/unlock",
       "admin/restore",
     ]) {
@@ -213,15 +208,15 @@ test("expiry, sign-out and device blocking are enforced by the server", async (t
   assert.equal((await u("state")).role, "guest");
   assert.deepEqual((await u("state")).members, []);
   // A blocked phone can do nothing.
-  await u("login", { mobile: example.phone, secret: MEMBER_PIN });
+  await u("login", { mobile: example.phone });
   const row = store.all("sessions").find((s) => s.auth && store.get("members", s.auth.memberId)?.phone === example.phone);
   row.blocked = true;
   store.put("sessions", row);
   await u("state", undefined, 403);
-  await u("login", { mobile: example.phone, secret: MEMBER_PIN }, 403);
+  await u("login", { mobile: example.phone }, 403);
 });
 
-test("PIN and PASSWORD values never appear in responses, sessions, audit, notifications or backups", async (t) => {
+test("PASSWORD and phone-lock PIN values never appear in responses, sessions, audit, notifications or backups", async (t) => {
   const { admin, client, store, enroll } = await fixture(t);
   const u = client();
   await enroll(u);
@@ -237,7 +232,6 @@ test("PIN and PASSWORD values never appear in responses, sessions, audit, notifi
   ];
   for (const dump of dumps) {
     assert.equal(dump.includes(MAIN.password), false);
-    assert.equal(dump.includes('"' + MEMBER_PIN + '"'), false);
     assert.equal(dump.includes('"cred"'), false);
   }
   // Wrong-secret errors do not echo what was typed.
@@ -399,4 +393,11 @@ test("simultaneous approval is consumed once and leaves one approved member", as
   );
   // Main Admin, Village Admin, verifier fixture and the approved applicant.
   assert.equal(store.all("members").length, 4);
+});
+
+test("the retired PIN routes are gone: no TEMP PIN, set/change/forgot PIN or PIN reset exists", async (t) => {
+  const f = await fixture(t);
+  const c = f.client();
+  for (const path of ["pin/set", "pin/change", "pin/forgot", "lock/forgot", "admin/members/x/pin-reset", "village/members/x/pin-reset"])
+    await c(path, {}, 404);
 });

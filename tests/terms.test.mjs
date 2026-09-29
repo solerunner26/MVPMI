@@ -27,9 +27,11 @@ test("Section 0: PIN is exactly 4 digits and easy PINs are refused", () => {
   }
 });
 
-test("Section 0: PASSWORD needs at least 8 characters", () => {
+test("PASSWORD: any 4 or more characters, no complexity rules", () => {
   assert.ok(isPasswordFormat("JayMa@26"));
-  assert.ok(!isPasswordFormat("short7!"));
+  assert.ok(isPasswordFormat("abcd"));
+  assert.ok(isPasswordFormat("1234"));
+  assert.ok(!isPasswordFormat("abc"));
   assert.ok(!isPasswordFormat(12345678));
 });
 

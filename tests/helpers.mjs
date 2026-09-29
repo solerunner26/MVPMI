@@ -10,7 +10,7 @@ export const example = {
   consent: true,
 };
 // Test accounts. The Main Admin is seeded from the same settings the server
-// reads from config/main-admin.env; PINs are never easy PINs.
+// reads from config/main-admin.env.
 export const MAIN = {
   name: "Test Main Admin",
   mobile: "9913000001",
@@ -78,11 +78,9 @@ export async function fixture(t, options = {}) {
     assert.ok(c, "No administrator enrolled for " + village);
     return c;
   };
-  // Logs a person in with a TEMP PIN and sets their own PIN.
-  const firstLogin = async (c, mobile, tempPin, pin) => {
-    await c("login", { mobile, secret: tempPin });
-    return c("pin/set", { pin, confirm: pin });
-  };
+  // Members and Village Admins log in with their mobile number only.
+  // (The extra arguments are ignored; older tests still pass them.)
+  const firstLogin = async (c, mobile) => c("login", { mobile });
   const ensureAdmin = async (village) => {
     const record = store
       .all("villages")
@@ -99,7 +97,8 @@ export async function fixture(t, options = {}) {
       { name: "Administrator " + village, mobile: phone },
     );
     const c = client();
-    await firstLogin(c, phone, created.issuedPin.pin, VA_PIN);
+    assert.equal(created.created.kind, "village-admin");
+    await firstLogin(c, phone);
     villageClients.set(record.gu, c);
   };
   const enroll = async (user, p = example) => {
@@ -113,7 +112,8 @@ export async function fixture(t, options = {}) {
       identityConfirmed: true,
     });
     const approved = await admin("admin/requests/" + request.id + "/approve", {});
-    await firstLogin(user, p.phone, approved.issuedPin.pin, MEMBER_PIN);
+    assert.equal(approved.issuedPin, undefined, "no TEMP PIN any more");
+    await firstLogin(user, p.phone);
     return (await user("state")).members.find((m) => m.phone === p.phone);
   };
   return { store, client, admin, enroll, ensureAdmin, va, url, firstLogin };

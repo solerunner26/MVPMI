@@ -1,33 +1,31 @@
-// App lock (Section 5). The lock uses the SAME secret as the login: the
-// 4-digit PIN for Members and Village Admins, the PASSWORD for the Main
-// Admin. There is no second secret.
+// Optional phone lock (owner decision 2026-09-30).
 //
-//   • Members choose "Ask for PIN when opening the app" (default OFF).
-//   • Admins always have it ON and cannot turn it off.
+//   • The lock is OFF by default for everybody, admins included, and it
+//     never turns itself on. Nothing locks the app unless the person turned
+//     it on in My Profile.
+//   • Turning it on means choosing a 4-digit PIN for THIS phone (any four
+//     digits). The PIN is not a login: Members and Village Admins log in
+//     with their mobile number only, so a forgotten PIN is fixed by
+//     "Forgot PIN → sign out of this phone and sign in again" (the normal
+//     /api/logout), which needs no administrator.
 //   • When ON, the directory locks on every app start and whenever the app
 //     returns after 1 minute or more in the background. The server enforces
 //     it: while locked, /api/state sends no member records and every action
 //     is refused.
-//   • 5 wrong PINs → locked for 5 minutes (shared with the login counter).
 //   • Optional fingerprint unlock through the phone's own biometric prompt:
 //     the Android app keeps a random device key that is released only after a
 //     successful fingerprint; the server keeps a hash of it for this session.
 import { randomUUID } from "node:crypto";
 import { fail } from "./store.mjs";
 import { BACKGROUND_LOCK_MS } from "./terms.mjs";
-import {
-  isAdminRole,
-  verifyAccountSecret,
-  hashSecret,
-  secretMatches,
-} from "./auth.mjs";
+import { hashSecret, secretMatches } from "./auth.mjs";
 
-export const lockForced = (req) => isAdminRole(req.role);
 export const lockOn = (req, required) =>
   !!required &&
   !!req.me &&
   !req.mustSetPin &&
-  (lockForced(req) || !!req.session.lock?.pref);
+  !!req.session.lock?.pref &&
+  !!req.session.lock?.pin;
 
 // Every API request: a lock that was left in the background for 1 minute or
 // more closes, even if the app was killed and never came back.
@@ -43,15 +41,16 @@ export function touchLock(store, req, required) {
 
 export function lockView(req, required) {
   if (!lockOn(req, required))
-    return { locked: false, lockOn: false, lockForced: lockForced(req), biometricOn: false };
+    return { locked: false, lockOn: false, biometricOn: false };
   const l = req.session.lock || {};
   return {
     locked: l.locked !== false,
     lockOn: true,
-    lockForced: lockForced(req),
     biometricOn: !!l.bio,
   };
 }
+
+const isLockPin = (v) => /^\d{4}$/.test(String(v ?? ""));
 
 export function installAppLock(app, store, { required }) {
   const save = (req) => store.put("sessions", req.session);
@@ -90,22 +89,38 @@ export function installAppLock(app, store, { required }) {
     if (req.body.biometric !== undefined) {
       if (!l.bio || !secretMatches(String(req.body.biometric), l.bio))
         fail("Fingerprint unlock is not set up on this phone", 401, "BIOMETRIC_FAILED");
-    } else verifyAccountSecret(store, req.me, String(req.body.secret ?? ""));
+    } else {
+      if (!l.pin) fail("The app lock is off", 409, "LOCK_OFF");
+      if (!secretMatches(String(req.body.secret ?? ""), l.pin))
+        fail("Wrong PIN · પિન ખોટો છે", 401, "WRONG_PIN", { field: "secret" });
+    }
     l.locked = false;
     delete l.hiddenAt;
     l.activeAt = Date.now();
     save(req);
     res.json({ ok: true });
   });
-  // Members: "Ask for PIN when opening the app" (default OFF).
+  // "Lock this app with a PIN" in My Profile. Turning it ON (or changing the
+  // PIN) sends the new PIN twice; turning it OFF needs nothing (the phone is
+  // already open).
   app.post("/api/lock/preference", (req, res) => {
     guard(req);
-    if (lockForced(req) && req.body.on !== true)
-      fail("Admins always use the app lock", 409, "LOCK_FORCED");
     const l = (req.session.lock ||= {});
-    l.pref = req.body.on === true;
-    if (!l.pref) delete l.bio;
+    if (req.body.on === true) {
+      if (l.pin && l.locked !== false) fail("The app is locked", 423, "LOCKED");
+      if (!isLockPin(req.body.pin)) fail("The PIN must be 4 digits", 400, "PIN_FORMAT", { field: "pin" });
+      if (String(req.body.confirm ?? "") !== String(req.body.pin))
+        fail("The PINs do not match", 400, "PIN_MISMATCH", { field: "confirm" });
+      l.pref = true;
+      l.pin = hashSecret(String(req.body.pin));
+    } else {
+      l.pref = false;
+      delete l.pin;
+      delete l.bio;
+      delete l.bioId;
+    }
     l.locked = false;
+    delete l.hiddenAt;
     save(req);
     res.json({ ok: true, ...lockView(req, required) });
   });

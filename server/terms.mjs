@@ -1,11 +1,11 @@
 // Shared vocabulary (Section 0). Use these exact meanings everywhere.
 //
-//   PASSWORD  – used only by the Main Admin. Letters, numbers and symbols,
-//               at least 8 characters.
-//   PIN       – a 4-digit number used by Village Admins and Members. It is
-//               BOTH their login secret AND the lock for the directory.
-//   TEMP PIN  – a random 4-digit PIN created by an admin. It works for one
-//               login only; then the user must set their own PIN.
+//   PASSWORD  – used only by the Main Admin. Any characters, at least 4
+//               (owner decision 2026-09-30: no complexity rules).
+//   PIN       – OPTIONAL. A 4-digit number a Member or Village Admin may
+//               choose in My Profile to lock the app on THEIR phone. It is
+//               not a login secret: Members and Village Admins log in with
+//               their mobile number only (owner decision 2026-09-30).
 import { randomInt } from "node:crypto";
 
 export const ROLES = Object.freeze({
@@ -40,7 +40,7 @@ export const WEAK_PINS = Object.freeze([
 export const isPinFormat = (pin) => /^\d{4}$/.test(String(pin ?? ""));
 export const isWeakPin = (pin) => WEAK_PINS.includes(String(pin ?? ""));
 
-export const PASSWORD_MIN = 8;
+export const PASSWORD_MIN = 4;
 export const PASSWORD_MAX = 128;
 export const isPasswordFormat = (value) =>
   typeof value === "string" &&

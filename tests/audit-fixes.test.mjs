@@ -1,7 +1,7 @@
 // Regression tests for the September 2026 full audit (see docs/AUDIT_FIXES.md).
 import test from "node:test";
 import assert from "node:assert/strict";
-import { fixture, MAIN, VA_PIN, MEMBER_PIN } from "./helpers.mjs";
+import { fixture, MAIN } from "./helpers.mjs";
 
 const G = "થોરાળા";
 const member = (phone, name = "Some Member Test") => ({
@@ -26,7 +26,7 @@ async function join(f, phone, name) {
     identityConfirmed: true,
   });
   const done = await f.admin("admin/requests/" + r.myRequest.id + "/approve", {});
-  await f.firstLogin(m, phone, done.issuedPin.pin, MEMBER_PIN);
+  await f.firstLogin(m, phone);
   return m;
 }
 
@@ -56,7 +56,7 @@ test("a Village Admin's number changed by the Main Admin moves their login with 
     village: "Thorala",
   });
   const c = f.client();
-  await c("login", { mobile: "7990009999", secret: VA_PIN });
+  await c("login", { mobile: "7990009999" });
   assert.equal((await c("state")).villageAdmin, true);
 });
 
@@ -73,7 +73,7 @@ test("village-admin proposals survive backup and restore; a member on a new phon
     (await f.client()("enrollment", member("9000000001", "Some Member Test"), 409)).code,
     "STATUS_APPROVED",
   );
-  await f.client()("login", { mobile: "9000000001", secret: MEMBER_PIN });
+  await f.client()("login", { mobile: "9000000001" });
   const backup = await f.admin("admin/backup");
   const preview = await f.admin("admin/restore/validate", backup);
   await f.admin("admin/restore", {
@@ -84,7 +84,7 @@ test("village-admin proposals survive backup and restore; a member on a new phon
   assert.equal((await f.admin("state")).deleteRequests.length, 1);
   // The Village Admin keeps their PIN after the restore…
   const c = f.client();
-  await c("login", { mobile: vaPhone(f.store), secret: VA_PIN });
+  await c("login", { mobile: vaPhone(f.store) });
   assert.equal((await c("state")).villageAdmin, true);
   // …but phones logged in before the restore must log in again.
   assert.equal((await f.va(G)("state")).villageAdmin, false);
@@ -119,7 +119,7 @@ test("a disabled Village Admin loses access at once; a new one gets the village 
     mobile: "7991000002",
   });
   const v2 = f.client();
-  await f.firstLogin(v2, "7991000002", created.issuedPin.pin, "4826");
+  await f.firstLogin(v2, "7991000002");
   await v2("village/requests/" + r.myRequest.id + "/forward", { identityConfirmed: true });
   await f.admin("admin/requests/" + r.myRequest.id + "/approve", {});
   // A second active admin for the same village is refused.
@@ -129,26 +129,25 @@ test("a disabled Village Admin loses access at once; a new one gets the village 
   );
 });
 
-test("resetting a Village Admin gives a new TEMP PIN and logs out their phones", async (t) => {
+test("a Village Admin needs no PIN; a disabled or replaced admin loses the tools at once", async (t) => {
   const f = await setup(t);
   assert.equal((await f.va(G)("state")).villageAdmin, true);
-  const reset = await f.admin("admin/village-admins/" + encodeURIComponent(G) + "/reset", {});
-  assert.equal(reset.issuedPin.kind, "village-admin-reset");
-  assert.equal((await f.va(G)("state")).account, null);
   const c = f.client();
-  const s = await c("login", { mobile: vaPhone(f.store), secret: reset.issuedPin.pin });
-  assert.equal(s.account.mustSetPin, true);
-  assert.equal(s.villageAdmin, false, "no admin tools before the new PIN is set");
+  const s = await c("login", { mobile: vaPhone(f.store) });
+  assert.equal(s.account.role, "VILLAGE_ADMIN");
+  assert.equal(s.account.mustSetPin, false);
+  assert.equal(s.villageAdmin, true, "the admin tools are open straight after login");
+  await f.admin("admin/village-admins/" + encodeURIComponent(G) + "/disable", {});
+  assert.equal((await c("state")).villageAdmin, false);
 });
 
-test("strangers cannot guess PINs quickly, and a lockout never blocks other numbers", async (t) => {
+test("wrong Main Admin passwords lock only that account, and a lockout never blocks other numbers", async (t) => {
   const f = await setup(t);
-  const phone = vaPhone(f.store);
   const spam = f.client();
-  for (let i = 0; i < 4; i++) await spam("login", { mobile: phone, secret: "9" + String(100 + i) }, 401);
-  assert.equal((await spam("login", { mobile: phone, secret: "9105" }, 429)).code, "LOCKED_OUT");
-  // The Main Admin is unaffected.
-  await f.client()("login", { mobile: MAIN.mobile, secret: MAIN.password });
+  for (let i = 0; i < 4; i++) await spam("login", { mobile: MAIN.mobile, secret: "wrong" + i + "xx" }, 401);
+  assert.equal((await spam("login", { mobile: MAIN.mobile, secret: "wrong5xxx" }, 429)).code, "LOCKED_OUT");
+  // A Village Admin (no secret at all) is unaffected.
+  assert.equal((await f.client()("login", { mobile: vaPhone(f.store) })).account.role, "VILLAGE_ADMIN");
 });
 
 test("withdrawn or replaced applications are not flagged as 'rejected before'", async (t) => {

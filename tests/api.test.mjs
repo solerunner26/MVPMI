@@ -59,20 +59,18 @@ async function setup(t, opts = {}) {
     { name: "Thorala Administrator", mobile: "7990000010" },
   );
   const va = client();
-  await va("login", { mobile: "7990000010", secret: created.issuedPin.pin });
-  await va("pin/set", { pin: "2580", confirm: "2580" });
+  await va("login", { mobile: "7990000010" });
   const forward = (id) =>
     va("village/requests/" + id + "/forward", {
       reason: "Verified community member",
       identityConfirmed: true,
     });
-  // Approve a joining request and log the new member in with the TEMP PIN.
+  // Approve a joining request and log the new member in with the mobile number.
   const approveAndLogin = async (user, requestId, phone, pin = "3691") => {
     const approved = await admin("admin/requests/" + requestId + "/approve", {});
-    assert.match(approved.issuedPin.pin, /^\d{4}$/);
-    await user("login", { mobile: phone, secret: approved.issuedPin.pin });
-    await user("pin/set", { pin, confirm: pin });
-    return approved.issuedPin;
+    assert.equal(approved.issuedPin, undefined, "no TEMP PIN any more");
+    await user("login", { mobile: phone });
+    return {};
   };
   return { store, client, admin, va, forward, base, approveAndLogin };
 }
@@ -145,7 +143,7 @@ test("approve, search data, update stays private, direct admin edit, delete revo
   // The removed number cannot register again or log in.
   const again = await client()("enrollment", form, 409);
   assert.equal(again.code, "STATUS_REMOVED");
-  assert.equal((await client()("login", { mobile: form.phone, secret: "3691" }, 409)).code, "STATUS_REMOVED");
+  assert.equal((await client()("login", { mobile: form.phone }, 409)).code, "STATUS_REMOVED");
 });
 test("backup validation is atomic, roundtrip restores links, export is a genuine XLSX", async (t) => {
   const { client, admin, forward, approveAndLogin } = await setup(t),
@@ -178,14 +176,9 @@ test("backup validation is atomic, roundtrip restores links, export is a genuine
     digest: diff.digest,
     currentDigest: diff.currentDigest,
   });
-  // Everyone logs in again after a restore. The member was deleted before the
-  // restore, so their PIN is gone: an admin creates a TEMP PIN.
+  // Everyone logs in again after a restore (with the mobile number only).
   assert.equal((await a("state")).role, "guest");
-  assert.equal((await a("login", { mobile: form.phone, secret: "3691" }, 409)).code, "NO_PIN_YET");
-  const restoredId = (await admin("state")).members.find((m) => m.phone === form.phone).id;
-  const reset = await admin("admin/members/" + restoredId + "/pin-reset", {});
-  await a("login", { mobile: form.phone, secret: reset.issuedPin.pin });
-  await a("pin/set", { pin: "3691", confirm: "3691" });
+  await a("login", { mobile: form.phone });
   assert.equal((await a("state")).role, "member");
   const xlsx = Buffer.from(await admin("admin/export.xlsx"));
   assert.equal(xlsx.subarray(0, 2).toString(), "PK");
@@ -315,7 +308,10 @@ test("Section 2: Main Admin is seeded once from server config, logs in with mobi
   // Change Password dialog rules, in order.
   const change = (body, status) => admin("password/change", body, status);
   assert.equal((await change({ current: "wrong-old", next: "Another@26", confirm: "Another@26" }, 401)).code, "WRONG_OLD_PASSWORD");
-  assert.equal((await change({ current: MAIN.password, next: "short", confirm: "short" }, 400)).code, "PASSWORD_FORMAT");
+  assert.equal((await change({ current: MAIN.password, next: "abc", confirm: "abc" }, 400)).code, "PASSWORD_FORMAT");
+  // No complexity rules: four plain characters are enough (owner decision).
+  assert.equal((await change({ current: MAIN.password, next: "abcd", confirm: "abcd" })).ok, true);
+  assert.equal((await change({ current: "abcd", next: MAIN.password, confirm: MAIN.password })).ok, true);
   assert.equal((await change({ current: MAIN.password, next: MAIN.password, confirm: MAIN.password }, 400)).code, "PASSWORD_SAME");
   assert.equal((await change({ current: MAIN.password, next: "Another@26", confirm: "Another@27" }, 400)).code, "PASSWORD_MISMATCH");
   const other = client();
@@ -344,8 +340,8 @@ test("Section 2: the app refuses to start without Main Admin settings", () => {
     /MAIN_ADMIN_NAME/,
   );
   assert.throws(
-    () => createApp({ dbPath: ":memory:", mainAdmin: { ...MAIN, password: "short" } }),
-    /8\+ characters/,
+    () => createApp({ dbPath: ":memory:", mainAdmin: { ...MAIN, password: "abc" } }),
+    /4\+ characters/,
   );
 });
 test("5 wrong PINs or passwords lock the account for 5 minutes and show the time left", async (t) => {

@@ -1,17 +1,15 @@
-// Log in with mobile + PIN (Members, Village Admins) or mobile + PASSWORD
-// (the Main Admin), TEMP PINs, PIN/password changes and admin mode.
+// Log in with the mobile number only (Members, Village Admins) or mobile +
+// PASSWORD (the Main Admin), password changes and admin mode.
 //
-// Credentials live on the member record under `cred` and are hashed with
-// bcrypt. They are never returned by any API, never exported in backups and
-// never written to logs.
+// Only the Main Admin has a credential. It lives on the member record under
+// `cred`, hashed with bcrypt, and is never returned by any API, never
+// exported in backups and never written to logs.
 //
 //   cred = {
-//     pin?:      bcrypt hash of the 4-digit PIN (or of the TEMP PIN)
-//     temp?:     true while the PIN is a TEMP PIN created by an admin
-//     consumed?: true once that TEMP PIN has been used for its one login
-//     password?: bcrypt hash of the Main Admin PASSWORD
-//     stamp:     changes whenever the PIN/password changes; sessions made
-//                with an older stamp are logged out
+//     password: bcrypt hash of the Main Admin PASSWORD
+//     initial?: true while it is the first-login-only password
+//     stamp:    changes whenever the password changes; sessions made with an
+//               older stamp are logged out
 //     fails, until: wrong attempts and lockout end (5 wrong → 5 minutes)
 //   }
 import bcrypt from "bcryptjs";
@@ -19,10 +17,7 @@ import { randomUUID } from "node:crypto";
 import { fail, profile, nameParts } from "./store.mjs";
 import {
   ROLES,
-  isPinFormat,
-  isWeakPin,
   isPasswordFormat,
-  randomTempPin,
   MAX_WRONG_ATTEMPTS,
   LOCKOUT_MS,
 } from "./terms.mjs";
@@ -63,7 +58,7 @@ export function seedMainAdmin(store, config = {}) {
   const password = String(config.password || "");
   if (!name || !isMobile(mobile) || !isPasswordFormat(password) || !config.village)
     throw new Error(
-      "Main Admin is not set up. Fill MAIN_ADMIN_NAME, MAIN_ADMIN_MOBILE, MAIN_ADMIN_VILLAGE and MAIN_ADMIN_PASSWORD (8+ characters) in config/main-admin.env or the server environment.",
+      "Main Admin is not set up. Fill MAIN_ADMIN_NAME, MAIN_ADMIN_MOBILE, MAIN_ADMIN_VILLAGE and MAIN_ADMIN_PASSWORD (4+ characters) in config/main-admin.env or the server environment.",
     );
   const parts = nameParts(name);
   const p = profile(
@@ -105,7 +100,7 @@ export function seedMainAdmin(store, config = {}) {
 // Server-side recovery (scripts/reset-main-admin.js): no reset in the app.
 export function resetMainAdminPassword(store, password) {
   if (!isPasswordFormat(password))
-    throw new Error("The password must be at least 8 characters.");
+    throw new Error("The password must be at least 4 characters.");
   const m = store.get("members", mainAdminId(store));
   if (!m) throw new Error("No Main Admin in this database.");
   store.tx(() => {
@@ -117,35 +112,15 @@ export function resetMainAdminPassword(store, password) {
   return m;
 }
 
-// A TEMP PIN for one login. For a member the plain PIN is returned ONCE to
-// the admin who created it and is never stored. For a VILLAGE ADMIN (owner
-// decision, 2026-09-28) the Main Admin can see it again on the Village
-// Admin's card until it is used, so he can hand it over by phone call; it
-// is deleted at that first login.
-export function issueTempPin(store, member, actor, action = "temp-pin.issue") {
-  const pin = randomTempPin();
-  const villageAdmin = accountRole(store, member) === ROLES.VILLAGE_ADMIN;
-  member.cred = {
-    pin: hashSecret(pin),
-    temp: true,
-    ...(villageAdmin ? { handover: pin } : {}),
-    stamp: randomUUID(),
-    changedAt: Date.now(),
-  };
-  store.put("members", member);
-  store.audit(actor, action, member.id);
-  return pin;
-}
-
 // Who is logged in on this request (and with which role).
 export function resolveAuth(store, req) {
   const auth = req.session.auth;
   let me = null;
   if (auth) {
     const m = store.get("members", auth.memberId);
-    if (m && m.cred?.stamp && m.cred.stamp === auth.stamp) me = m;
+    if (m && (m.cred?.stamp || null) === (auth.stamp || null)) me = m;
     else {
-      // PIN/password changed elsewhere, TEMP PIN issued, or member removed.
+      // Password changed elsewhere, or the member was removed.
       delete req.session.auth;
       delete req.session.adminMode;
       store.put("sessions", req.session);
@@ -164,15 +139,14 @@ export function resolveAuth(store, req) {
   req.villageAdminMember = req.role === ROLES.VILLAGE_ADMIN && req.adminMode ? me : null;
 }
 
-// Checks a PIN (or the Main Admin PASSWORD) against the account, counting
-// wrong attempts: 5 wrong → locked for 5 minutes.
+// Checks the Main Admin PASSWORD, counting wrong attempts: 5 wrong → locked
+// for 5 minutes.
 export function verifyAccountSecret(store, member, secret, { field = "secret", old = false } = {}) {
   const cred = member.cred || {};
   const now = Date.now();
   if (cred.until > now)
     fail("Too many wrong attempts · ઘણા ખોટા પ્રયાસો", 429, "LOCKED_OUT", { until: cred.until, field });
-  const main = accountRole(store, member) === ROLES.MAIN_ADMIN;
-  const hashed = main ? cred.password : cred.pin;
+  const hashed = cred.password;
   const ok = secretMatches(String(secret ?? ""), hashed || DUMMY_HASH) && !!hashed;
   if (ok) {
     if (cred.fails || cred.until) {
@@ -193,24 +167,10 @@ export function verifyAccountSecret(store, member, secret, { field = "secret", o
   }
   member.cred = cred;
   store.put("members", member);
-  const code = main
-    ? old ? "WRONG_OLD_PASSWORD" : "WRONG_PASSWORD"
-    : old ? "WRONG_OLD_PIN" : "WRONG_PIN";
-  fail(main ? "Wrong password · પાસવર્ડ ખોટો છે" : "Wrong PIN · પિન ખોટો છે", 401, code, {
+  fail("Wrong password · પાસવર્ડ ખોટો છે", 401, old ? "WRONG_OLD_PASSWORD" : "WRONG_PASSWORD", {
     field,
     left: MAX_WRONG_ATTEMPTS - cred.fails,
   });
-}
-
-export function validateNewPin(next, confirm, currentHash) {
-  const pin = String(next ?? "");
-  if (!isPinFormat(pin)) fail("PIN must be 4 digits", 400, "PIN_FORMAT", { field: "next" });
-  if (isWeakPin(pin)) fail("PIN too easy", 400, "PIN_WEAK", { field: "next" });
-  if (String(confirm ?? "") !== pin)
-    fail("PINs do not match", 400, "PIN_MISMATCH", { field: "confirm" });
-  if (currentHash && secretMatches(pin, currentHash))
-    fail("New PIN same as old", 400, "PIN_SAME", { field: "next" });
-  return pin;
 }
 
 export function validateNewPassword(next, confirm, currentHash) {
@@ -249,6 +209,26 @@ export function installAuth(app, store, { rate, state, alert, knownClient, clien
     return req.me;
   };
 
+  // Opens a session for a member (the same for every login route).
+  const startSession = (req, fresh, role, mustChoose) => {
+    req.rotateSession();
+    req.session.owner = fresh.owner;
+    req.session.auth = {
+      memberId: fresh.id,
+      stamp: fresh.cred?.stamp || null,
+      mustSetPin: mustChoose,
+      at: Date.now(),
+    };
+    // Admins land on the directory with their tools one tap away.
+    if (isAdminRole(role)) req.session.adminMode = true;
+    else delete req.session.adminMode;
+    // A new login starts without a phone lock (it is optional, My Profile).
+    req.session.lock = { pref: false, locked: false, activeAt: Date.now() };
+    save(req);
+    store.audit(fresh.id, "login", role);
+    resolveAuth(store, req);
+  };
+
   app.post("/api/login", (req, res) => {
     rate("login:" + req.session.id, 30, 900000);
     if (knownClient(req)) rate("login-ip:" + clientKey(req), 60, 900000);
@@ -264,70 +244,37 @@ export function installAuth(app, store, { rate, state, alert, knownClient, clien
     }
     const role = accountRole(store, m);
     const main = role === ROLES.MAIN_ADMIN;
-    if (!main) {
-      if (!m.cred?.pin) fail("No PIN yet", 409, "NO_PIN_YET", { field: "secret" });
-      if (m.cred.temp && m.cred.consumed)
-        fail("TEMP PIN already used", 409, "TEMP_USED", { field: "secret" });
-      if (!isPinFormat(req.body.secret))
-        fail("PIN must be 4 digits", 400, "PIN_FORMAT", { field: "secret" });
-    }
-    try {
-      verifyAccountSecret(store, m, String(req.body.secret ?? ""));
-    } catch (e) {
-      if (e.status === 401 || e.code === "LOCKED_OUT")
-        alert(req, (main ? "મુખ્ય એડમિન લોગિન નિષ્ફળ" : "લોગિન નિષ્ફળ") + " · Failed login: " + mobile.slice(0, 2) + "******" + mobile.slice(-2));
-      throw e;
+    if (main) {
+      // Only the Main Admin has a password.
+      if (typeof req.body.secret !== "string" || !req.body.secret)
+        fail("Enter your password", 400, "PASSWORD_REQUIRED", { field: "secret" });
+      try {
+        verifyAccountSecret(store, m, req.body.secret);
+      } catch (e) {
+        if (e.status === 401 || e.code === "LOCKED_OUT")
+          alert(req, "મુખ્ય એડમિન લોગિન નિષ્ફળ · Failed Main Admin login: " + mobile.slice(0, 2) + "******" + mobile.slice(-2));
+        throw e;
+      }
     }
     const fresh = store.get("members", m.id);
-    const temp = !!fresh.cred.temp;
-    // TEMP PIN (members, Village Admins) or the first-time password (Main
-    // Admin): the next step is choosing their own secret.
-    const mustChoose = temp || (main && !!fresh.cred.initial);
-    if (temp) {
-      // A TEMP PIN works for exactly one login.
-      fresh.cred.consumed = true;
-      delete fresh.cred.handover;
-      store.put("members", fresh);
-    }
-    req.rotateSession();
-    const lockPref = !!req.session.lock?.pref;
-    req.session.owner = fresh.owner;
-    req.session.auth = {
-      memberId: fresh.id,
-      stamp: fresh.cred.stamp,
-      mustSetPin: mustChoose,
-      at: Date.now(),
-    };
-    // Admins land on the directory with their tools one tap away.
-    if (isAdminRole(role)) req.session.adminMode = true;
-    else delete req.session.adminMode;
-    req.session.lock = { pref: lockPref, locked: false, activeAt: Date.now() };
-    save(req);
-    store.audit(fresh.id, "login", role);
-    resolveAuth(store, req);
+    startSession(req, fresh, role, main && !!fresh.cred?.initial);
     res.json(state(req));
   });
 
-  // Section 2/5: the first login with a TEMP PIN must set a new PIN first.
-  app.post("/api/pin/set", (req, res) => {
-    const me = signedIn(req);
-    if (!req.session.auth.mustSetPin) fail("PIN already set", 409, "PIN_ALREADY_SET");
-    if (accountRole(store, me) === ROLES.MAIN_ADMIN)
-      fail("The Main Admin uses a password", 409, "FORBIDDEN");
-    const pin = validateNewPin(req.body.pin, req.body.confirm, me.cred?.pin);
-    store.tx(() => {
-      me.cred = { pin: hashSecret(pin), stamp: randomUUID(), changedAt: Date.now() };
-      store.put("members", me);
-      req.session.auth = { ...req.session.auth, stamp: me.cred.stamp, mustSetPin: false };
-      save(req);
-      store.audit(me.id, "pin.set", me.id);
-    });
-    resolveAuth(store, req);
+  // A registration from THIS phone was approved: the person is logged in
+  // without typing anything (the phone that applied is the phone that owns
+  // the record). Never for the Main Admin.
+  app.post("/api/login/approved", (req, res) => {
+    if (req.me) return res.json(state(req));
+    const m = store.all("members").find((x) => x.owner === req.session.owner);
+    if (!m || accountRole(store, m) === ROLES.MAIN_ADMIN)
+      fail("Not registered", 404, "NOT_REGISTERED");
+    startSession(req, m, accountRole(store, m), false);
     res.json(state(req));
   });
 
-  // Section 2: the first-time Main Admin password works for ONE login; he
-  // then chooses his own (new + re-enter; he has just typed the old one).
+  // The first-time Main Admin password works for ONE login; he then chooses
+  // his own (new + re-enter; he has just typed the old one).
   app.post("/api/password/set", (req, res) => {
     const me = signedIn(req);
     if (accountRole(store, me) !== ROLES.MAIN_ADMIN)
@@ -345,26 +292,6 @@ export function installAuth(app, store, { rate, state, alert, knownClient, clien
     });
     resolveAuth(store, req);
     res.json(state(req));
-  });
-
-  app.post("/api/pin/change", (req, res) => {
-    const me = signedIn(req);
-    if (req.mustSetPin) fail("Set your PIN first", 409, "SET_PIN_FIRST");
-    if (accountRole(store, me) === ROLES.MAIN_ADMIN)
-      fail("The Main Admin uses a password", 409, "FORBIDDEN");
-    verifyAccountSecret(store, me, String(req.body.current ?? ""), { field: "current", old: true });
-    const fresh = store.get("members", me.id);
-    const pin = validateNewPin(req.body.next, req.body.confirm, fresh.cred.pin);
-    store.tx(() => {
-      fresh.cred = { pin: hashSecret(pin), stamp: randomUUID(), changedAt: Date.now() };
-      store.put("members", fresh);
-      // This phone stays logged in; other phones must log in again.
-      req.session.auth = { ...req.session.auth, stamp: fresh.cred.stamp };
-      save(req);
-      store.audit(me.id, "pin.change", me.id);
-    });
-    resolveAuth(store, req);
-    res.json({ ok: true, ...state(req) });
   });
 
   app.post("/api/password/change", (req, res) => {
@@ -396,13 +323,14 @@ export function installAuth(app, store, { rate, state, alert, knownClient, clien
     res.json(state(req));
   });
 
-  // Opening the admin tools again after "Log out" asks for the PIN (Village
-  // Admin) or PASSWORD (Main Admin) once more.
+  // Opening the admin tools again after "Log out": the Main Admin types his
+  // PASSWORD once more; a Village Admin just opens them (no secret).
   app.post("/api/admin/enter", (req, res) => {
     const me = signedIn(req);
-    if (!isAdminRole(accountRole(store, me))) fail("Not an admin", 403, "FORBIDDEN");
-    if (req.mustSetPin) fail("Set your PIN first", 409, "SET_PIN_FIRST");
-    verifyAccountSecret(store, me, String(req.body.secret ?? ""));
+    const role = accountRole(store, me);
+    if (!isAdminRole(role)) fail("Not an admin", 403, "FORBIDDEN");
+    if (req.mustSetPin) fail("Set your password first", 409, "SET_PIN_FIRST");
+    if (role === ROLES.MAIN_ADMIN) verifyAccountSecret(store, me, String(req.body.secret ?? ""));
     req.session.adminMode = true;
     save(req);
     store.audit(me.id, "admin.enter", me.id);

@@ -21,7 +21,6 @@ import {
   installAuth,
   resolveAuth,
   seedMainAdmin,
-  issueTempPin,
   accountRole,
   mainAdminId,
   isAdminRole,
@@ -206,9 +205,8 @@ export function createApp({
     "/health",
     "/login",
     "/logout",
-    "/pin/set",
+    "/login/approved",
     "/password/set",
-    "/pin/forgot",
     "/lock/engage",
     "/lock/hidden",
     "/lock/visible",
@@ -223,7 +221,7 @@ export function createApp({
   app.use("/api", (req, res, next) => {
     if (OPEN_WHILE_LOCKED.has(req.path)) return next();
     if (req.mustSetPin)
-      return res.status(409).json({ error: "Set your new PIN first", code: "SET_PIN_FIRST" });
+      return res.status(409).json({ error: "Set your new password first", code: "SET_PIN_FIRST" });
     if (lockClosed(req))
       return res.status(423).json({ error: "એપ લોક છે · The app is locked. Enter your PIN.", code: "LOCKED" });
     next();
@@ -263,8 +261,8 @@ export function createApp({
       role: req.isAdmin ? "admin" : me ? "member" : mine ? "pending" : "guest",
       meId: me?.id || null,
       account: account(req),
-      // A registration from this phone that has since been approved: the
-      // person now logs in with the TEMP PIN their admin shared.
+      // A registration from this phone that has since been approved: the app
+      // logs the person in automatically (POST /api/login/approved).
       approvedHere:
         !req.me && !mine
           ? store.all("members").some((m) => m.owner === req.session.owner)
@@ -585,7 +583,6 @@ export function createApp({
   });
 
   app.post("/api/admin/requests/:id/:action", admin, (req, res) => {
-    let issued = null;
     const r = store.get("requests", req.params.id);
     if (!r) fail("Request already processed. Refresh and try again", 409);
     if (!["approve", "reject"].includes(req.params.action))
@@ -657,17 +654,6 @@ export function createApp({
             notice: { kind: "approved", at: Date.now() },
           };
           store.put("members", approved);
-          // Section 5: the approving admin sees a TEMP PIN exactly once and
-          // shares it on WhatsApp; the member logs in with it.
-          issued = {
-            pin: issueTempPin(store, approved, req.me.id, "temp-pin.approval"),
-            kind: "member",
-            memberId: approved.id,
-            name: approved.name,
-            nameGu: approved.nameGu,
-            phone: approved.phone,
-            village: approved.village,
-          };
         } else {
           const m = store.get("members", r.memberId);
           if (!m) fail("Member no longer exists", 409);
@@ -703,8 +689,8 @@ export function createApp({
           kind: "approved",
           titleGu: "સ્વાગત છે! તમારી નોંધણી મંજૂર થઈ",
           titleEn: "Welcome! Your application is approved",
-          bodyGu: "તમારા એડમિન વોટ્સએપ પર કામચલાઉ પિન મોકલશે. તેનાથી લોગિન કરો.",
-          bodyEn: "Your admin will send a TEMP PIN on WhatsApp. Log in with it.",
+          bodyGu: "એપ ખોલો, તમારો મોબાઇલ નંબર નાખીને લોગિન કરો.",
+          bodyEn: "Open the app and log in with your mobile number.",
         });
         notify("village:" + r.payload.village, {
           kind: "member-added",
@@ -735,7 +721,7 @@ export function createApp({
         bodyGu: req.body.reason?.trim().slice(0, 200) || "વધુ માહિતી માટે ગામના એડમિનનો સંપર્ક કરો.",
         bodyEn: req.body.reason?.trim().slice(0, 200) || "Contact your village administrator for details.",
       });
-    res.json({ ...lockedState(req), ...(issued ? { issuedPin: issued } : {}) });
+    res.json(lockedState(req));
   });
   app.post("/api/admin/members/:id", admin, (req, res) => {
     const m = store.get("members", req.params.id);
@@ -765,20 +751,6 @@ export function createApp({
       bodyEn: "Contact your village administrator with any questions.",
     });
     res.json(lockedState(req));
-  });
-  // Forgotten PIN: the Main Admin can create a TEMP PIN for anyone.
-  app.post("/api/admin/members/:id/pin-reset", admin, (req, res) => {
-    const m = store.get("members", req.params.id);
-    if (!m) fail("Member not found", 404);
-    if (accountRole(store, m) === ROLES.MAIN_ADMIN)
-      fail("The Main Admin password is reset on the server only", 409, "FORBIDDEN");
-    const pin = issueTempPin(store, m, req.me.id, "temp-pin.reset");
-    for (const f of store.all("pinResets").filter((x) => x.memberId === m.id))
-      store.del("pinResets", f.id);
-    res.json({
-      ...lockedState(req),
-      issuedPin: { pin, kind: "reset", memberId: m.id, name: m.name, nameGu: m.nameGu, phone: m.phone, village: m.village },
-    });
   });
   // A removed or rejected number normally cannot register again (Section 4).
   // After talking to the person, the Main Admin can allow one new registration;
