@@ -72,7 +72,16 @@ run() {
     adb shell pm grant "$PKG" android.permission.POST_NOTIFICATIONS >/dev/null 2>&1 || true
   fi
   echo "=== $target" | tee -a "$RAW"
-  adb shell am instrument -w -r -e class "$PKG.$target" "$RUNNER" 2>&1 | tr -d '\r' | tee -a "$RAW"
+  local once
+  once=$(adb shell am instrument -w -r -e class "$PKG.$target" "$RUNNER" 2>&1 | tr -d '\r')
+  echo "$once" | tee -a "$RAW" >/dev/null
+  # One retry for a failed or killed class; the report marks it FLAKY.
+  if echo "$once" | grep -qE "INSTRUMENTATION_STATUS_CODE: -(1|2)$|shortMsg=Process crashed"; then
+    adb shell cmd connectivity airplane-mode disable >/dev/null 2>&1 || true
+    adb shell svc wifi enable >/dev/null 2>&1 || true
+    echo "=== $target (retry)" | tee -a "$RAW"
+    adb shell am instrument -w -r -e class "$PKG.$target" "$RUNNER" 2>&1 | tr -d '\r' | tee -a "$RAW" >/dev/null
+  fi
   adb shell input keyevent 3 >/dev/null 2>&1 || true # Home between classes
   # Network back on even if a test stopped half-way (no cascade of failures).
   adb shell cmd connectivity airplane-mode disable >/dev/null 2>&1 || true

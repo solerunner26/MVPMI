@@ -58,6 +58,18 @@ if logcat.exists():
     for line in logcat.read_text(errors="replace").splitlines():
         if "MVPMIWEB" in line and line.split("): ", 1)[-1] not in page_errors:
             page_errors.append(line.split("): ", 1)[-1][:300])
+# A class that failed once but passed on its retry is FLAKY, not failed.
+retried_ok = set()
+for block in raw.split("=== ")[1:]:
+    head, _, body = block.partition("\n")
+    if head.strip().endswith("(retry)") and not re.search(r"STATUS_CODE: -(1|2)$|shortMsg=Process crashed", body, re.M) and "STATUS_CODE: 0" in body:
+        retried_ok.add(head.strip()[: -len("(retry)")].strip().split("#")[0])
+flaky = []
+for i, (n, r, w) in enumerate(rows):
+    if r in ("FAIL", "ERROR", "CRASH") and n.split("#")[0] in retried_ok and not n.endswith("(retry)"):
+        rows[i] = (n, "FLAKY", "failed once, passed on retry: " + w)
+        flaky.append(n)
+problems = [p for p in problems if p not in flaky and p.split("#")[0] not in retried_ok]
 env = (out / "environment.txt").read_text() if (out / "environment.txt").exists() else ""
 upd = (out / "update-check.md").read_text() if (out / "update-check.md").exists() else ""
 count = lambda s: sum(1 for r in rows if r[1] == s)
@@ -70,7 +82,7 @@ md = [
     "",
     upd.strip(),
     "",
-    f"**{count('PASS')} passed · {count('FAIL') + count('ERROR') + count('CRASH') + count('NOT RUN')} failed · {count('SKIPPED')} skipped**",
+    f"**{count('PASS')} passed · {count('FAIL') + count('ERROR') + count('CRASH') + count('NOT RUN')} failed · {count('FLAKY')} flaky (passed on retry) · {count('SKIPPED')} skipped**",
     "",
     "| Test | Result | Note |",
     "|---|---|---|",
