@@ -330,7 +330,7 @@ export function VillageWorkflow({
                 className: "ph-duotone " + (WORKFLOW_TAB_ICONS[id] || "ph-circle"),
                 "aria-hidden": true,
               }),
-              B(gu, en),
+              h("span", { className: "workflow-tab-label" }, B(gu, en)),
             ),
           ),
         ),

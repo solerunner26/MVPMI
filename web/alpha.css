@@ -954,3 +954,20 @@
     font-size: 13px;
   }
 }
+/* Chromium keeps room for the clear (x) button even in an empty search box,
+   which cut the placeholder on small phones; show it only once there is
+   text to clear. */
+.app.lq .alpha-dirline-search input:placeholder-shown::-webkit-search-cancel-button {
+  display: none;
+}
+/* A tab label that wraps stays next to its icon, aligned from the start;
+   one-line labels remain centred in the tab. */
+.app.lq .workflow-panel .workflow-tabs > button .workflow-tab-label {
+  min-width: 0;
+  text-align: start;
+}
+/* Exactly four section tabs (Main Admin): two per row instead of 3 + 1. */
+.app.lq .workflow-panel .workflow-tabs > button:first-child:nth-last-child(4),
+.app.lq .workflow-panel .workflow-tabs > button:first-child:nth-last-child(4) ~ button {
+  grid-column: span 3;
+}
