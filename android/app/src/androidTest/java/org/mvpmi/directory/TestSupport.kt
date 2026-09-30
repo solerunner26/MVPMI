@@ -192,6 +192,16 @@ class App(val scenario: ActivityScenario<MainActivity>) {
         SystemClock.sleep(400)
     }
 
+    /** Taps until `done` is true (at most 3 taps): a tap can land while the
+     *  keyboard is still closing and the page is moving. */
+    fun tapUntil(css: String, what: String, done: () -> Boolean) {
+        for (attempt in 1..3) {
+            tap(css)
+            if (T.poll(6000) { done() }) return
+        }
+        org.junit.Assert.fail("Tapping $css did not lead to: $what")
+    }
+
     /** Tap the first element matching `css` whose text contains `text`. */
     fun tapText(css: String, text: String) {
         T.waitUntil(20000, "'$text' in $css") {

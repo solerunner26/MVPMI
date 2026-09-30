@@ -212,13 +212,12 @@ class Component extends DesignComponent {
     try {
       const headers = { "Content-Type": "application/json", "X-MVPMI-Client": "1" };
       if (this._transport) headers["X-MVPMI-Session"] = this._transport;
-      fetch("/api/" + path, {
-        method: "POST",
-        credentials: "same-origin",
-        keepalive: true,
-        headers,
-        body: "{}",
-      }).catch(() => {});
+      const send = (keepalive) =>
+        fetch("/api/" + path, { method: "POST", credentials: "same-origin", keepalive, headers, body: "{}" });
+      // WebView older than 81 refuses keepalive with these headers; the
+      // Android app keeps the page alive in the background, so a normal
+      // request arrives too (API 29 emulator, 30 Sep 2026).
+      send(true).catch(() => send(false).catch(() => {}));
     } catch {}
   }
   // An open (unlocked) login whose app lock is on.

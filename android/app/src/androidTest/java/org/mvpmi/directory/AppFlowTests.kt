@@ -219,9 +219,9 @@ class BackgroundLockTest {
             Thread.sleep(65000)
             T.launchFromLauncher()
             app.waitScreen("lock", 30000)
-            app.tap(tid("Lock forgot"))
-            if (app.exists(tid("Confirm yes"))) app.tap(tid("Confirm yes"))
-            app.waitScreen("login")
+            // "Forgot PIN?" asks "Sign out of this phone?".
+            app.tapUntil(tid("Lock forgot"), "sign-out question") { app.exists(tid("Confirm yes")) }
+            app.tapUntil(tid("Confirm yes"), "Login screen") { app.screen() == "login" }
             app.loginMobile(T.member(5))
             assertFalse("no lock after logging in again", app.secureWindow())
         }
