@@ -104,11 +104,12 @@ class ExportSaveTest {
     private fun openExports(app: App) {
         app.english()
         if (app.screen() == "login") app.loginMain()
-        app.tap(tid("Admin"))
+        app.tapUntil(tid("Admin"), "admin tools") { app.exists(tid("Admin enter dialog")) || app.exists(".mvpmi-tile") }
         if (app.exists(tid("Admin enter dialog"))) {
             app.fill("Admin enter secret", T.MAIN_PASSWORD)
             app.tap(tid("Admin enter submit"))
         }
+        T.waitUntil(20000, "dashboard tiles") { app.jsBool("return [...document.querySelectorAll('.mvpmi-tile')].some(function(t){return t.textContent.indexOf('Backup & export')>=0})") }
         app.tapText(".mvpmi-tile", "Backup & export")
         app.waitFor(".mvpmi-tile")
         T.waitUntil(15000, "CSV tile") { app.jsBool("return [...document.querySelectorAll('.mvpmi-tile')].some(function(t){return t.textContent.indexOf('CSV list')>=0})") }
@@ -243,7 +244,13 @@ class NotificationPermissionTest {
             ) ?: T.device.findObject(By.text(Pattern.compile("(?i)don.t allow")))
             assertNotNull("Android asked for notification permission", deny)
             deny!!.click()
-            T.waitUntil(10000, "back in the app") { T.device.currentPackageName == T.pkg }
+            // The dialog may ignore a tap during its opening animation.
+            T.waitUntil(30000, "back in the app") {
+                if (T.device.currentPackageName != T.pkg)
+                    (T.device.findObject(By.res(Pattern.compile(".*permission_deny.*button")))
+                        ?: T.device.findObject(By.text(Pattern.compile("(?i)don.t allow"))))?.click()
+                T.device.currentPackageName == T.pkg
+            }
             assertFalse(granted())
             assertEquals("directory", app.screen())
             app.js("window.mvpmiBridge.notify('MVPMI test', 'While denied'); return 1")
