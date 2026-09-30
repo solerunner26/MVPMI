@@ -309,6 +309,14 @@ for (const file of ["SunMark.dc.html", "SunWait.dc.html"])
 {
   const { transformSync } = await import("esbuild");
   const down = (code) => transformSync(code, { loader: "js", target: "chrome74", charset: "utf8", legalComments: "none" }).code;
+  // ":not(a,b,…)" (a selector list inside :not) needs Chrome 88; on older
+  // WebViews querySelector throws and the whole page template fails. Same
+  // meaning, CSS level 3: ":not(a):not(b)…" (found with Chromium 74).
+  const NOT_LIST = '":not(" + [...INLINE_TEXT_TAGS].join(",") + ")"';
+  let runtime = read("dist/support.js", "utf8");
+  if (!runtime.includes(NOT_LIST)) throw new Error("support.js changed: re-check old-WebView selector patch in scripts/build.mjs");
+  runtime = runtime.replace(NOT_LIST, '[...INLINE_TEXT_TAGS].map((t) => ":not(" + t + ")").join("")');
+  write("dist/support.js", runtime);
   for (const f of ["dist/support.js", "dist/sw.js"]) write(f, down(read(f, "utf8")));
   for (const f of ["dist/index.html", "dist/SunMark.dc.html", "dist/SunWait.dc.html"])
     write(
