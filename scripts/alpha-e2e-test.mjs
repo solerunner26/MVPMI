@@ -628,7 +628,8 @@ await flow("s5", async (env) => {
     await page.getByTestId("Lock pin confirm").fill("1111");
     await page.getByTestId("Lock pin save").click();
     await toast(page, "PIN lock is on");
-    assert.equal(await page.getByTestId("Profile PIN lock").getAttribute("aria-checked"), "true");
+    // The toast can appear a moment before the switch re-renders.
+    await page.locator('[data-testid="Profile PIN lock"][aria-checked="true"]').waitFor({ timeout: 5000 });
     await page.getByTestId("Profile change lock PIN").waitFor();
     assert.equal(await screenOf(page), "profile");
     await shot(page, "s5-profile-lock-on");

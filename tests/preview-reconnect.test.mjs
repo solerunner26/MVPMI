@@ -24,6 +24,8 @@ function fixture(statuses) {
     saveOffline: () => {},
     loadOffline: () => null,
     AbortSignal,
+    // web/save-file.mjs (concatenated before controller.js in the build).
+    timeoutSignal: (ms) => AbortSignal.timeout(ms),
     sessionStorage: { removeItem: (key) => removed.push(key) },
     fetch: async (path, options) => {
       calls.push({ path, ...options });
