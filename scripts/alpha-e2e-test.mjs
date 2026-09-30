@@ -1277,6 +1277,210 @@ await flow("s10", async (env) => {
   await ctx.close();
 });
 
+// ---------------------------------------------------------------- 11
+// Regressions from the v1.2.0-alpha.1 test report (30 Sep 2026): element
+// overlap at every text size (not only page overflow), header, failed
+// proposals, Android export path, idle refresh loop, alignment, spacing and
+// the English location prefix.
+const LONG_EN = ["Bhagirathsinh Jaswantsinh", "Gohilvadiya"];
+const LONG_GU = ["ભગીરથસિંહ જસવંતસિંહ", "ગોહિલવાડિયા"];
+function seedLong(env) {
+  env.store.tx(() => {
+    [LONG_EN, LONG_GU, ["Short", "Name"], ["Change", "Target"], ["Removal", "Target"]].forEach(([firstName, surname], i) =>
+      env.store.put("members", {
+        ...profile({ firstName, surname, phone: String(9710000000 + i), village: "થોરાળા", currentLocation: "Surat" }),
+        id: "long-" + i,
+        owner: "long-owner-" + i,
+        approvedAt: 1,
+      }),
+    );
+  });
+}
+// Visible overlap (px) between any painted text of a contact row and its
+// Call/WhatsApp buttons. Text clipped by an overflow box does not count.
+const rowOverlap = (page) =>
+  page.evaluate(() => {
+    let worst = 0, who = "";
+    for (const row of document.querySelectorAll('[data-testid="Contact row"]')) {
+      const acts = [...row.querySelectorAll(".alpha-contact-actions a, .alpha-contact-actions button")].map((a) => a.getBoundingClientRect());
+      for (const t of row.querySelectorAll(".alpha-row-text *")) {
+        if (!t.textContent.trim() || t.children.length) continue;
+        const r = t.getBoundingClientRect(), range = document.createRange();
+        range.selectNodeContents(t);
+        const rr = range.getBoundingClientRect();
+        let right = Math.max(r.right, rr.right);
+        for (let e = t; e && e !== row; e = e.parentElement) if (getComputedStyle(e).overflowX !== "visible") right = Math.min(right, e.getBoundingClientRect().right);
+        for (const a of acts) {
+          const x = Math.min(right, a.right) - Math.max(r.left, a.left), y = Math.min(r.bottom, a.bottom) - Math.max(r.top, a.top);
+          if (x > 0.5 && y > 0.5 && x > worst) (worst = Math.round(x)), (who = t.textContent.trim().slice(0, 24));
+        }
+      }
+    }
+    return { worst, who };
+  });
+const headerFit = (page) =>
+  page.evaluate(() => {
+    const i = document.querySelector('[data-testid="Search input"]'), n = document.querySelector('[data-testid="Community name"]');
+    const cs = getComputedStyle(i), ph = getComputedStyle(i, "::placeholder");
+    const c = document.createElement("canvas").getContext("2d");
+    c.font = ph.fontWeight + " " + ph.fontSize + " " + ph.fontFamily;
+    return {
+      searchW: Math.round(i.getBoundingClientRect().width),
+      nameCut: n.scrollHeight > n.clientHeight + 1 || n.scrollWidth > n.clientWidth + 1,
+      placeholderCut: c.measureText(i.placeholder).width > i.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) + 1,
+    };
+  });
+await flow("s11", async (env) => {
+  const S = "11 Report fixes";
+  seedLong(env);
+  const va = await env.ensureVA();
+  for (const width of [320, 360, 412])
+    for (const lang of ["en", "gu"])
+      await row(S, "Directory " + width + " px (" + lang + ")", "Text size 85 / 100 / 135 / 165 %, long names, light + dark", "names never under Call/WhatsApp; header name, search box and placeholder fit").run(async () => {
+        const problems = [];
+        for (const fsPct of [85, 100, 135, 165]) {
+          const theme = fsPct === 165 ? "dark" : "light";
+          const ctx = await browser.newContext({ viewport: { width, height: 728 } });
+          await ctx.addInitScript((p) => localStorage.setItem("mvpmi-preferences", JSON.stringify(p)), { lang, fsPct, theme });
+          const page = await ctx.newPage();
+          await page.goto(env.url);
+          await loginMobile(page, va.mobile);
+          await page.getByTestId("Contact row").nth(4).waitFor();
+          const o = await rowOverlap(page), h = await headerFit(page);
+          if (o.worst) problems.push(fsPct + "%: '" + o.who + "' under the buttons by " + o.worst + "px");
+          if (h.searchW < 96) problems.push(fsPct + "%: search box " + h.searchW + "px");
+          if (h.nameCut) problems.push(fsPct + "%: community name cut");
+          if (h.placeholderCut) problems.push(fsPct + "%: placeholder cut");
+          if (width === 320 && fsPct === 165) await shot(page, "s11-directory-320-165-" + lang);
+          await ctx.close();
+        }
+        assert.deepEqual(problems, []);
+      });
+  const { ctx, page } = await phone(env.url);
+  await loginMobile(page, va.mobile);
+  await waitScreen(page, "directory");
+  await row(S, "Directory", "Tap the search box", "the community name steps aside; the box gets the whole line").run(async () => {
+    const before = (await page.getByTestId("Search input").boundingBox()).width;
+    await page.getByTestId("Search input").focus();
+    await page.waitForTimeout(150);
+    const after = (await page.getByTestId("Search input").boundingBox()).width;
+    assert.ok(after > before + 60, before + " -> " + after);
+    assert.equal(await page.getByTestId("Community name").isVisible(), false);
+    await page.getByTestId("Search input").blur();
+    await page.getByTestId("Community name").waitFor();
+  });
+  await row(S, "Settings", "(labels)", "every label starts at the same place after its icon").run(async () => {
+    await openSettings(page);
+    const lefts = await page.evaluate(() =>
+      [...document.querySelectorAll(".alpha-menu-item > span")].filter((s) => s.getClientRects().length).map((s) => {
+        const r = document.createRange();
+        r.selectNodeContents(s.firstChild);
+        return [getComputedStyle(s).textAlign, Math.round(r.getBoundingClientRect().left)];
+      }),
+    );
+    assert.ok(lefts.length >= 3);
+    assert.ok(lefts.every(([a]) => a === "start" || a === "left"), JSON.stringify(lefts));
+    assert.equal(new Set(lefts.map(([, x]) => x)).size, 1, JSON.stringify(lefts));
+  });
+  await row(S, "Settings", "Text size → Reset", "a compact secondary button, still a 48 px target").run(async () => {
+    const b = await page.getByTestId("Settings text size reset").evaluate((el) => ({ w: el.getBoundingClientRect().width, h: el.getBoundingClientRect().height, p: el.parentElement.getBoundingClientRect().width }));
+    assert.ok(b.w < b.p * 0.7 && b.h >= 48, JSON.stringify(b));
+    await back(page);
+    await back(page);
+    await waitScreen(page, "directory");
+  });
+  await row(S, "Review panel (Village Admin)", "(tabs)", "icon beside the label, 48–56 px tall").run(async () => {
+    await page.getByTestId("Admin").click();
+    await page.locator(".workflow-panel").waitFor();
+    const hs = await page.locator(".workflow-tabs > button").evaluateAll((bs) => bs.map((b) => Math.round(b.getBoundingClientRect().height)));
+    assert.ok(hs.length && hs.every((h) => h >= 48 && h <= 56), JSON.stringify(hs));
+    await shot(page, "s11-workflow-tabs");
+  });
+  await row(S, "Review panel (idle)", "(1 second, nothing touched)", "no idle refresh loop: the tabs are not rewritten").run(async () => {
+    await page.waitForTimeout(1200);
+    const n = await page.evaluate(() => new Promise((res) => {
+      let n = 0;
+      const o = new MutationObserver((l) => (n += l.length));
+      o.observe(document.querySelector(".workflow-panel"), { subtree: true, attributes: true, childList: true });
+      setTimeout(() => (o.disconnect(), res(n)), 1000);
+    }));
+    assert.equal(n, 0);
+  });
+  const card = (name) => page.locator(".workflow-card", { hasText: name });
+  const fail503 = () => page.route("**/api/village/members/**", (r) => r.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Server busy, try again" }) }));
+  await row(S, "My village members", "(English card)", "location reads 'Location: Surat' (no Gujarati prefix)").run(async () => {
+    await page.locator(".workflow-tabs button", { hasText: "My village members" }).click();
+    const text = await card("Short Name").innerText();
+    assert.ok(text.includes("Location: Surat") && !text.includes("હાલ"), text);
+  });
+  await row(S, "My village members", "Propose change → Send (server error 503)", "top banner; the form and the typed reason stay").run(async () => {
+    await card("Change Target").getByRole("button", { name: "Propose change" }).click();
+    await card("Change Target").locator("input").last().fill("Moved to Surat last year");
+    await fail503();
+    await card("Change Target").getByRole("button", { name: "Send to main administrator" }).click();
+    await page.getByTestId("Error banner").waitFor();
+    assert.equal(await card("Change Target").getByRole("button", { name: "Send to main administrator" }).count(), 1);
+    assert.equal(await card("Change Target").locator("input").last().inputValue(), "Moved to Surat last year");
+    await page.unroute("**/api/village/members/**");
+    await page.getByTestId("Error banner close").click();
+  });
+  await row(S, "My village members", "Propose change → Send (server back)", "sent; the form closes; forwarded note shown").run(async () => {
+    await card("Change Target").getByRole("button", { name: "Send to main administrator" }).click();
+    await card("Change Target").locator(".workflow-forwarded").waitFor();
+    assert.equal(await card("Change Target").getByRole("button", { name: "Send to main administrator" }).count(), 0);
+  });
+  await row(S, "My village members", "Propose removal → Send (server error, then back)", "form and reason kept on error; sent after").run(async () => {
+    await card("Removal Target").getByRole("button", { name: "Propose removal" }).click();
+    await card("Removal Target").locator("input").last().fill("Asked to be removed");
+    await fail503();
+    await card("Removal Target").getByRole("button", { name: "Send removal proposal" }).click();
+    await page.getByTestId("Error banner").waitFor();
+    assert.equal(await card("Removal Target").locator("input").last().inputValue(), "Asked to be removed");
+    await page.unroute("**/api/village/members/**");
+    await page.getByTestId("Error banner close").click();
+    await card("Removal Target").getByRole("button", { name: "Send removal proposal" }).click();
+    await card("Removal Target").locator(".workflow-forwarded").waitFor();
+  });
+  await row(S, "(all screens)", "(browser console)", "no JavaScript errors").run(async () => assert.deepEqual(page.errors.filter((e) => !/503/.test(e)), []));
+  await ctx.close();
+  // Android export path (JavaScript side): the page must call the native
+  // bridge. This is a browser stand-in for the bridge, NOT a phone; the real
+  // save sheet is covered by the Android instrumented tests.
+  for (const bridge of [true, false])
+    await row(S, "Backup & export (Main Admin, " + (bridge ? "Android bridge stand-in" : "plain browser") + ")", "CSV list, then Excel", bridge ? "each export calls the native save sheet once" : "each export downloads a file").run(async () => {
+      const c = await browser.newContext({ viewport: PHONE, acceptDownloads: true });
+      await c.addInitScript((b) => {
+        localStorage.setItem("mvpmi-preferences", JSON.stringify({ lang: "en" }));
+        window.__saved = [];
+        if (b) window.mvpmiBridge = { saveFile: (n, m, d) => window.__saved.push([n, m, d.length]), printHtml() {}, notify() {}, setScreenPrivacy() {}, biometricAvailable: () => false };
+      }, bridge);
+      const p = await c.newPage();
+      await p.goto(env.url);
+      await loginMain(p);
+      await waitScreen(p, "directory");
+      await p.getByTestId("Admin").click();
+      if (await p.getByTestId("Admin enter dialog").isVisible().catch(() => false)) {
+        await p.getByTestId("Admin enter secret").fill(MAIN.password);
+        await p.getByTestId("Admin enter submit").click();
+      }
+      await p.locator(".mvpmi-tile", { hasText: "Backup & export" }).first().click();
+      for (const [label, file] of [["CSV list", "mvpmi-members.csv"], ["Excel (.xlsx)", "mvpmi-contacts.xlsx"]]) {
+        const dl = bridge ? null : p.waitForEvent("download", { timeout: 8000 });
+        await p.locator(".mvpmi-tile", { hasText: label }).first().click();
+        if (bridge) {
+          await p.waitForFunction((f) => window.__saved.some(([n]) => n === f), file, { timeout: 8000 });
+          await toast(p, "Choose where to save");
+        } else assert.equal((await dl).suggestedFilename(), file);
+      }
+      if (bridge) {
+        const saved = await p.evaluate(() => window.__saved);
+        assert.equal(saved.length, 2, JSON.stringify(saved));
+        assert.ok(saved.every(([, , size]) => size > 20));
+      }
+      await c.close();
+    });
+});
+
 await browser.close();
 // ---------------------------------------------------------------- Report
 const pass = rows.filter((r) => r.pass).length;
