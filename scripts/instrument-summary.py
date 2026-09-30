@@ -66,6 +66,11 @@ md = [
 text = "\n".join(md)
 (out / "summary.md").write_text(text)
 print(text)
+if os.environ.get("GITHUB_ACTIONS"):
+    # One annotation with the whole table: readable on the run page.
+    enc = lambda t: t.replace("%", "%25").replace("\r", "").replace("\n", "%0A")
+    level = "error" if problems else "notice"
+    print(f"::{level} title=Android device tests API {api}::" + enc(text[:60000]))
 if os.environ.get("GITHUB_STEP_SUMMARY"):
     with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
         f.write(text + "\n")

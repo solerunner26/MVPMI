@@ -166,6 +166,8 @@ async function flow(name, fn) {
       for (const p of browser.contexts().flatMap((c) => c.pages())) await p.screenshot({ path: "test-results/alpha/FAIL-" + name + "-" + Math.random().toString(36).slice(2, 6) + ".png" });
     } catch {}
     console.error("Flow " + name + " stopped: " + (e.stack || e).toString().split("\n").slice(0, 12).join(" | "));
+    // Readable on the GitHub run page (annotations) without downloading logs.
+    if (process.env.GITHUB_ACTIONS) console.log("::error title=E2E flow " + name + " stopped::" + (e.stack || e).toString().split("\n").slice(0, 8).join(" | ").replace(/[\r\n%]/g, " "));
   } finally {
     await env.close();
   }
@@ -1494,4 +1496,7 @@ const md = [
 writeFileSync("test-results/alpha-checklist.md", md + "\n");
 writeFileSync("test-results/alpha-checklist.json", JSON.stringify(rows, null, 2));
 console.log(md);
+if (process.env.GITHUB_ACTIONS)
+  for (const r of rows.filter((x) => !x.pass).slice(0, 9))
+    console.log("::error title=E2E FAIL " + r.section + "::" + (r.screen + " / " + r.button + " → " + r.result).replace(/[\r\n%]/g, " "));
 if (pass !== rows.length || !rows.length) process.exit(1);
