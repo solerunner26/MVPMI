@@ -150,6 +150,67 @@ jobs:
             android/app/build/reports/
             android/app/build/outputs/apk/debug/
           retention-days: 7
+  android-device-tests:
+    # Real instrumented tests (android/app/src/androidTest) on Android
+    # emulators for API 29, 33 and 36, against a test server running THIS
+    # commit with synthetic data. See docs/ANDROID_DEVICE_TESTS.md.
+    needs: server-and-browser
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [29, 33, 36]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+      - run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0' >/dev/null
+      - name: Build the app and the test APK for the emulator
+        run: gradle -p android :app:assembleDebug :app:assembleDebugAndroidTest -PcommunityDebugUrl=http://10.0.2.2:3900 --console=plain
+      - name: Start the test server (this commit, synthetic data)
+        shell: bash
+        run: |
+          nohup node scripts/android-test-server.mjs 3900 > device-server.log 2>&1 &
+          for i in $(seq 1 60); do grep -q "ready" device-server.log && break; sleep 1; done
+          cat device-server.log
+          grep -q "ready" device-server.log
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run the instrumented tests on the emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash scripts/android-device-tests.sh ${{ matrix.api-level }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-device-tests-api-${{ matrix.api-level }}
+          path: |
+            device-test-results/
+            device-server.log
+          retention-days: 30
   publish:
     # Tag pushes (v*) attach the APKs to a permanent GitHub release. Only this
     # job may write to the repository.
@@ -189,7 +250,8 @@ jobs:
     # the live server and publishes it as a GitHub PRE-release (never
     # "latest", so the server's hourly update is not triggered by it).
     if: github.event_name == 'push' && github.ref == 'refs/heads/alpha/v1.1-audit'
-    needs: android
+    # Released only when the emulator tests passed too (owner, 30 Sep 2026).
+    needs: [android, android-device-tests]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:

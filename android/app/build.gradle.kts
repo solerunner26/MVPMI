@@ -44,6 +44,10 @@ android {
         versionCode = providers.gradleProperty("versionCode").orElse("9").get().toInt()
         // CI passes the release tag (v1.0.0 → 1.0.0).
         versionName = providers.gradleProperty("versionName").orElse("1.0.0").get()
+        // Instrumented tests on an emulator/phone (android/app/src/androidTest,
+        // modelled on github.com/android/testing-samples). See
+        // docs/ANDROID_DEVICE_TESTS.md.
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     signingConfigs {
         if (keystoreFile != null) {
@@ -71,7 +75,17 @@ android {
     kotlinOptions { jvmTarget = "17" }
 }
 
-dependencies { testImplementation("junit:junit:4.13.2") }
+dependencies {
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test:core:1.6.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test:rules:1.6.1")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
+    androidTestImplementation("androidx.test.espresso:espresso-web:3.6.1")
+    androidTestImplementation("androidx.test.espresso:espresso-intents:3.6.1")
+    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0")
+}
 
 // A release build needs a real server address and the permanent signing key.
 val verifyReleaseReadiness by tasks.registering {
