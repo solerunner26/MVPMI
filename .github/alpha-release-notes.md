@@ -1,4 +1,4 @@
-**Alpha 2 test build (v1.2.0-alpha.2)** of the Mahuva Kshatriya Rajput Samaj community directory. For invited testers only.
+**Alpha 3 test build (v1.2.0-alpha.3; same app as alpha 2, server install fixed)** of the Mahuva Kshatriya Rajput Samaj community directory. For invited testers only.
 
 - **mvpmi.apk** — install on Android phones (Android 10 or newer). It connects to https://samaj.kavigsv.com.
 - **BUILD-INFO.txt** — version, server and signed / test build. This is a test-signed build: **uninstall the previous alpha first**.

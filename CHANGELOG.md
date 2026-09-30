@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.0 — alpha 3 (30 September 2026)
+
+- alpha 2 could not be installed on the server (esbuild was a development-only package; the server installs runtime packages only). Same app as alpha 2.
+
 ## 1.2.0 — alpha 2 (30 September 2026)
 
 Fixes from the v1.2.0-alpha.1 release test report (owner-approved; login by
