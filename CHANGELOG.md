@@ -20,10 +20,20 @@ mobile number is unchanged by decision).
 - Settings labels line up after their icons; review tabs are smaller (icon
   beside the label, two per row for the Main Admin); text-size Reset is a
   small button; English cards say "Location:".
+- **Found by the new Android emulator tests, fixed:**
+  - Phones with an old Android System WebView (e.g. version 74 on Android 10
+    that was never updated) showed a blank screen; every WebView older than
+    103 could not reach the server. Scripts are now compiled for older
+    WebViews and two too-new browser features have safe replacements
+    (verified in Chromium 74 and on the Android 10 emulator).
+  - A login could be lost if the app was closed or killed soon after logging
+    in: the login cookie is now saved whenever the app goes to the background.
+  - Android 13+ asked for notification permission on the Login screen at
+    first launch; it now asks only after login or registration.
 - **Testing:** new browser regression flow (overlap at every size, failed
-  requests, export path, idle loop) and real Android emulator tests on
-  API 29, 33 and 36 (docs/ANDROID_DEVICE_TESTS.md); the alpha release now
-  waits for them.
+  requests, export path, idle loop, old-WebView requests) and real Android
+  emulator tests on API 29, 33 and 36 (docs/ANDROID_DEVICE_TESTS.md); the
+  alpha release now waits for them.
 
 ## 1.2.0 — alpha 1 (30 September 2026)
 
