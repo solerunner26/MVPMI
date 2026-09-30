@@ -1385,7 +1385,7 @@ await flow("s11", async (env) => {
     assert.equal(new Set(lefts.map(([, x]) => x)).size, 1, JSON.stringify(lefts));
   });
   await row(S, "Settings", "Text size → Reset", "a compact secondary button, still a 48 px target").run(async () => {
-    const b = await page.getByTestId("Settings text size reset").evaluate((el) => ({ w: el.getBoundingClientRect().width, h: el.getBoundingClientRect().height, p: el.parentElement.getBoundingClientRect().width }));
+    const b = await page.getByTestId("Settings text size reset").evaluate((el) => ({ w: el.offsetWidth, h: el.offsetHeight, p: el.parentElement.offsetWidth }));
     assert.ok(b.w < b.p * 0.7 && b.h >= 48, JSON.stringify(b));
     await back(page);
     await back(page);
@@ -1394,7 +1394,9 @@ await flow("s11", async (env) => {
   await row(S, "Review panel (Village Admin)", "(tabs)", "icon beside the label, 48–56 px tall").run(async () => {
     await page.getByTestId("Admin").click();
     await page.locator(".workflow-panel").waitFor();
-    const hs = await page.locator(".workflow-tabs > button").evaluateAll((bs) => bs.map((b) => Math.round(b.getBoundingClientRect().height)));
+    // Layout height (offsetHeight): the panel's opening animation scales
+    // the on-screen box for a moment on slower machines.
+    const hs = await page.locator(".workflow-tabs > button").evaluateAll((bs) => bs.map((b) => b.offsetHeight));
     assert.ok(hs.length && hs.every((h) => h >= 48 && h <= 56), JSON.stringify(hs));
     await shot(page, "s11-workflow-tabs");
   });
