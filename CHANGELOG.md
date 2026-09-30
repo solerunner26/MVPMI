@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.2.0 — alpha 2 (30 September 2026)
+
+Fixes from the v1.2.0-alpha.1 release test report (owner-approved; login by
+mobile number is unchanged by decision).
+
+- **Names never under Call/WhatsApp** at any text size (85–165%) or phone
+  width; long names wrap to two lines, then "…".
+- **Android export works:** Backup & export now opens the phone's "save as"
+  sheet (it silently did nothing); a location that cannot be written says
+  "Save failed" instead of "Saved".
+- **Failed proposals keep your typing:** if sending a change or removal
+  proposal fails, the form and reason stay for another try. Enable/Disable
+  Village Admin no longer says "done" when it failed.
+- **Battery:** the review panel no longer redraws itself 60 times a second
+  while idle.
+- **Header:** tapping search gives the box the whole line; the placeholder
+  ("Search") is never cut; the community name always fits.
+- Settings labels line up after their icons; review tabs are smaller (icon
+  beside the label, two per row for the Main Admin); text-size Reset is a
+  small button; English cards say "Location:".
+- **Testing:** new browser regression flow (overlap at every size, failed
+  requests, export path, idle loop) and real Android emulator tests on
+  API 29, 33 and 36 (docs/ANDROID_DEVICE_TESTS.md); the alpha release now
+  waits for them.
+
 ## 1.2.0 — alpha 1 (30 September 2026)
 
 - **No PIN to log in.** Members and Village Admins log in with their mobile

@@ -29,6 +29,7 @@
   "@axe-core/playwright": "^4.13.0",
   "@playwright/test": "^1.55.0",
   "@sparticuz/chromium": "^153.0.0",
+  "esbuild": "^0.25.12",
   "prettier": "^3.9.6"
  },
  "overrides": {

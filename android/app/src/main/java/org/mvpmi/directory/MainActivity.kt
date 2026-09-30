@@ -366,6 +366,10 @@ class MainActivity : Activity() {
     // Lets the page know it is in the background (starts the 30-second lock).
     override fun onPause() {
         web.onPause()
+        // Save the login cookie now: WebView writes cookies to disk only now
+        // and then, so a login followed by the app being closed or killed
+        // could otherwise be lost (emulator cold-start test, 30 Sep 2026).
+        CookieManager.getInstance().flush()
         super.onPause()
     }
     override fun onDestroy() { unregisterBack?.invoke(); upload?.onReceiveValue(null); web.destroy(); super.onDestroy() }

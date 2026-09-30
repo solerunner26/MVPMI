@@ -662,7 +662,11 @@ class Component extends DesignComponent {
     const s = this.state;
     if (!this._alive || !s.loaded || s.connected === false) return;
     if (androidSupportsDevice()) {
-      if (this._deviceLang !== s.lang && !this._deviceBusy) {
+      // Only after signing in or applying (never on the Login screen at first
+      // launch: Android would ask for notification permission over it —
+      // found by the API 36 emulator test, 30 Sep 2026).
+      const known = !!s.account || !!s.myRequest || !!s.approvedHere;
+      if (known && this._deviceLang !== s.lang && !this._deviceBusy) {
         this._deviceBusy = true;
         this.api("notifications/device", { lang: s.lang })
           .then((r) => {

@@ -83,6 +83,15 @@ object T {
         )
     }
 
+    /** Network off/on as a person would do it (airplane mode where the
+     *  shell may switch it, Wi-Fi and mobile data everywhere). */
+    fun network(on: Boolean) {
+        if (Build.VERSION.SDK_INT >= 30) shell("cmd connectivity airplane-mode " + if (on) "disable" else "enable")
+        val word = if (on) "enable" else "disable"
+        shell("svc wifi $word")
+        shell("svc data $word")
+    }
+
     /** True while Android reports a usable network. */
     fun online(): Boolean {
         val cm = instr.targetContext.getSystemService(android.net.ConnectivityManager::class.java)
@@ -142,17 +151,28 @@ class App(val scenario: ActivityScenario<MainActivity>) {
 
     /** Real finger tap on the centre of the element. */
     fun tap(css: String) {
-        waitFor(css)
-        js("var e=document.querySelector(${q(css)}); e.scrollIntoView({block:'center', inline:'center'}); return 1")
-        SystemClock.sleep(300)
-        val box = js(
-            "var r=document.querySelector(${q(css)}).getBoundingClientRect();" +
+        // The page may re-render between finding and measuring the element;
+        // try again until it stays put.
+        var box: JSONObject? = null
+        T.waitUntil(20000, css) {
+            box = js(
+                "var e=document.querySelector(${q(css)}); if(!e) return null;" +
+                    "e.scrollIntoView({block:'center', inline:'center'}); var r=e.getBoundingClientRect();" +
+                    "if(!r.width||!r.height) return null;" +
+                    "return {x:r.left+r.width/2, y:r.top+r.height/2, d:window.devicePixelRatio}",
+            ) as? JSONObject
+            box != null
+        }
+        SystemClock.sleep(250)
+        box = (js(
+            "var e=document.querySelector(${q(css)}); if(!e) return null; var r=e.getBoundingClientRect();" +
                 "return {x:r.left+r.width/2, y:r.top+r.height/2, d:window.devicePixelRatio}",
-        ) as JSONObject
+        ) as? JSONObject) ?: box
+        val b = box!!
         val location = IntArray(2)
         scenario.onActivity { activity -> findWebView(activity.window.decorView)!!.getLocationOnScreen(location) }
-        val d = box.getDouble("d")
-        T.device.click((location[0] + box.getDouble("x") * d).toInt(), (location[1] + box.getDouble("y") * d).toInt())
+        val d = b.getDouble("d")
+        T.device.click((location[0] + b.getDouble("x") * d).toInt(), (location[1] + b.getDouble("y") * d).toInt())
         SystemClock.sleep(400)
     }
 

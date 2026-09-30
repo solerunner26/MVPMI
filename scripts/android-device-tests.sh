@@ -74,6 +74,10 @@ run() {
   echo "=== $target" | tee -a "$RAW"
   adb shell am instrument -w -r -e class "$PKG.$target" "$RUNNER" 2>&1 | tr -d '\r' | tee -a "$RAW"
   adb shell input keyevent 3 >/dev/null 2>&1 || true # Home between classes
+  # Network back on even if a test stopped half-way (no cascade of failures).
+  adb shell cmd connectivity airplane-mode disable >/dev/null 2>&1 || true
+  adb shell svc wifi enable >/dev/null 2>&1 || true
+  adb shell svc data enable >/dev/null 2>&1 || true
 }
 
 run LaunchLoginBackTest

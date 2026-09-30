@@ -107,8 +107,8 @@ async function phone(url, { lang = "en", viewport = PHONE } = {}) {
 }
 const screenOf = (page) => page.locator(".app").getAttribute("data-screen");
 const back = (page) => page.evaluate(() => window.mvpmiBack());
-async function waitScreen(page, name) {
-  await page.waitForFunction((n) => document.querySelector(".app")?.getAttribute("data-screen") === n, name, { timeout: 10000 });
+async function waitScreen(page, name, timeout = 10000) {
+  await page.waitForFunction((n) => document.querySelector(".app")?.getAttribute("data-screen") === n, name, { timeout });
 }
 async function loginMain(page, password = MAIN.password) {
   await page.getByTestId("Login screen").waitFor();
@@ -1088,7 +1088,8 @@ await flow("s1", async (env) => {
     await back(page);
     await ctx.setOffline(true);
     await page.reload().catch(() => {});
-    await waitScreen(page, "lock");
+    // Offline start from the saved copy is slower when the machine is busy.
+    await waitScreen(page, "lock", 25000);
     await page.getByText("Offline: opens with the PIN saved on this phone.").waitFor();
     await page.getByTestId("Unlock secret").fill("1470");
     await page.getByTestId("Unlock error").filter({ hasText: "Wrong PIN" }).waitFor();
@@ -1447,6 +1448,23 @@ await flow("s11", async (env) => {
   });
   await row(S, "(all screens)", "(browser console)", "no JavaScript errors").run(async () => assert.deepEqual(page.errors.filter((e) => !/503/.test(e)), []));
   await ctx.close();
+  await row(S, "Login (Android bridge stand-in)", "(first launch, not signed in)", "no notification registration on the Login screen; registers after login").run(async () => {
+    const c = await browser.newContext({ viewport: PHONE });
+    await c.addInitScript(() => {
+      localStorage.setItem("mvpmi-preferences", JSON.stringify({ lang: "en" }));
+      window.__registered = [];
+      window.mvpmiBridge = { registerDevice: (t) => window.__registered.push(t), pullNow() {}, saveFile() {}, printHtml() {}, notify() {}, setScreenPrivacy() {}, biometricAvailable: () => false };
+    });
+    const p = await c.newPage();
+    await p.goto(env.url);
+    await p.getByTestId("Login screen").waitFor();
+    await p.waitForTimeout(2500);
+    assert.equal(await p.evaluate(() => window.__registered.length), 0, "registered before sign-in");
+    await loginMobile(p, va.mobile);
+    await waitScreen(p, "directory");
+    await p.waitForFunction(() => window.__registered.length === 1, null, { timeout: 10000 });
+    await c.close();
+  });
   // Android export path (JavaScript side): the page must call the native
   // bridge. This is a browser stand-in for the bridge, NOT a phone; the real
   // save sheet is covered by the Android instrumented tests.

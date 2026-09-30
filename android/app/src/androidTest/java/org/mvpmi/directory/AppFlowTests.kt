@@ -93,11 +93,7 @@ class RotationKeyboardTest {
 /** Network lost and back (radio switched off on the emulator). */
 @RunWith(AndroidJUnit4::class)
 class OfflineReconnectTest {
-    private fun network(on: Boolean) {
-        val word = if (on) "enable" else "disable"
-        T.shell("svc wifi $word")
-        T.shell("svc data $word")
-    }
+    private fun network(on: Boolean) = T.network(on)
 
     @After
     fun restore() {

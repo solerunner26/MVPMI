@@ -301,8 +301,9 @@ class FingerprintSetup {
 /** Fingerprint unlock: turn on, unknown finger, cancel, then the right finger. */
 @RunWith(AndroidJUnit4::class)
 class BiometricUnlockTest {
-    private fun promptVisible() =
-        T.device.wait(Until.hasObject(By.pkg("com.android.systemui").text(Pattern.compile("(?i)cancel"))), 10000) == true
+    // The phone's fingerprint prompt: our Cancel button inside System UI.
+    private val prompt = By.pkg("com.android.systemui").text(Pattern.compile("(?i)cancel"))
+    private fun promptVisible(ms: Long = 10000) = T.device.wait(Until.hasObject(prompt), ms) == true
 
     @Test
     fun fingerprintEnrollFailCancelAndSucceed() {
@@ -326,18 +327,19 @@ class BiometricUnlockTest {
             )
             app.waitScreen("lock", 30000)
             // A finger that is not enrolled is refused; Cancel keeps the app locked.
-            if (!T.poll(3000) { T.device.hasObject(By.pkg("com.android.systemui")) }) app.tap(tid("Unlock fingerprint"))
-            assertTrue(promptVisible())
+            // The lock screen may offer the prompt by itself; otherwise tap.
+            if (!promptVisible(3000)) app.tap(tid("Unlock fingerprint"))
+            assertTrue("fingerprint prompt on the lock screen", promptVisible())
             T.log("FINGER_BAD")
             Thread.sleep(3000)
             assertEquals("unknown finger does not unlock", "lock", app.screen())
-            T.device.findObject(By.pkg("com.android.systemui").text(Pattern.compile("(?i)cancel")))?.click()
+            T.device.findObject(prompt)?.click()
             Thread.sleep(1500)
             assertEquals("cancel keeps the app locked", "lock", app.screen())
             assertEquals(0, app.rows())
             // The enrolled finger unlocks.
-            app.tap(tid("Unlock fingerprint"))
-            assertTrue(promptVisible())
+            if (!promptVisible(3000)) app.tap(tid("Unlock fingerprint"))
+            assertTrue("fingerprint prompt again", promptVisible())
             T.log("FINGER_GOOD")
             app.waitScreen("directory", 30000)
             T.waitUntil(15000, "contacts") { app.rows() >= 8 }

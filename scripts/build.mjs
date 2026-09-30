@@ -302,6 +302,22 @@ cpSync("web/manifest.webmanifest", "dist/manifest.webmanifest");
 cpSync("web/brand", "dist/brand", { recursive: true });
 for (const file of ["SunMark.dc.html", "SunWait.dc.html"])
   cpSync(file, "dist/" + file);
+// Older Android System WebView (version 74 on Android 10 phones that never
+// updated it) cannot parse "?." and "??": the app stayed on a blank screen
+// on the API 29 emulator (device tests, 30 Sep 2026). Every script is
+// compiled down to that level; the code itself is unchanged.
+{
+  const { transformSync } = await import("esbuild");
+  const down = (code) => transformSync(code, { loader: "js", target: "chrome74", charset: "utf8", legalComments: "none" }).code;
+  for (const f of ["dist/support.js", "dist/sw.js"]) write(f, down(read(f, "utf8")));
+  for (const f of ["dist/index.html", "dist/SunMark.dc.html", "dist/SunWait.dc.html"])
+    write(
+      f,
+      read(f, "utf8").replace(/(<script\b[^>]*>)([\s\S]*?)(<\/script>)/g, (m, open, body, close) =>
+        /\bsrc=/.test(open) || !body.trim() || /application\/(ld\+)?json/.test(open) ? m : open + down(body) + close,
+      ),
+    );
+}
 // Versioned asset links (long browser caching; a new build changes the link).
 {
   const { createHash } = await import("node:crypto");

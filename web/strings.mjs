@@ -347,7 +347,7 @@ export function t(key, lang = "gu", vars) {
   let text = row ? row[lang === "en" ? 1 : 0] : key;
   if (vars)
     for (const [k, v] of Object.entries(vars))
-      text = text.replaceAll("{" + k + "}", String(v));
+      text = text.split("{" + k + "}").join(String(v)); // replaceAll needs Chrome 85
   return text;
 }
 

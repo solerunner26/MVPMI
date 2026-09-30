@@ -44,6 +44,14 @@ for block in raw.split("=== ")[1:]:
         rows.append((target, "NOT RUN", "no test result reported"))
         problems.append(target)
 
+# App or test-process crashes, straight from logcat.
+crashes = []
+logcat = out / "logcat.txt"
+if logcat.exists():
+    lines = logcat.read_text(errors="replace").splitlines()
+    for i, line in enumerate(lines):
+        if "FATAL EXCEPTION" in line and any("org.mvpmi.directory" in l for l in lines[i : i + 3]):
+            crashes.append("\n".join(l.split("): ", 1)[-1] for l in lines[i : i + 14]))
 env = (out / "environment.txt").read_text() if (out / "environment.txt").exists() else ""
 upd = (out / "update-check.md").read_text() if (out / "update-check.md").exists() else ""
 count = lambda s: sum(1 for r in rows if r[1] == s)
@@ -62,6 +70,7 @@ md = [
     "|---|---|---|",
     *[f"| {n} | {r} | {w.replace('|', '/')} |" for n, r, w in rows],
     "",
+    *(["**Crashes (logcat)**", "", *[f"```\n{c}\n```" for c in crashes[:3]], ""] if crashes else []),
 ]
 text = "\n".join(md)
 (out / "summary.md").write_text(text)
