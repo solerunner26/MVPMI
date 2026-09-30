@@ -566,8 +566,14 @@ class Component extends DesignComponent {
     }
     if (!data.villageAdmin && data.role !== "admin" && current.workflowOpen) patch.workflowOpen = false;
     if (data.locked) {
-      if (!wasLocked) this._resumeScreen = current.screen;
-      Object.assign(patch, this._overlaysClosed(), { screen: "lock" });
+      // Close everything when the lock ENGAGES. Dialogs opened on the lock
+      // screen itself ("Forgot PIN?" → sign out) must survive the periodic
+      // refresh; they used to vanish after a few seconds (CI, 30 Sep 2026).
+      if (!wasLocked) {
+        this._resumeScreen = current.screen;
+        Object.assign(patch, this._overlaysClosed());
+      }
+      patch.screen = "lock";
     }
     this.setState(patch);
     this.syncScreenPrivacy(!!data.account?.lockOn);

@@ -666,6 +666,9 @@ await flow("s5", async (env) => {
     await page.reload();
     await waitScreen(page, "lock");
     await page.getByTestId("Lock forgot").click();
+    // The question stays open (it used to close itself on the next refresh).
+    await page.waitForTimeout(9000);
+    await page.getByTestId("Confirm yes").waitFor({ timeout: 1000 });
     await page.getByTestId("Confirm yes").click();
     await waitScreen(page, "login");
     await loginMobile(page, "9866666666");

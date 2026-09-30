@@ -2,7 +2,8 @@
 
 ## 1.2.0 — alpha 3 (30 September 2026)
 
-- alpha 2 could not be installed on the server (esbuild was a development-only package; the server installs runtime packages only). Same app as alpha 2.
+- alpha 2 could not be installed on the server (esbuild was a development-only package; the server installs runtime packages only).
+- "Forgot PIN?" → "Sign out of this phone?" closed itself after a few seconds on the lock screen; it now stays until answered.
 
 ## 1.2.0 — alpha 2 (30 September 2026)
 
