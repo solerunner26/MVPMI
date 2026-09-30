@@ -115,3 +115,13 @@ export function androidSupportsDevice() {
   const bridge = androidBridge();
   return !!bridge && typeof bridge.registerDevice === "function";
 }
+
+// AbortSignal.timeout() exists only from Chrome/WebView 103; older Android
+// System WebViews would fail EVERY request with it (device test on the
+// API 29 emulator, 30 Sep 2026). Same behaviour with AbortController.
+export function timeoutSignal(ms) {
+  if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") return AbortSignal.timeout(ms);
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), ms);
+  return controller.signal;
+}

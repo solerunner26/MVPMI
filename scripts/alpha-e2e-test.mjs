@@ -1465,6 +1465,20 @@ await flow("s11", async (env) => {
     await p.waitForFunction(() => window.__registered.length === 1, null, { timeout: 10000 });
     await c.close();
   });
+  await row(S, "Login (older WebView without AbortSignal.timeout)", "Log in with the mobile number", "requests still work; the directory opens").run(async () => {
+    const c = await browser.newContext({ viewport: PHONE });
+    await c.addInitScript(() => {
+      localStorage.setItem("mvpmi-preferences", JSON.stringify({ lang: "en" }));
+      try { delete AbortSignal.timeout; } catch {}
+      Object.defineProperty(AbortSignal, "timeout", { value: undefined, configurable: true });
+    });
+    const p = await c.newPage();
+    await p.goto(env.url);
+    await loginMobile(p, va.mobile);
+    await waitScreen(p, "directory");
+    await p.getByTestId("Contact row").nth(3).waitFor();
+    await c.close();
+  });
   // Android export path (JavaScript side): the page must call the native
   // bridge. This is a browser stand-in for the bridge, NOT a phone; the real
   // save sheet is covered by the Android instrumented tests.

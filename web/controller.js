@@ -420,7 +420,7 @@ class Component extends DesignComponent {
         credentials: "same-origin",
         headers: { "Content-Type": "application/json", "X-MVPMI-Client": "1" },
         body: "{}",
-        signal: AbortSignal.timeout(15000),
+        signal: timeoutSignal(15000),
       });
       const data = await response.json();
       if (!response.ok)
@@ -452,7 +452,7 @@ class Component extends DesignComponent {
       credentials: "same-origin",
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
-      signal: AbortSignal.timeout(15000),
+      signal: timeoutSignal(15000),
     });
     if (response.status === 401 && this._transport) {
       const error = await response.clone().json();
