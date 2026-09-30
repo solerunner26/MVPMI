@@ -52,6 +52,12 @@ if logcat.exists():
     for i, line in enumerate(lines):
         if "FATAL EXCEPTION" in line and any("org.mvpmi.directory" in l for l in lines[i : i + 3]):
             crashes.append("\n".join(l.split("): ", 1)[-1] for l in lines[i : i + 14]))
+# Page errors (debug builds copy WebView console errors to logcat).
+page_errors = []
+if logcat.exists():
+    for line in logcat.read_text(errors="replace").splitlines():
+        if "MVPMIWEB" in line and line.split("): ", 1)[-1] not in page_errors:
+            page_errors.append(line.split("): ", 1)[-1][:300])
 env = (out / "environment.txt").read_text() if (out / "environment.txt").exists() else ""
 upd = (out / "update-check.md").read_text() if (out / "update-check.md").exists() else ""
 count = lambda s: sum(1 for r in rows if r[1] == s)
@@ -71,6 +77,7 @@ md = [
     *[f"| {n} | {r} | {w.replace('|', '/')} |" for n, r, w in rows],
     "",
     *(["**Crashes (logcat)**", "", *[f"```\n{c}\n```" for c in crashes[:3]], ""] if crashes else []),
+    *(["**Page errors (WebView console)**", "", "```", *page_errors[:12], "```", ""] if page_errors else []),
 ]
 text = "\n".join(md)
 (out / "summary.md").write_text(text)

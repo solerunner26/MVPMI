@@ -90,32 +90,61 @@ class RotationKeyboardTest {
     }
 }
 
-/** Network lost and back (radio switched off on the emulator). */
+/** Server not reachable, then back: the app keeps the saved directory and
+ *  reconnects with Retry, without restarting. */
 @RunWith(AndroidJUnit4::class)
-class OfflineReconnectTest {
-    private fun network(on: Boolean) = T.network(on)
-
+class ServerUnreachableTest {
     @After
     fun restore() {
-        network(true)
+        runCatching { T.serverOutage(false) }
     }
 
     @Test
-    fun offlineShowsSavedDirectoryAndRetryReconnects() {
+    fun unreachableShowsSavedDirectoryAndRetryReconnects() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             val app = App(scenario)
             app.english()
             app.loginMobile(T.member(3))
-            network(false)
-            T.waitUntil(30000, "network off") { !T.online() }
-            // Ask the page to refresh (as when the person pulls or returns).
+            T.serverOutage(true)
+            // The page notices on its next request (as when the person returns).
             app.js("window.dispatchEvent(new Event('offline')); return 1")
             app.waitFor(tid("Offline banner"), 30000)
             assertTrue("saved directory still listed", app.rows() >= 8)
             assertTrue("Call still offered offline", app.exists("[data-testid=\"Contact row\"] a[href^=\"tel:\"]"))
-            network(true)
-            T.waitUntil(60000, "network back") { T.online() }
+            T.serverOutage(false)
             T.waitUntil(45000, "reconnected without restarting") {
+                if (app.exists(tid("Offline banner"))) runCatching { app.tap(tid("Offline banner")) }
+                !app.exists(tid("Offline banner"))
+            }
+            assertEquals("directory", app.screen())
+        }
+    }
+}
+
+/** The phone itself offline (airplane mode / Wi-Fi and data off). Reported as
+ *  SKIPPED when this emulator image does not let the test cut its network. */
+@RunWith(AndroidJUnit4::class)
+class DeviceOfflineTest {
+    @After
+    fun restore() {
+        T.network(true)
+        T.poll(60000) { T.online() }
+    }
+
+    @Test
+    fun airplaneModeShowsSavedDirectoryAndComesBack() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            val app = App(scenario)
+            app.english()
+            app.loginMobile(T.member(3))
+            T.network(false)
+            assumeTrue("This emulator image keeps its network on (airplane mode not applied)", T.poll(30000) { !T.online() })
+            app.js("window.dispatchEvent(new Event('offline')); return 1")
+            app.waitFor(tid("Offline banner"), 30000)
+            assertTrue(app.rows() >= 8)
+            T.network(true)
+            T.waitUntil(60000, "network back") { T.online() }
+            T.waitUntil(45000, "reconnected") {
                 if (app.exists(tid("Offline banner"))) runCatching { app.tap(tid("Offline banner")) }
                 !app.exists(tid("Offline banner"))
             }
@@ -148,11 +177,11 @@ class ColdStartTest {
             app.waitScreen("lock", 45000)
             assertTrue("screenshots blocked from the first frame", app.secureWindow())
             assertEquals("no contacts behind the lock", 0, app.rows())
+            // Four digits submit by themselves.
             app.fill("Unlock secret", "1111")
-            app.tap(tid("Unlock submit"))
             app.waitFor(tid("Unlock error"))
+            assertEquals("wrong PIN keeps it locked", "lock", app.screen())
             app.fill("Unlock secret", "2468")
-            app.tap(tid("Unlock submit"))
             app.waitScreen("directory")
             T.waitUntil(15000, "contacts") { app.rows() >= 8 }
             // One tap turns the lock off; screenshots are allowed again.
@@ -182,9 +211,9 @@ class BackgroundLockTest {
             T.launchFromLauncher()
             app.waitScreen("lock", 30000)
             assertEquals(0, app.rows())
-            app.fill("Unlock secret", "1357")
-            app.tap(tid("Unlock submit"))
-            app.waitScreen("directory")
+            app.fill("Unlock secret", "1357") // 4 digits unlock by themselves
+            // Unlocking returns to the screen the person was on (My Profile).
+            T.waitUntil(30000, "unlocked") { app.screen() in setOf("profile", "directory") }
             // Forgot PIN = sign out and log in again (no administrator).
             T.device.pressHome()
             Thread.sleep(65000)

@@ -12,6 +12,7 @@
 import { createApp } from "../server/app.mjs";
 import { mainAdminId } from "../server/auth.mjs";
 import { execSync } from "node:child_process";
+import { createServer } from "node:http";
 
 const port = Number(process.argv[2] || process.env.PORT || 3900);
 const MAIN = { name: "Test Main Admin", mobile: "9913000001", village: "Thorala", location: "Thorala", password: "Testing@26" };
@@ -21,7 +22,20 @@ const m = store.get("members", mainAdminId(store));
 delete m.cred.initial;
 store.put("members", m);
 
-const server = app.listen(port, "0.0.0.0");
+// Test-only switch (this script, never the app): GET /__test/outage?on=1
+// makes the server drop every other connection, exactly what the app sees
+// when the phone has no internet or the server is unreachable.
+let outage = false;
+const server = createServer((req, res) => {
+  if (req.url.startsWith("/__test/outage")) {
+    outage = /on=1/.test(req.url);
+    res.end(JSON.stringify({ outage }));
+    return;
+  }
+  if (outage) return req.socket.destroy();
+  app(req, res);
+});
+server.listen(port, "0.0.0.0");
 await new Promise((r) => server.once("listening", r));
 const base = "http://127.0.0.1:" + port + "/api/";
 const client = () => {

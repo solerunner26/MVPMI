@@ -223,6 +223,12 @@ class MainActivity : Activity() {
             }
         }
         web.webChromeClient = object : WebChromeClient() {
+            // Debug builds only: page errors go to logcat (device tests).
+            override fun onConsoleMessage(message: ConsoleMessage): Boolean {
+                if (BuildConfig.DEBUG && message.messageLevel() == ConsoleMessage.MessageLevel.ERROR)
+                    android.util.Log.w("MVPMIWEB", message.message() + " @" + message.sourceId() + ":" + message.lineNumber())
+                return false
+            }
             override fun onShowFileChooser(view: WebView, callback: ValueCallback<Array<Uri>>, params: FileChooserParams): Boolean {
                 upload?.onReceiveValue(null)
                 upload = callback

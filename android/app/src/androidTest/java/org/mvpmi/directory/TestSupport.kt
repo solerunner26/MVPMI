@@ -92,6 +92,14 @@ object T {
         shell("svc data $word")
     }
 
+    /** Test server outage switch (scripts/android-test-server.mjs). */
+    fun serverOutage(on: Boolean) {
+        val c = java.net.URL(BuildConfig.COMMUNITY_URL + "/__test/outage?on=" + (if (on) 1 else 0)).openConnection() as java.net.HttpURLConnection
+        c.connectTimeout = 10000
+        c.readTimeout = 10000
+        try { c.inputStream.use { it.readBytes() } } finally { c.disconnect() }
+    }
+
     /** True while Android reports a usable network. */
     fun online(): Boolean {
         val cm = instr.targetContext.getSystemService(android.net.ConnectivityManager::class.java)
@@ -151,6 +159,14 @@ class App(val scenario: ActivityScenario<MainActivity>) {
 
     /** Real finger tap on the centre of the element. */
     fun tap(css: String) {
+        // A keyboard that is still open (or closing) moves the page; close it
+        // before tapping anything that is not a text field.
+        val field = jsBool("var e=document.querySelector(${q(css)}); return !!e && /^(INPUT|TEXTAREA)$/.test(e.tagName)")
+        if (!field && keyboardShown()) {
+            T.device.pressBack()
+            T.poll(3000) { !keyboardShown() }
+            SystemClock.sleep(500)
+        }
         // The page may re-render between finding and measuring the element;
         // try again until it stays put.
         var box: JSONObject? = null
@@ -206,7 +222,7 @@ class App(val scenario: ActivityScenario<MainActivity>) {
 
     /** English UI for readable assertions (the app starts in Gujarati). */
     fun english() {
-        waitFor(".app")
+        waitFor(".app", 60000)
         if (jsString("return document.querySelector('.app').getAttribute('data-lang')") != "en") {
             js(
                 "var p={}; try{p=JSON.parse(localStorage.getItem('mvpmi-preferences')||'{}')}catch(e){}" +

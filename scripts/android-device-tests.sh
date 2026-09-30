@@ -82,7 +82,7 @@ run() {
 
 run LaunchLoginBackTest
 run RotationKeyboardTest
-run OfflineReconnectTest
+run ServerUnreachableTest
 run ColdStartTest#phase1_loginAndTurnOnPinLock
 adb shell am force-stop "$PKG" # the process is killed: a real cold start follows
 run ColdStartTest#phase2_coldStartAsksForThePinThenTurnsItOff keep
@@ -91,6 +91,7 @@ run CallWhatsAppIntentTest
 run RealDiallerTest
 run ExportSaveTest
 run NotificationPermissionTest "" ask
+run DeviceOfflineTest
 # Fingerprint last: it sets a screen-lock PIN on the emulator.
 run FingerprintSetup keep
 run BiometricUnlockTest
