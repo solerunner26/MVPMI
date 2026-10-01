@@ -39,7 +39,8 @@ test("Every string resource exists in Gujarati and English", () => {
   for (const [key, row] of Object.entries(STR)) {
     assert.equal(row.length, 2, key);
     assert.ok(row[0].trim() && row[1].trim(), key);
-    assert.match(row[0], /[઀-૿]|^[A-Z0-9 ·+().:/-]+$/u, "Gujarati text for " + key);
+    // bar.lang names the language you switch TO, so in Gujarati it reads "English".
+    if (key !== "bar.lang") assert.match(row[0], /[઀-૿]|^[A-Z0-9 ·+().:/-]+$/u, "Gujarati text for " + key);
   }
   assert.equal(t("term.pin", "en"), "PIN");
   assert.equal(t("err.LOCKED_OUT", "en", { min: 4, sec: 5 }), "Too many wrong attempts. Try again in 4 min 5 s.");

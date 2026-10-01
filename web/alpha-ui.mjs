@@ -15,6 +15,77 @@ export function AIcon({ name, className = "" }) {
   return ah("i", { className: "ph-duotone ph-" + name + (className ? " " + className : ""), "aria-hidden": true });
 }
 
+// Text kept on ONE line: the font shrinks (max → min px, scaled by the
+// text-size setting) until it fits the space; only then would it end in "…".
+// Used for the community name in both languages (owner, 2 Oct 2026).
+export function AOneLine({ text, className = "", testId, max = 20, min = 12, as = "strong" }) {
+  const ref = React.useRef(null);
+  React.useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const fit = () => {
+      const fs = parseFloat(getComputedStyle(el).getPropertyValue("--fs")) || 1;
+      let size = max * Math.min(fs, 1.25);
+      el.style.fontSize = size + "px";
+      while (el.scrollWidth > el.clientWidth + 0.5 && size > min) {
+        size -= 0.5;
+        el.style.fontSize = size + "px";
+      }
+    };
+    fit();
+    let ro = null;
+    if (typeof ResizeObserver === "function") {
+      ro = new ResizeObserver(fit);
+      ro.observe(el);
+    } else window.addEventListener("resize", fit);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit).catch(() => {});
+    return () => (ro ? ro.disconnect() : window.removeEventListener("resize", fit));
+  }, [text, max, min]);
+  return ah(as, { ref, className: "alpha-oneline " + className, "data-testid": testId, title: text }, text);
+}
+
+// Floating glass bottom bar (browsers; the Android app draws the same bar
+// natively in Jetpack Compose and hides this one). Five tabs, Search in the
+// middle: Profile · Admin tools (Settings for members) · Search · Theme ·
+// Language. Outline icon when inactive, filled icon in a pill when active.
+export function ABottomNav({ lang, active, isAdmin, adminBadge, dark, onProfile, onAdmin, onSettings, onSearch, onTheme, onLang }) {
+  const item = (key, icon, label, onClick, opts = {}) =>
+    ah(
+      "button",
+      {
+        key,
+        type: "button",
+        className: "alpha-navitem" + (opts.center ? " is-center" : "") + (active === key ? " is-active" : ""),
+        "aria-label": opts.aria || label,
+        "aria-current": active === key ? "page" : undefined,
+        "data-testid": opts.testId,
+        onClick,
+      },
+      ah(
+        "span",
+        { className: "alpha-navpill" },
+        ah(ANavIcon, { name: icon, filled: active === key || !!opts.filled }),
+        opts.badge ? ah("span", { className: "alpha-badge", "aria-hidden": true }, opts.badge > 99 ? "99+" : String(opts.badge)) : null,
+      ),
+      ah("span", { className: "alpha-navlabel" }, label),
+    );
+  return ah(
+    "nav",
+    { className: "alpha-bottomnav", "aria-label": t("bar.label", lang), "data-testid": "Bottom bar" },
+    ah(
+      "div",
+      { className: "alpha-bottomnav-glass" },
+      item("profile", "user-circle", t("bar.profile", lang), onProfile, { testId: "Profile and settings", aria: t("dir.profileBtn", lang) }),
+      isAdmin
+        ? item("admin", "shield-check", t("bar.admin", lang), onAdmin, { testId: "Admin", aria: t("nav.adminTools", lang), badge: adminBadge })
+        : item("settings", "gear-six", t("bar.settings", lang), onSettings, { testId: "Settings tab", aria: t("settings.title", lang) }),
+      item("search", "magnifying-glass", t("bar.search", lang), onSearch, { testId: "Search", center: true, aria: t("dir.search", lang) }),
+      item("theme", dark ? "sun" : "moon", t(dark ? "bar.light" : "bar.dark", lang), onTheme, { testId: "Theme toggle", aria: t(dark ? "dir.lightOn" : "dir.darkOn", lang) }),
+      item("lang", "translate", t("bar.lang", lang), onLang, { testId: "Language toggle", aria: t("bar.langLabel", lang) }),
+    ),
+  );
+}
+
 // 48 px round glass icon button with an accessible name.
 export function AIconButton({ icon, label, onClick, badge, testId, pressed, disabled, className = "", type = "button" }) {
   return ah(

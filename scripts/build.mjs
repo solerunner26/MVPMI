@@ -239,6 +239,7 @@ logic += "\n" + read("web/liquid-ios.mjs", "utf8").replaceAll("export ", "");
 for (const file of ["bilingual.mjs", "material-capability.mjs"])
   logic += "\n" + read("web/" + file, "utf8").replaceAll("export ", "");
 for (const file of [
+  "nav-icons.mjs",
   "alpha-ui.mjs",
   "alpha-auth.mjs",
   "alpha-register.mjs",

@@ -1,7 +1,6 @@
 package org.mvpmi.directory
 
 import android.annotation.TargetApi
-import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.graphics.Color
@@ -14,16 +13,30 @@ import android.view.View
 import android.view.WindowManager
 import android.webkit.*
 import android.widget.*
-import android.window.OnBackInvokedCallback
-import android.window.OnBackInvokedDispatcher
+import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
+import androidx.activity.SystemBarStyle
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import org.json.JSONObject
+import org.mvpmi.directory.ui.AppShell
+import org.mvpmi.directory.ui.NavUi
+import org.mvpmi.directory.ui.SplashInfo
 
 /** Android host for the hosted community directory (online WebView app). */
-class MainActivity : Activity() {
+class MainActivity : ComponentActivity() {
     private lateinit var web: WebView
     private lateinit var content: FrameLayout
     private var errorView: View? = null
     private var upload: ValueCallback<Array<Uri>>? = null
-    private var unregisterBack: (() -> Unit)? = null
+    // Native shell state (splash screen + bottom bar), fed by the page.
+    private var navUi by mutableStateOf(NavUi())
+    private var showSplash by mutableStateOf(false)
+    private var splashInfo by mutableStateOf(SplashInfo())
+    private var lastInsets = 0f to 0f
     private var backPending = false
     // The server address is fixed when the app is built (BuildConfig);
     // members can never see or change it.
@@ -48,6 +61,34 @@ class MainActivity : Activity() {
                     pendingSave = null
                     message(R.string.save_no_sheet_gu, R.string.save_no_sheet_en)
                 }
+            }
+        }
+
+        /** The page reports what the native bottom bar and splash should show:
+         *  visibility, active tab, role, theme, language and member counts
+         *  (never phone numbers). */
+        @android.webkit.JavascriptInterface
+        fun navState(json: String) {
+            val o = try { JSONObject(json) } catch (_: Exception) { return }
+            runOnUiThread {
+                navUi = NavUi(
+                    visible = o.optBoolean("visible"),
+                    active = o.optString("active").ifBlank { null },
+                    isAdmin = o.optBoolean("isAdmin"),
+                    adminBadge = o.optInt("adminBadge"),
+                    dark = o.optBoolean("dark"),
+                    gujarati = o.optString("lang") != "en",
+                )
+                val prefs = getPreferences(MODE_PRIVATE).edit()
+                    .putBoolean("shellDark", navUi.dark)
+                    .putBoolean("shellGujarati", navUi.gujarati)
+                if (o.optBoolean("loggedIn"))
+                    prefs.putString("splashVillageGu", o.optString("villageGu"))
+                        .putString("splashVillageEn", o.optString("villageEn"))
+                        .putInt("splashVillageMembers", o.optInt("villageMembers"))
+                        .putInt("splashTotal", o.optInt("totalMembers"))
+                prefs.apply()
+                applySystemBars()
             }
         }
 
@@ -156,31 +197,43 @@ class MainActivity : Activity() {
         // person's optional PIN lock is on (the page tells us through
         // setScreenPrivacy; the choice is remembered for the next start).
         applyScreenPrivacy(getPreferences(MODE_PRIVATE).getBoolean("screenPrivacy", false))
-        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.rgb(36, 20, 19)) }
-        // Android 15+ always draws edge-to-edge: coloured bars sit behind the
-        // status and navigation icons so the (white) icons stay visible.
-        val statusBar = View(this).apply { setBackgroundColor(Color.rgb(178, 64, 44)) }
-        val navigationBar = View(this).apply { setBackgroundColor(Color.rgb(36, 20, 19)) }
-        root.setOnApplyWindowInsetsListener { view, insets ->
-            @Suppress("DEPRECATION")
-            view.setPadding(insets.systemWindowInsetLeft, 0, insets.systemWindowInsetRight, 0)
-            @Suppress("DEPRECATION")
-            statusBar.layoutParams = LinearLayout.LayoutParams(-1, insets.systemWindowInsetTop)
-            @Suppress("DEPRECATION")
-            navigationBar.layoutParams = LinearLayout.LayoutParams(-1, insets.systemWindowInsetBottom)
-            insets
-        }
-        root.addView(statusBar, LinearLayout.LayoutParams(-1, 0))
         content = FrameLayout(this).apply { setBackgroundColor(Color.rgb(255, 251, 246)) }
-        root.addView(content, LinearLayout.LayoutParams(-1, 0, 1f))
-        root.addView(navigationBar, LinearLayout.LayoutParams(-1, 0))
         web = WebView(this)
         // Lets the phone's password manager (Google Password Manager) offer to
         // save the Main Admin's password; members have no password.
         web.importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_YES
         content.addView(web, FrameLayout.LayoutParams(-1, -1))
-        setContentView(root)
-        if (Build.VERSION.SDK_INT >= 33) unregisterBack = ModernBack.register(this) { navigateBack() }
+        // Splash screen at every fresh start (not after rotation or a return
+        // from the background); the directory loads underneath meanwhile.
+        val prefs = getPreferences(MODE_PRIVATE)
+        navUi = NavUi(dark = prefs.getBoolean("shellDark", false), gujarati = prefs.getBoolean("shellGujarati", true))
+        splashInfo = SplashInfo(
+            villageGu = prefs.getString("splashVillageGu", "") ?: "",
+            villageEn = prefs.getString("splashVillageEn", "") ?: "",
+            villageMembers = prefs.getInt("splashVillageMembers", 0),
+            totalMembers = prefs.getInt("splashTotal", 0),
+            gujarati = navUi.gujarati,
+        )
+        showSplash = savedInstanceState == null
+        applySystemBars()
+        setContent {
+            AppShell(
+                page = content,
+                nav = navUi,
+                showSplash = showSplash,
+                splash = splashInfo.copy(gujarati = navUi.gujarati),
+                onEnter = { showSplash = false; applySystemBars() },
+                onContactAdmins = { showSplash = false; applySystemBars(); webNav("admins") },
+                onTab = { key -> webNav(key) },
+                onInsets = { bar, inset -> lastInsets = bar to inset; pushInsets() },
+            )
+        }
+        // One Back handler for every Android version (predictive Back on 13+).
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (showSplash) finish() else navigateBack()
+            }
+        })
         web.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -198,7 +251,7 @@ class MainActivity : Activity() {
             @Deprecated("Required for Android 5 and 6")
             override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean = route(Uri.parse(url))
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean = route(request.url, request.isForMainFrame)
-            override fun onPageFinished(view: WebView, url: String) { CookieManager.getInstance().flush() }
+            override fun onPageFinished(view: WebView, url: String) { CookieManager.getInstance().flush(); pushInsets() }
             // The legacy callback is invoked for main-frame errors by newer WebView versions too.
             @Deprecated("Compatible main-frame error callback")
             override fun onReceivedError(view: WebView, code: Int, description: String, failingUrl: String) {
@@ -303,13 +356,31 @@ class MainActivity : Activity() {
         }
     }
 
-    @TargetApi(33)
-    private object ModernBack {
-        fun register(activity: Activity, action: () -> Unit): () -> Unit {
-            val callback = OnBackInvokedCallback { action() }
-            activity.onBackInvokedDispatcher.registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, callback)
-            return { activity.onBackInvokedDispatcher.unregisterOnBackInvokedCallback(callback) }
-        }
+    /** Native bar → page (window.mvpmiNav, web/controller.js navGo). */
+    private fun webNav(target: String) {
+        if (!Regex("[a-z]+").matches(target)) return
+        web.evaluateJavascript("window.mvpmiNav && window.mvpmiNav.go('$target')", null)
+    }
+
+    /** Room the page leaves at the bottom: the floating bar (when shown) and
+     *  the system navigation bar, in CSS px (= dp). */
+    private fun pushInsets() {
+        if (!::web.isInitialized) return
+        val (bar, inset) = lastInsets
+        web.evaluateJavascript(
+            "(function(r){r.style.setProperty('--native-bar-space','${bar.toInt()}px');" +
+                "r.style.setProperty('--native-inset-bottom','${inset.toInt()}px');})(document.documentElement)",
+            null,
+        )
+    }
+
+    /** Status-bar icons: dark on the light splash, light on the brick strip;
+     *  navigation-bar icons follow the page theme. */
+    private fun applySystemBars() {
+        val transparent = Color.TRANSPARENT
+        val status = if (showSplash && !navUi.dark) SystemBarStyle.light(transparent, transparent) else SystemBarStyle.dark(transparent)
+        val navigation = if (navUi.dark) SystemBarStyle.dark(transparent) else SystemBarStyle.light(transparent, transparent)
+        enableEdgeToEdge(statusBarStyle = status, navigationBarStyle = navigation)
     }
 
     private fun open(intent: Intent) {
@@ -361,8 +432,6 @@ class MainActivity : Activity() {
             }
         }
     }
-    @Deprecated("Legacy back handling; API 33+ uses ModernBack")
-    override fun onBackPressed() { navigateBack() }
     override fun onResume() {
         super.onResume()
         web.onResume()
@@ -378,5 +447,5 @@ class MainActivity : Activity() {
         CookieManager.getInstance().flush()
         super.onPause()
     }
-    override fun onDestroy() { unregisterBack?.invoke(); upload?.onReceiveValue(null); web.destroy(); super.onDestroy() }
+    override fun onDestroy() { upload?.onReceiveValue(null); (web.parent as? android.view.ViewGroup)?.removeView(web); web.destroy(); super.onDestroy() }
 }

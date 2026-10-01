@@ -6,8 +6,8 @@ function ABrand({ lang }) {
   return ah(
     "div",
     { className: "alpha-brand" },
-    ah("img", { src: "/brand/icon-192.png", alt: "", width: 72, height: 72, className: "alpha-brand-mark" }),
-    ah("p", { className: "alpha-brand-community" }, t("app.community", lang)),
+    ah("img", { src: "/brand/sun-logo-192.png", alt: "", width: 72, height: 72, className: "alpha-brand-mark" }),
+    ah(AOneLine, { as: "p", className: "alpha-brand-community", text: t("app.community", lang), max: 17, min: 11 }),
     ah("h1", { className: "alpha-brand-title" }, t("app.title", lang)),
   );
 }

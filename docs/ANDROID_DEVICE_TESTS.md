@@ -38,6 +38,7 @@ The alpha release job waits for these tests.
 | Test class | Covers |
 |---|---|
 | LaunchLoginBackTest | start, Espresso-Web read of Login, mobile-only login, Back from the directory closes the app |
+| NativeShellTest | native splash shown at start (bar hidden) until "Enter Directory"; the Compose glass bottom bar shows Profile · Settings · Search · Theme · Language for members, each tab drives the page; sheets hide the bar; screenshots of both are previewed in the run annotations |
 | RotationKeyboardTest | rotation without reload or sideways scroll; on-screen keyboard shrinks the page and never covers search; real typing |
 | OfflineReconnectTest | Wi-Fi and data off → offline banner with saved directory and Call; back on → Retry reconnects without restart |
 | ColdStartTest (2 phases, process killed between) | PIN lock survives a real cold start; screenshots blocked from the first frame; wrong/right PIN; lock off → screenshots allowed |

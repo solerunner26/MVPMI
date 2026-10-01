@@ -14,7 +14,9 @@ import android.view.WindowManager
 import android.webkit.WebView
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
+import androidx.test.uiautomator.Until
 import org.json.JSONObject
 import org.json.JSONTokener
 import org.junit.Assert.assertTrue
@@ -157,8 +159,43 @@ class App(val scenario: ActivityScenario<MainActivity>) {
 
     fun rows() = jsInt("return document.querySelectorAll(${q(tid("Contact row"))}).length")
 
+    /** The native splash (Compose) covers the page at start until
+     *  "Enter Directory" is pressed. Returns true if it was there. */
+    fun passSplash(timeoutMs: Long = 10000): Boolean {
+        val enter = (if (timeoutMs > 0) T.device.wait(Until.findObject(By.res("splash_enter")), timeoutMs)
+        else T.device.findObject(By.res("splash_enter"))) ?: return false
+        enter.click()
+        T.device.wait(Until.gone(By.res("splash_enter")), 8000)
+        SystemClock.sleep(300)
+        return true
+    }
+
+    /** Real tap on a tab of the native bottom bar (nav_profile, nav_admin,
+     *  nav_settings, nav_search, nav_theme, nav_lang). */
+    fun nav(key: String) {
+        passSplash(0)
+        if (keyboardShown()) {
+            T.device.pressBack()
+            T.poll(3000) { !keyboardShown() }
+            SystemClock.sleep(500)
+        }
+        val tab = T.device.wait(Until.findObject(By.res("nav_$key")), 15000) ?: fail("bottom bar tab nav_$key not shown")
+        tab.click()
+        SystemClock.sleep(500)
+    }
+
+    /** Taps a bottom-bar tab until `done` (at most 3 taps). */
+    fun navUntil(key: String, what: String, done: () -> Boolean) {
+        for (attempt in 1..3) {
+            nav(key)
+            if (T.poll(6000) { done() }) return
+        }
+        fail("Tab nav_$key did not lead to: $what")
+    }
+
     /** Real finger tap on the centre of the element. */
     fun tap(css: String) {
+        passSplash(0)
         // A keyboard that is still open (or closing) moves the page; close it
         // before tapping anything that is not a text field.
         val field = jsBool("var e=document.querySelector(${q(css)}); return !!e && /^(INPUT|TEXTAREA)$/.test(e.tagName)")
@@ -233,6 +270,7 @@ class App(val scenario: ActivityScenario<MainActivity>) {
     /** English UI for readable assertions (the app starts in Gujarati). */
     fun english() {
         waitFor(".app", 60000)
+        passSplash()
         if (jsString("return document.querySelector('.app').getAttribute('data-lang')") != "en") {
             js(
                 "var p={}; try{p=JSON.parse(localStorage.getItem('mvpmi-preferences')||'{}')}catch(e){}" +
@@ -263,8 +301,7 @@ class App(val scenario: ActivityScenario<MainActivity>) {
 
     /** My Profile → "Lock this app with a PIN" → the PIN twice. */
     fun turnOnPinLock(pin: String) {
-        tap(tid("Profile and settings"))
-        waitScreen("profile")
+        navUntil("profile", "My Profile") { screen() == "profile" }
         tap(tid("Profile PIN lock"))
         waitFor(tid("Lock PIN dialog"))
         fill("Lock pin", pin)

@@ -90,6 +90,10 @@ run() {
 }
 
 run LaunchLoginBackTest
+run NativeShellTest
+for shot in splash bar; do
+  adb pull "/sdcard/Download/mvpmi-$shot.png" "$OUT/native-$shot.png" >/dev/null 2>&1 || true
+done
 run RotationKeyboardTest
 run ServerUnreachableTest
 run ColdStartTest#phase1_loginAndTurnOnPinLock
@@ -110,3 +114,24 @@ kill "$WATCHER" 2>/dev/null || true
 adb logcat -d > "$OUT/logcat.txt"
 grep -h "MVPMITEST" "$OUT/logcat.txt" | grep "ENV " | tail -1 | sed 's/^.*ENV /App-reported environment: /' >> "$OUT/environment.txt"
 python3 scripts/instrument-summary.py "$API" "$OUT"
+# Small previews of the native splash and glass bar in the run annotations
+# (the artifacts hold the full-size screenshots).
+if [ -n "${GITHUB_ACTIONS:-}" ]; then
+  python3 -m pip install -q pillow >/dev/null 2>&1 || true
+  python3 - "$API" "$OUT" <<'PY' || true
+import base64, io, sys
+from PIL import Image
+api, out = sys.argv[1], sys.argv[2]
+for name in ("splash", "bar"):
+    try:
+        im = Image.open(f"{out}/native-{name}.png").convert("RGB")
+    except Exception:
+        continue
+    if name == "bar":
+        im = im.crop((0, int(im.height * 0.62), im.width, im.height))
+    im.thumbnail((300, 520))
+    buf = io.BytesIO()
+    im.save(buf, "JPEG", quality=55)
+    print(f"::notice title=API {api} native {name} preview::" + base64.b64encode(buf.getvalue()).decode())
+PY
+fi

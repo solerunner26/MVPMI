@@ -104,7 +104,7 @@ class ExportSaveTest {
     private fun openExports(app: App) {
         app.english()
         if (app.screen() == "login") app.loginMain()
-        app.tapUntil(tid("Admin"), "admin tools") { app.exists(tid("Admin enter dialog")) || app.exists(".mvpmi-tile") }
+        app.navUntil("admin", "admin tools") { app.exists(tid("Admin enter dialog")) || app.exists(".mvpmi-tile") }
         if (app.exists(tid("Admin enter dialog"))) {
             app.fill("Admin enter secret", T.MAIN_PASSWORD)
             app.tap(tid("Admin enter submit"))
@@ -357,5 +357,48 @@ class BiometricUnlockTest {
     fun screenLockOff() {
         // Leave the emulator without a screen lock for the next run.
         runCatching { T.shell("locksettings clear --old 1111") }
+    }
+}
+
+/**
+ * The native Compose shell: splash with "Enter Directory", then the floating
+ * glass bottom bar (Profile · Settings · Search · Theme · Language).
+ */
+@RunWith(AndroidJUnit4::class)
+class NativeShellTest {
+    @Test
+    fun splashThenBottomBarDrivesThePage() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            val app = App(scenario)
+            app.waitFor(".app", 60000)
+            assertTrue("splash shown at start", T.device.wait(Until.hasObject(By.res("splash_enter")), 15000) == true)
+            assertFalse("no bar on the splash", T.device.hasObject(By.res("nav_search")))
+            T.shell("screencap -p /sdcard/Download/mvpmi-splash.png")
+            assertTrue(app.passSplash())
+            app.english()
+            app.loginMobile(T.member(2))
+            for (key in listOf("profile", "settings", "search", "theme", "lang"))
+                assertTrue("tab $key", T.device.wait(Until.hasObject(By.res("nav_$key")), 10000) == true)
+            assertFalse("members get Settings, not Admin", T.device.hasObject(By.res("nav_admin")))
+            T.shell("screencap -p /sdcard/Download/mvpmi-bar.png")
+            // The list scrolls under the glass: the page leaves room for the bar.
+            T.waitUntil(10000, "bar space in the page") {
+                app.jsInt("return parseInt(getComputedStyle(document.documentElement).getPropertyValue('--native-bar-space'))||0") >= 60
+            }
+            app.navUntil("profile", "My Profile") { app.screen() == "profile" }
+            app.navUntil("settings", "Settings") { app.screen() == "settings" }
+            app.navUntil("search", "directory with the search box focused") { app.screen() == "directory" }
+            app.navUntil("theme", "dark theme") { app.exists(".app[data-theme=\"dark\"]") }
+            app.navUntil("theme", "light theme") { !app.exists(".app[data-theme=\"dark\"]") }
+            app.navUntil("lang", "Gujarati") { app.jsString("return document.querySelector('.app').getAttribute('data-lang')") == "gu" }
+            app.navUntil("lang", "English") { app.jsString("return document.querySelector('.app').getAttribute('data-lang')") == "en" }
+            // Sheets and dialogs hide the bar; it comes back when they close.
+            app.tap(".alpha-row-main")
+            app.waitFor(tid("Contact details"))
+            T.waitUntil(5000, "bar hidden under a sheet") { !T.device.hasObject(By.res("nav_search")) }
+            T.device.pressBack()
+            app.waitGone(tid("Contact details"))
+            assertTrue("bar back", T.device.wait(Until.hasObject(By.res("nav_search")), 8000) == true)
+        }
     }
 }

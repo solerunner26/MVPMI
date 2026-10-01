@@ -185,8 +185,7 @@ class ColdStartTest {
             app.waitScreen("directory")
             T.waitUntil(15000, "contacts") { app.rows() >= 8 }
             // One tap turns the lock off; screenshots are allowed again.
-            app.tap(tid("Profile and settings"))
-            app.waitScreen("profile")
+            app.navUntil("profile", "My Profile") { app.screen() == "profile" }
             app.tap(tid("Profile PIN lock"))
             T.waitUntil(15000, "lock off") {
                 app.jsString("return document.querySelector('[data-testid=\"Profile PIN lock\"]').getAttribute('aria-checked')") == "false"

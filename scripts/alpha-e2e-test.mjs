@@ -282,7 +282,7 @@ await flow("s2", async (env) => {
     await waitScreen(page, "admin");
   });
   await row(S, "Admin dashboard", "My Profile tile", "profile page shows name, mobile, village, current location").run(async () => {
-    await page.getByRole("button", { name: /My Profile/ }).click();
+    await page.locator("button:not(.alpha-navitem)").filter({ hasText: /My Profile/ }).first().click();
     await waitScreen(page, "profile");
     const text = await page.getByTestId("Main Admin profile").innerText();
     for (const part of ["Test Main Admin", "99130 00001", "Thorala", "Main Admin"]) assert.ok(text.includes(part), part);
@@ -864,28 +864,32 @@ await flow("s8", async (env) => {
   const { page, ctx } = await phone(env.url);
   await loginMobile(page, "9899999999");
   await waitScreen(page, "directory");
-  await row(S, "Directory", "(header)", "line 1: logo + community name + search box + search button; line 2: icons; line 3: All + villages").run(async () => {
+  await row(S, "Directory", "(header)", "line 1: sun logo + community name on one line; line 2: search box; line 3: All + villages; no filter icon").run(async () => {
     const box = async (sel) => (await page.locator(sel).first().boundingBox());
     const logo = await box(".alpha-dirlogo");
     const name = await box('[data-testid="Community name"]');
     const input = await box('[data-testid="Search input"]');
-    const button = await box('[data-testid="Search"]');
-    const icons = await box(".alpha-diricons");
     const chips = await box('[data-testid="Village chips"]');
     const firstRow = await box(".alpha-row");
     assert.ok(logo.width <= 40, "small logo " + logo.width);
     assert.equal((await page.getByTestId("Community name").innerText()).trim(), "Mahuva Kshatriya Rajput Samaj");
     const mid = (b) => b.y + b.height / 2;
-    for (const b of [name, input, button]) assert.ok(Math.abs(mid(b) - mid(logo)) < 14, "line 1 aligned");
-    assert.ok(logo.x < name.x && name.x < input.x && input.x < button.x, "line 1 order: logo, name, search box, button");
-    assert.ok(icons.y > logo.y + logo.height - 2, "icons are on line 2");
-    assert.ok(chips.y >= icons.y + icons.height - 2, "villages are on line 3");
+    assert.ok(Math.abs(mid(name) - mid(logo)) < 14, "line 1 aligned");
+    assert.ok(name.height < 34, "name on one line " + name.height);
+    assert.ok(logo.x < name.x, "logo then name");
+    assert.ok(input.y > logo.y + logo.height - 2, "search box on line 2");
+    assert.ok(chips.y >= input.y + input.height - 2, "villages are on line 3");
     assert.ok(firstRow.y >= chips.y + chips.height - 2, "members below");
+    assert.equal(await page.getByTestId("Village filter").count(), 0, "filter icon removed");
     await shot(page, "s8-directory-header");
   });
-  await row(S, "Directory", "(line 2 icons)", "Filter, My Profile, Dark theme, Language in that order").run(async () => {
-    const ids = await page.locator(".alpha-diricons button").evaluateAll((els) => els.map((e) => e.getAttribute("data-testid")));
-    assert.deepEqual(ids, ["Village filter", "Profile and settings", "Theme toggle", "Language toggle"]);
+  await row(S, "Directory", "(bottom bar)", "My Profile, Settings, Search (centre), Dark theme, Language; fixed at the bottom").run(async () => {
+    const ids = await page.locator('[data-testid="Bottom bar"] button').evaluateAll((els) => els.map((e) => e.getAttribute("data-testid")));
+    assert.deepEqual(ids, ["Profile and settings", "Settings tab", "Search", "Theme toggle", "Language toggle"]);
+    const bar = await page.getByTestId("Bottom bar").boundingBox();
+    const vh = page.viewportSize().height;
+    assert.ok(bar.y + bar.height <= vh + 1 && bar.y + bar.height > vh - 40, "at the bottom");
+    assert.ok(await page.locator('[data-testid="Search"].is-active').count(), "Search active on the directory");
   });
   await row(S, "Directory", "(line 3 chips)", "'All' first, then the villages").run(async () => {
     const chips = await page.locator('[data-testid="Village chips"] button').evaluateAll((els) => els.map((e) => e.textContent.trim()));
@@ -896,12 +900,17 @@ await flow("s8", async (env) => {
   await row(S, "Directory", "(layout on a 6-inch phone, 360×728)", "at least 7 contacts fully visible").run(async () => {
     const visible = await page.evaluate(() => {
       const list = document.querySelector(".alpha-list").getBoundingClientRect();
-      return [...document.querySelectorAll(".alpha-row")].filter((r) => {
+      // Rows hidden behind the floating bottom bar don't count.
+      const bar = document.querySelector('[data-testid="Bottom bar"] .alpha-bottomnav-glass');
+      const floor = Math.min(list.bottom, window.innerHeight, bar ? bar.getBoundingClientRect().top : Infinity);
+      const rows = [...document.querySelectorAll(".alpha-row")].filter((r) => {
         const b = r.getBoundingClientRect();
-        return b.top >= list.top - 1 && b.bottom <= Math.min(list.bottom, window.innerHeight) + 1;
-      }).length;
+        return b.top >= list.top - 1 && b.bottom <= floor + 1;
+      });
+      window.__dbg = JSON.stringify({ listTop: list.top, listBottom: list.bottom, floor, first: document.querySelector(".alpha-row").getBoundingClientRect().top });
+      return rows.length;
     });
-    assert.ok(visible >= 7, visible + " rows");
+    assert.ok(visible >= 7, visible + " rows " + (await page.evaluate(() => window.__dbg)));
     const height = await page.locator(".alpha-row").first().evaluate((el) => el.getBoundingClientRect().height);
     assert.ok(height >= 60 && height <= 70, "row " + height + "px");
     await shot(page, "s8-directory");
@@ -947,23 +956,25 @@ await flow("s8", async (env) => {
     const n = Number((await page.getByTestId("Directory count").innerText()).match(/\d+/)[0]);
     assert.ok(n >= 25, String(n));
   });
-  await row(S, "Search", "Search button", "closes the keyboard; results stay").run(async () => {
+  await row(S, "Search", "Enter key", "closes the keyboard; results stay").run(async () => {
     await page.getByTestId("Search input").fill("Direct");
-    await page.getByTestId("Search").click();
+    await page.getByTestId("Search input").press("Enter");
     assert.notEqual(await page.evaluate(() => document.activeElement?.dataset?.testid || ""), "Search input");
     await page.getByTestId("Directory count").filter({ hasText: "1 found" }).waitFor();
+  });
+  await row(S, "Bottom bar", "Search (centre)", "jumps to the search box and focuses it").run(async () => {
+    await page.getByTestId("Search").click();
+    await page.waitForFunction(() => document.activeElement?.dataset?.testid === "Search input");
+    await page.getByTestId("Search input").blur();
   });
   await row(S, "Search", "Clear the box", "everyone is listed again").run(async () => {
     await page.getByTestId("Search input").fill("");
     await page.getByTestId("Directory count").filter({ hasText: /members/ }).waitFor();
   });
-  await row(S, "Directory", "Filter icon / chips", "chips filter by village; the icon hides / shows the bar").run(async () => {
+  await row(S, "Directory", "Village chips", "chips filter by village; always visible").run(async () => {
     await page.getByTestId("Chip Sathra").click();
     await page.getByTestId("Directory count").filter({ hasText: "4 members" }).waitFor();
     await back(page);
-    await page.getByTestId("Village filter").click();
-    await page.getByTestId("Village chips").waitFor({ state: "detached" });
-    await page.getByTestId("Village filter").click();
     await page.getByTestId("Village chips").waitFor();
   });
   await row(S, "Directory", "Dark theme icon", "switches to dark and back, remembered").run(async () => {
@@ -1031,9 +1042,9 @@ await flow("s8", async (env) => {
   const a = await phone(env.url);
   await loginMain(a.page);
   await waitScreen(a.page, "directory");
-  await row(S, "Directory (Main Admin)", "(line 2 icons)", "Filter, My Profile, Admin Tools, Dark theme, Language").run(async () => {
-    const ids = await a.page.locator(".alpha-diricons button").evaluateAll((els) => els.map((e) => e.getAttribute("data-testid")));
-    assert.deepEqual(ids, ["Village filter", "Profile and settings", "Admin", "Theme toggle", "Language toggle"]);
+  await row(S, "Directory (Main Admin)", "(bottom bar)", "My Profile, Admin Tools, Search, Dark theme, Language").run(async () => {
+    const ids = await a.page.locator('[data-testid="Bottom bar"] button').evaluateAll((els) => els.map((e) => e.getAttribute("data-testid")));
+    assert.deepEqual(ids, ["Profile and settings", "Admin", "Search", "Theme toggle", "Language toggle"]);
     const admin = await a.page.locator('.alpha-row-name[data-role="me"]').count();
     assert.equal(admin, 1, "own name (even as admin) is the green one");
   });
@@ -1366,15 +1377,11 @@ await flow("s11", async (env) => {
   const { ctx, page } = await phone(env.url);
   await loginMobile(page, va.mobile);
   await waitScreen(page, "directory");
-  await row(S, "Directory", "Tap the search box", "the community name steps aside; the box gets the whole line").run(async () => {
-    const before = (await page.getByTestId("Search input").boundingBox()).width;
-    await page.getByTestId("Search input").focus();
-    await page.waitForTimeout(150);
-    const after = (await page.getByTestId("Search input").boundingBox()).width;
-    assert.ok(after > before + 60, before + " -> " + after);
-    assert.equal(await page.getByTestId("Community name").isVisible(), false);
-    await page.getByTestId("Search input").blur();
-    await page.getByTestId("Community name").waitFor();
+  await row(S, "Directory", "Search box", "has its own full line under the community name").run(async () => {
+    const input = await page.getByTestId("Search input").boundingBox();
+    const vw = page.viewportSize().width;
+    assert.ok(input.width > vw * 0.7, input.width + " of " + vw);
+    assert.ok(await page.getByTestId("Community name").isVisible());
   });
   await row(S, "Settings", "(labels)", "every label starts at the same place after its icon").run(async () => {
     await openSettings(page);

@@ -1,6 +1,6 @@
 import java.net.URI
 
-plugins { id("com.android.application"); id("org.jetbrains.kotlin.android") }
+plugins { id("com.android.application"); id("org.jetbrains.kotlin.android"); id("org.jetbrains.kotlin.plugin.compose") }
 
 // The server address is built into the app and can never be seen or changed
 // by members (there is no server setting anywhere in the app):
@@ -70,12 +70,23 @@ android {
             if (keystoreFile != null) signingConfig = signingConfigs.getByName("release")
         }
     }
-    buildFeatures { buildConfig = true }
+    buildFeatures { buildConfig = true; compose = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
 }
 
 dependencies {
+    // Native shell: splash screen + floating glass bottom bar (Jetpack Compose,
+    // Material 3); the screens themselves stay in the WebView.
+    val composeBom = platform("androidx.compose:compose-bom:2025.04.01")
+    implementation(composeBom)
+    implementation("androidx.activity:activity-compose:1.10.1")
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.foundation:foundation")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material-icons-extended")
+    // Live backdrop blur behind the bar (Android 12+; tinted glass before that).
+    implementation("dev.chrisbanes.haze:haze:1.5.0")
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test:core:1.6.1")
     androidTestImplementation("androidx.test:runner:1.6.2")

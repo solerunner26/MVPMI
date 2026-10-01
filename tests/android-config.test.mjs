@@ -44,14 +44,22 @@ test("Android static source: secure window, narrow bridge, no SSL bypass, no cli
   assert.ok(source.includes("Intent.ACTION_DIAL"));
   assert.ok(source.includes("request.isForMainFrame"));
   assert.ok(source.includes("onReceivedHttpError"));
-  // The web bridge is deliberate and narrow: ten annotated methods (save
+  // The web bridge is deliberate and narrow: eleven annotated methods (save
   // sheet, print sheet, notification, device registration, pull now, the
-  // four fingerprint-unlock calls and the screen-privacy switch).
+  // four fingerprint-unlock calls, the screen-privacy switch and the
+  // bottom-bar state for the native Compose shell).
   assert.ok(source.includes('addJavascriptInterface(Bridge(), "mvpmiBridge")'));
   assert.equal(
     (source.match(/@android\.webkit\.JavascriptInterface/g) || []).length,
-    10,
+    11,
   );
+  assert.ok(source.includes("fun navState("), "the page tells the native bar what to show");
+  const shell = read("app/src/main/java/org/mvpmi/directory/ui/AppShell.kt");
+  assert.ok(shell.includes("WindowInsets.navigationBars"), "bar sits above the system navigation bar");
+  const bar = read("app/src/main/java/org/mvpmi/directory/ui/AdvancedBottomNavigationBar.kt");
+  assert.ok(bar.includes("NavigationBarItem") && bar.includes("hazeEffect"), "glass M3 bottom bar");
+  const splash = read("app/src/main/java/org/mvpmi/directory/ui/SplashScreen.kt");
+  assert.ok(splash.includes('"splash_enter"'), "splash needs the Enter button");
   const biometric = read("app/src/main/java/org/mvpmi/directory/Biometric.kt");
   assert.ok(biometric.includes("android.hardware.biometrics.BiometricPrompt"), "the phone's own biometric prompt");
   assert.ok(biometric.includes("SecureRandom"));

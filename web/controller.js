@@ -77,7 +77,6 @@ class Component extends DesignComponent {
         theme: p.theme === "dark" ? "dark" : "light",
         fsPct: normalizeTextSize(p.fsPct),
         effects: p.effects !== false,
-        chipsVisible: p.chipsVisible !== false,
       });
     } catch {}
     this._materialQueries = [
@@ -143,6 +142,7 @@ class Component extends DesignComponent {
     } catch {}
     // The Android app asks the page first when the phone's Back is pressed.
     window.mvpmiBack = () => this.handleBack();
+    window.mvpmiNav = { go: (target) => this.navGo(target) };
     // Fingerprint results from the Android app (see MainActivity.Bridge).
     window.mvpmiBiometricResult = (kind, key) => this._biometricResult(kind, key);
     // Old on-device lock records from earlier versions are removed.
@@ -201,6 +201,7 @@ class Component extends DesignComponent {
     for (const type of ["pointerdown", "keydown", "touchstart", "wheel"])
       document.removeEventListener(type, this._activity, { capture: true });
     delete window.mvpmiBack;
+    delete window.mvpmiNav;
     delete window.mvpmiBiometricResult;
     this._lqCleanup?.();
     this._alive = false;
@@ -337,7 +338,81 @@ class Component extends DesignComponent {
     if (!s.editDirty) return back();
     this.setState({ alphaDialog: { type: "discard", onDiscard: back } });
   }
+  // ---- Bottom navigation (owner, 2 Oct 2026) ---------------------------
+  // Five tabs, Search in the middle. In the Android app the bar is native
+  // (Jetpack Compose) and drives the page through window.mvpmiNav; in a
+  // browser the page draws the same bar itself (ABottomNav).
+  _barState() {
+    const s = this.state;
+    const role = s.account?.role;
+    const isAdmin = !s.offline && (role === "MAIN_ADMIN" || role === "VILLAGE_ADMIN");
+    const overlay = !!(s.alphaDialog || s.contact || s.confirm || s.workflowOpen || s.allAdminsOpen || s.createdAdmin || s.picker || s.dial);
+    const visible = !!(s.loaded && s.account && !s.locked && ["directory", "profile", "settings", "admin"].includes(s.screen) && !overlay);
+    const active = s.screen === "directory" ? "search" : s.screen;
+    return { visible, active, isAdmin, adminBadge: isAdmin ? this.pendingAdminCount() || 0 : 0, dark: s.theme === "dark", lang: s.lang };
+  }
+  navGo(target) {
+    const s = this.state;
+    // The splash screen's "Main Admin / Village Admin" contacts: the admins
+    // list works before login too (Contact admin on the Login screen).
+    if (target === "admins") {
+      if (!s.locked) this.setState({ allAdminsOpen: true });
+      return;
+    }
+    if (!s.account || s.locked) return;
+    const dark = s.theme === "dark";
+    switch (target) {
+      case "search":
+        if (s.screen !== "directory") this.setState({ screen: "directory" });
+        setTimeout(() => window.mvpmiFocusSearch?.(), 60);
+        break;
+      case "profile":
+        this.setState({ screen: "profile", profileFrom: "directory" });
+        break;
+      case "settings":
+        this.setState({ screen: "settings", settingsFrom: "directory" });
+        break;
+      case "admin":
+        this.openAdmin();
+        break;
+      case "theme":
+        this.set("theme", dark ? "light" : "dark");
+        break;
+      case "lang":
+        this.set("lang", s.lang === "gu" ? "en" : "gu");
+        break;
+    }
+  }
+  // Tells the Android app what to show in its native bar and splash screen
+  // (only counts and names; never phone numbers).
+  _syncNav() {
+    const bar = this._barState();
+    const bridge = androidBridge();
+    const native = !!(bridge && typeof bridge.navState === "function");
+    const root = document.documentElement;
+    root.classList.toggle("native-nav", native);
+    root.classList.toggle("has-bottomnav", bar.visible);
+    if (!native) return;
+    const s = this.state;
+    const v = VILLAGE_LIST.find((x) => x.gu === s.account?.village || x.en === s.account?.village);
+    const members = s.members || [];
+    const json = JSON.stringify({
+      ...bar,
+      screen: s.screen,
+      loggedIn: !!s.account,
+      villageGu: v ? v.gu : "",
+      villageEn: v ? v.en : "",
+      villageMembers: v ? members.filter((m) => m.village === v.gu).length : 0,
+      totalMembers: members.length,
+    });
+    if (json === this._navJson) return;
+    this._navJson = json;
+    try {
+      bridge.navState(json);
+    } catch {}
+  }
   componentDidUpdate() {
+    this._syncNav();
     document.documentElement.lang = this.state.lang;
     document.title =
       t("app.community", this.state.lang) + " · " + t("app.title", this.state.lang);
@@ -390,7 +465,6 @@ class Component extends DesignComponent {
         theme: this.state.theme,
         fsPct: this.state.fsPct,
         effects: this.state.effects !== false,
-        chipsVisible: this.state.chipsVisible !== false,
       });
       if (preferences !== this._lastPreferences) {
         localStorage.setItem("mvpmi-preferences", preferences);
@@ -1257,18 +1331,9 @@ class Component extends DesignComponent {
           meId: s.account?.id,
           query: s.query || "",
           village: s.dirVillage || "",
-          chipsVisible: s.chipsVisible !== false,
-          theme: s.theme,
           onQuery: (value) => this.set("query", value),
           onVillage: (value) => this.set("dirVillage", value),
-          onToggleChips: () => this.set("chipsVisible", s.chipsVisible === false),
           onOpenContact: (m) => this.setState({ contact: m }),
-          onProfile: () => this.setState({ screen: "profile", profileFrom: "directory" }),
-          onTheme: (value) => this.set("theme", value),
-          onLang,
-          showAdmin: !s.offline && (s.account?.role === "MAIN_ADMIN" || s.account?.role === "VILLAGE_ADMIN"),
-          adminBadge: this.pendingAdminCount(),
-          onAdmin: () => this.openAdmin(),
           offline: s.connected === false,
           lastUpdated: s.lastConfirmed,
           onRetry: () => this.refresh(),
@@ -1362,6 +1427,24 @@ class Component extends DesignComponent {
       );
     if (s.createdAdmin)
       nodes.push(h(AVillageAdminCreatedDialog, { key: "created", issued: s.createdAdmin, lang, onClose: () => this.setState({ createdAdmin: null }) }));
+    const bar = this._barState();
+    if (bar.visible && !(androidBridge() && typeof androidBridge().navState === "function"))
+      nodes.push(
+        h(ABottomNav, {
+          key: "bottomnav",
+          lang,
+          active: bar.active,
+          isAdmin: bar.isAdmin,
+          adminBadge: bar.adminBadge,
+          dark: bar.dark,
+          onProfile: () => this.navGo("profile"),
+          onAdmin: () => this.navGo("admin"),
+          onSettings: () => this.navGo("settings"),
+          onSearch: () => this.navGo("search"),
+          onTheme: () => this.navGo("theme"),
+          onLang: () => this.navGo("lang"),
+        }),
+      );
     if (s.topError)
       nodes.push(h(AErrorBanner, { key: "topError", error: s.topError, lang, onClose: () => this.setState({ topError: null }) }));
     return nodes.length ? h(React.Fragment, null, ...nodes) : null;

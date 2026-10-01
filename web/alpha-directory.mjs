@@ -135,18 +135,9 @@ export function ADirectoryScreen({
   meId,
   query,
   village,
-  chipsVisible,
-  theme,
   onQuery,
   onVillage,
-  onToggleChips,
   onOpenContact,
-  onProfile,
-  onTheme,
-  onLang,
-  showAdmin,
-  adminBadge,
-  onAdmin,
   offline,
   lastUpdated,
   onRetry,
@@ -156,65 +147,81 @@ export function ADirectoryScreen({
   const { active, list } = directorySearch(filtered, query, villages);
   const short = query.trim().length > 0 && query.trim().length < 3;
   const count = (n) => t(n === 1 ? "dir.countOne" : "dir.count", lang, { n });
-  const dark = theme === "dark";
   const inputRef = React.useRef(null);
-  // While searching, the community name steps aside so the box gets the whole
-  // line (report A06); it comes back when the box is empty and not focused.
-  const [focused, setFocused] = React.useState(false);
-  const searching = focused || query.length > 0;
+  // The long hint ("Search name, number or village") falls back to "Search"
+  // when large text sizes leave no room for it on narrow phones.
+  const [shortHint, setShortHint] = React.useState(false);
+  const longHint = t("dir.searchPlaceholderLong", lang);
+  React.useLayoutEffect(() => {
+    const el = inputRef.current;
+    if (!el) return undefined;
+    const fit = () => {
+      const cs = getComputedStyle(el);
+      const c = document.createElement("canvas").getContext("2d");
+      if (!c) return;
+      c.font = cs.fontWeight + " " + cs.fontSize + " " + cs.fontFamily;
+      const room = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      setShortHint(c.measureText(longHint).width > room - 2);
+    };
+    fit();
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [longHint]);
+  // The bottom bar's Search tab focuses this box (window.mvpmiFocusSearch).
+  React.useEffect(() => {
+    window.mvpmiFocusSearch = () => {
+      const el = inputRef.current;
+      if (!el) return;
+      el.scrollIntoView({ block: "nearest" });
+      el.focus();
+    };
+    return () => {
+      delete window.mvpmiFocusSearch;
+    };
+  }, []);
   return ah(
     "main",
     { className: "alpha-screen alpha-directory", "data-testid": "Directory screen" },
     ah(
       "header",
       { className: "alpha-dirhead lq-glass", "data-testid": "Top bar" },
+      // Line 1: the sun (the community's holy symbol) + the community name,
+      // always on ONE line in both languages (AOneLine shrinks it to fit).
+      ah(
+        "div",
+        { className: "alpha-dirline alpha-dirbrand" },
+        ah("img", { src: "/brand/sun-logo-96.png", alt: "", width: 36, height: 36, className: "alpha-dirlogo" }),
+        ah(AOneLine, { className: "alpha-dirname", testId: "Community name", text: t("app.community", lang), max: 20, min: 12 }),
+      ),
+      // Line 2: search (the bottom bar's centre button jumps here).
       ah(
         "form",
         {
-          className: "alpha-dirline alpha-dirline-search" + (searching ? " is-searching" : ""),
+          className: "alpha-dirline alpha-dirline-search",
           role: "search",
           onSubmit: (e) => {
             e.preventDefault();
             inputRef.current?.blur();
           },
         },
-        ah("img", { src: "/brand/icon-192.png", alt: "", width: 32, height: 32, className: "alpha-dirlogo" }),
-        ah("strong", { className: "alpha-dirname", "data-testid": "Community name" }, t("app.community", lang)),
+        ah(ANavIcon, { name: "magnifying-glass" }),
         ah("input", {
           ref: inputRef,
           type: "search",
           value: query,
-          placeholder: t("dir.searchPlaceholder", lang),
+          placeholder: shortHint ? t("dir.searchPlaceholder", lang) : longHint,
           "aria-label": t("dir.search", lang),
           "data-testid": "Search input",
           enterKeyHint: "search",
           autoComplete: "off",
-          onFocus: () => setFocused(true),
-          onBlur: () => setFocused(false),
           onChange: (e) => onQuery(e.target.value),
         }),
-        ah(AIconButton, { icon: "magnifying-glass", label: t("dir.searchBtn", lang), onClick: () => inputRef.current?.blur(), testId: "Search", type: "submit" }),
-      ),
-      ah(
-        "div",
-        { className: "alpha-dirline alpha-diricons", role: "toolbar", "aria-label": t("dir.settings", lang) },
-        ah(AIconButton, {
-          icon: "funnel",
-          label: t("dir.filterBtn", lang),
-          onClick: onToggleChips,
-          pressed: chipsVisible,
-          badge: village ? "1" : null,
-          testId: "Village filter",
-        }),
-        ah(AIconButton, { icon: "user-circle", label: t("dir.profileBtn", lang), onClick: onProfile, testId: "Profile and settings" }),
-        showAdmin ? ah(AIconButton, { icon: "shield-check", label: t("nav.adminTools", lang), onClick: onAdmin, badge: adminBadge, testId: "Admin" }) : null,
-        ah(AIconButton, { icon: dark ? "sun" : "moon", label: t(dark ? "dir.lightOn" : "dir.darkOn", lang), onClick: () => onTheme(dark ? "light" : "dark"), testId: "Theme toggle" }),
-        ah(AIconButton, { icon: "translate", label: t("dir.languageBtn", lang), onClick: () => onLang(lang === "gu" ? "en" : "gu"), testId: "Language toggle" }),
       ),
     ),
     offline ? ah(AOfflineBanner, { lang, onRetry, lastUpdated }) : null,
-    chipsVisible
-      ? ah(
+    ah(
           "nav",
           { className: "alpha-chips", "aria-label": t("dir.filter", lang), "data-testid": "Village chips" },
           ah("button", { type: "button", "aria-pressed": !village, onClick: () => onVillage(""), "data-testid": "Chip all" }, t("dir.allShort", lang)),
@@ -225,8 +232,7 @@ export function ADirectoryScreen({
               lang === "en" ? v.en : v.gu,
             ),
           ),
-        )
-      : null,
+        ),
     ah(
       "p",
       { className: "alpha-count", role: "status", "aria-live": "polite", "data-testid": "Directory count" },
