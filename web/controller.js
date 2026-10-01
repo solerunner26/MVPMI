@@ -70,6 +70,8 @@ class Component extends DesignComponent {
   }
   componentDidMount() {
     this._alive = true;
+    if (typeof navigator !== "undefined" && navigator.userAgent.includes("MVPMlAndroid"))
+      document.documentElement.classList.add("native-host");
     try {
       const p = JSON.parse(localStorage.getItem("mvpmi-preferences") || "{}");
       this.setState({
@@ -1350,7 +1352,18 @@ class Component extends DesignComponent {
     const d = s.alphaDialog;
     const close = () => this.setState({ alphaDialog: null });
     const nodes = [];
-    if (s.contact) nodes.push(h(AContactSheet, { key: "contact", m: s.contact, lang, onClose: () => this.setState({ contact: null }) }));
+    if (s.contact)
+      nodes.push(
+        h(AContactSheet, {
+          key: "contact",
+          m: s.contact,
+          lang,
+          members: s.members || [],
+          meId: s.account?.id,
+          onClose: () => this.setState({ contact: null }),
+          onShowVillage: (village) => this.setState({ contact: null, screen: "directory", dirVillage: village, query: "" }),
+        }),
+      );
     if (d?.type === "changePassword")
       nodes.push(
         h(AChangeSecretDialog, {
@@ -1472,8 +1485,10 @@ class Component extends DesignComponent {
     });
   }
   appVersion() {
-    const match = /MVPMlAndroid\/([\w.-]+)/.exec(navigator.userAgent || "");
-    return match ? match[1] : "";
+    const ua = navigator.userAgent || "";
+    const match = /MVPMlAndroid\/([\w.-]+)/.exec(ua);
+    const build = /MVPMlBuild\/(\d+)/.exec(ua);
+    return match ? match[1] + (build ? " · build " + build[1] : "") : "";
   }
   renderVals(primaryOnly = false) {
     const v = super.renderVals(),

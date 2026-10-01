@@ -34,7 +34,16 @@ test("privacy, account-deletion and download pages use live contact details only
   assert.equal((await fetch(url + "/download/mvpmi.apk")).status, 404);
   writeFileSync(join(dir, "mvpmi.apk"), Buffer.from("PK fake apk"));
   html = await (await fetch(url + "/download")).text();
-  assert.match(html, /href="\/download\/mvpmi\.apk"/);
+  assert.match(html, /href="\/download\/MVPMI-app\.apk"/);
+  // With the version files the name shows version and build.
+  writeFileSync(join(dir, "VERSION"), "v1.3.0-alpha.2\n");
+  writeFileSync(join(dir, "BUILD"), "222\n");
+  html = await (await fetch(url + "/download")).text();
+  assert.match(html, /href="\/download\/MVPMI-v1\.3\.0-alpha\.2-build222\.apk"/);
+  assert.match(html, /Version <b>1\.3\.0-alpha\.2<\/b>.*Build <b>222<\/b>/);
+  const named = await fetch(url + "/download/MVPMI-v1.3.0-alpha.2-build222.apk");
+  assert.equal(named.status, 200);
+  assert.match(named.headers.get("content-disposition"), /MVPMI-v1\.3\.0-alpha\.2-build222\.apk/);
   const apk = await fetch(url + "/download/mvpmi.apk");
   assert.equal(apk.status, 200);
   assert.equal(apk.headers.get("content-type"), "application/vnd.android.package-archive");
@@ -63,8 +72,8 @@ test("download page can send members to the GitHub release APK", async (t) => {
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const url0 = "https://github.com/solerunner26/MVPMI/releases/latest/download/mvpmi.apk";
   const { url } = await start(t, { downloadDir: dir, driveEnv: { APK_URL: url0 } });
-  assert.match(await (await fetch(url + "/download")).text(), /href="\/download\/mvpmi\.apk"/);
-  const r = await fetch(url + "/download/mvpmi.apk", { redirect: "manual" });
+  assert.match(await (await fetch(url + "/download")).text(), /href="\/download\/MVPMI-app\.apk"/);
+  const r = await fetch(url + "/download/MVPMI-app.apk", { redirect: "manual" });
   assert.equal(r.status, 302);
   assert.equal(r.headers.get("location"), url0);
 });

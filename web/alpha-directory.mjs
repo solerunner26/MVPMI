@@ -1,8 +1,8 @@
 // The Member Directory — contacts fill the screen, not controls.
-//   Line 1: small logo + community name + search box + search button.
-//   Line 2: icons in this order — Filter, My Profile, Admin Tools (admins
-//           only), Dark/Light theme, Language.
-//   Line 3: "All" + the village names (the Filter icon shows/hides it).
+//   Line 1: sun logo + community name (one line).
+//   Line 2: the search box.   Line 3: "All" + the village names.
+//   Navigation (profile, settings/admin, search, theme, language) is in the
+//   bottom bar.
 //   Then the member list. Results appear from 3 characters on name
 //   (Gujarati/English), mobile digits, village, taluka and district.
 //   Own name is GREEN, every admin's name is RED. Rows have Call and WhatsApp;
@@ -92,38 +92,143 @@ function AContactRow({ m, lang, onOpen, isMe }) {
   );
 }
 
-export function AContactSheet({ m, lang, onClose }) {
-  const name = lang === "en" ? m.name : m.nameGu || m.name;
-  const other = lang === "en" ? m.nameGu : m.name;
-  const numbers = [{ label: t("dir.personal", lang), phone: m.phone }];
-  if (m.phone2) numbers.push({ label: t(m.label2 === "other" ? "dir.other" : "dir.work", lang), phone: m.phone2 });
+// Member details: a full page, not a bottom sheet (owner, 2 Oct 2026, from
+// "sample member contact page"). Sun-crowned card: name in both languages,
+// role, big Call / WhatsApp, every number, native village and current
+// residence, and a link to everyone from the same village.
+export function AContactSheet({ m, lang, onClose, members = [], meId, onShowVillage }) {
+  const other = lang === "en" ? "gu" : "en";
+  const nameIn = (l) => (l === "en" ? m.name : m.nameGu || m.name) || "";
+  const name = nameIn(lang);
+  const second = nameIn(other);
+  const both = (key) => [t(key, lang), t(key, other)];
+  const role = m.adminRole || "MEMBER";
+  const isMe = meId && m.id === meId;
+  const links = contactLinks(m.phone, nativeHost());
+  const sameVillage = members.filter((x) => x.village === m.village).length;
+  const villageLine = villageName(m.village, lang) + (villageName(m.village, other) !== villageName(m.village, lang) ? " (" + villageName(m.village, other) + ")" : "");
+  const numbers = [{ key: "dir.primaryPhone", phone: m.phone, icon: "device-mobile" }];
+  if (m.phone2) numbers.push({ key: m.label2 === "other" ? "dir.other" : "dir.work", phone: m.phone2, icon: m.label2 === "other" ? "phone" : "briefcase" });
+  const label = (key) =>
+    ah("small", { className: "alpha-md-label" }, t(key, lang), ah("span", null, " • " + t(key, other)));
+  React.useEffect(() => {
+    const prev = document.activeElement;
+    return () => prev && prev.focus && prev.focus();
+  }, []);
   return ah(
-    ASheet,
-    { title: name, onClose, closeLabel: t("common.close", lang), testId: "Contact details", className: "alpha-contact-sheet" },
-    other && other !== name ? ah("p", { className: "alpha-hint" }, other) : null,
+    "div",
+    { className: "alpha-md-page", role: "dialog", "aria-modal": true, "aria-label": name, "data-testid": "Contact details" },
     ah(
-      "ul",
-      { className: "alpha-number-list" },
-      ...numbers.map((n) =>
-        ah(
-          "li",
-          { key: n.phone, className: "alpha-number lq-glass" },
-          ah("span", null, ah("small", null, n.label), ah("strong", { className: "alpha-phone" }, "+91 " + formatMobile(n.phone))),
-          ah(AContactActions, { phone: n.phone, name, lang }),
-        ),
-      ),
+      "header",
+      { className: "alpha-md-top" },
+      ah(AIconButton, { icon: "arrow-left", label: t("common.close", lang), onClick: onClose, className: "alpha-md-back", testId: "Close dialog" }),
+      ah("img", { src: "/brand/sun-logo-96.png", alt: "", width: 28, height: 28, className: "alpha-md-toplogo" }),
+      ah("h2", null, t("dir.memberDetails", lang)),
     ),
     ah(
-      "dl",
-      { className: "alpha-details" },
-      ah("dt", null, t("field.village", lang)),
-      ah("dd", null, villageName(m.village, lang)),
-      ah("dt", null, t("field.taluka", lang)),
-      ah("dd", null, lang === "en" ? TALUKA.en : TALUKA.gu),
-      ah("dt", null, t("field.district", lang)),
-      ah("dd", null, lang === "en" ? DISTRICT.en : DISTRICT.gu),
-      m.currentLocation ? ah("dt", null, t("field.location", lang)) : null,
-      m.currentLocation ? ah("dd", null, m.currentLocation) : null,
+      "div",
+      { className: "alpha-md-scroll" },
+      ah(
+        "article",
+        { className: "alpha-md-card" },
+        ah("img", { src: "/brand/sun-logo-192.png", alt: "", className: "alpha-md-watermark", "aria-hidden": true }),
+        ah(
+          "div",
+          { className: "alpha-md-eyebrow" },
+          ah("img", { src: "/brand/sun-logo-96.png", alt: "", width: 18, height: 18 }),
+          ah(AOneLine, { as: "span", text: t("app.community", lang), max: 12, min: 9 }),
+        ),
+        ah(
+          "div",
+          { className: "alpha-md-hero" },
+          ah("span", { className: "alpha-md-avatar", "aria-hidden": true }, ah("span", null, name.trim().charAt(0) || "?")),
+          ah("h3", { className: "alpha-md-name", "data-testid": "Member name" }, name),
+          second && second !== name ? ah("p", { className: "alpha-md-name2" }, second) : null,
+          ah(
+            "span",
+            { className: "alpha-md-role role-" + role.toLowerCase(), "data-testid": "Member role" },
+            ah(AIcon, { name: role === "MEMBER" ? "user" : "shield-check" }),
+            " " + t("role." + role, lang) + " • " + t("role." + role, other),
+            isMe ? " · " + t("dir.thisIsYou", lang) : "",
+          ),
+        ),
+        links
+          ? ah(
+              "div",
+              { className: "alpha-md-actions" },
+              ah(
+                "a",
+                { className: "alpha-md-btn call", href: links.call, target: links.target, rel: "noopener noreferrer", "data-testid": "Call", "aria-label": t("dir.call", lang) + " " + name },
+                ah(AIcon, { name: "phone" }),
+                ah("span", null, t("dir.call", lang)),
+              ),
+              ah(
+                "a",
+                { className: "alpha-md-btn whatsapp", href: links.whatsapp, target: links.target, rel: "noopener noreferrer", "data-testid": "WhatsApp", "aria-label": t("dir.whatsapp", lang) + " " + name },
+                ah(AIcon, { name: "whatsapp-logo" }),
+                ah("span", null, t("dir.whatsapp", lang)),
+              ),
+            )
+          : null,
+        ah(
+          "section",
+          { className: "alpha-md-box" },
+          ...numbers.map((n) => {
+            const l = contactLinks(n.phone, nativeHost());
+            return ah(
+              "div",
+              { key: n.phone, className: "alpha-md-item", "data-testid": "Member number" },
+              ah("span", { className: "alpha-md-ico phone" }, ah(AIcon, { name: n.icon })),
+              ah("span", { className: "alpha-md-text" }, label(n.key), ah("strong", { className: "alpha-phone" }, "+91 " + formatMobile(n.phone))),
+              l && n.phone !== m.phone
+                ? ah("a", { className: "alpha-md-mini", href: l.call, target: l.target, rel: "noopener noreferrer", "aria-label": t("dir.call", lang) }, ah(AIcon, { name: "phone" }))
+                : null,
+            );
+          }),
+        ),
+        ah(
+          "section",
+          { className: "alpha-md-box" },
+          ah(
+            "div",
+            { className: "alpha-md-item" },
+            ah("span", { className: "alpha-md-ico place" }, ah(AIcon, { name: "house-line" })),
+            ah(
+              "span",
+              { className: "alpha-md-text" },
+              label("dir.nativeVillage"),
+              ah("strong", null, villageLine),
+              ah("small", { className: "alpha-md-sub" }, t("dir.talukaDistrict", lang, { taluka: lang === "en" ? TALUKA.en : TALUKA.gu, district: lang === "en" ? DISTRICT.en : DISTRICT.gu })),
+            ),
+          ),
+          ah(
+            "div",
+            { className: "alpha-md-item" },
+            ah("span", { className: "alpha-md-ico home" }, ah(AIcon, { name: "map-pin" })),
+            ah(
+              "span",
+              { className: "alpha-md-text" },
+              label("dir.currentResidence"),
+              ah("strong", null, m.currentLocation || "—"),
+            ),
+          ),
+        ),
+        onShowVillage && sameVillage > 0
+          ? ah(
+              "button",
+              { type: "button", className: "alpha-md-link", onClick: () => onShowVillage(m.village), "data-testid": "Member village list" },
+              ah("span", { className: "alpha-md-ico group" }, ah(AIcon, { name: "users-three" })),
+              ah(
+                "span",
+                { className: "alpha-md-text" },
+                ah("strong", null, t("dir.villageMembers", lang, { village: villageName(m.village, lang) })),
+                ah("small", { className: "alpha-md-sub" }, t("dir.villageMembersCount", lang, { n: sameVillage })),
+              ),
+              ah(AIcon, { name: "caret-right" }),
+            )
+          : null,
+        ah("div", { className: "alpha-md-foot", "aria-hidden": true }, ah("span"), ah("img", { src: "/brand/sun-logo-96.png", alt: "", width: 26, height: 26 }), ah("span")),
+      ),
     ),
   );
 }

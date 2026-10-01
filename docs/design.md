@@ -1,7 +1,7 @@
 # Design — MVPMI Community Directory
 
 Design reference for the Mahuva Kshatriya Rajput Samaj community directory
-(Android app + web, version 1.3.0-alpha.1). It describes the app **as built**;
+(Android app + web, version 1.3.0-alpha.2). It describes the app **as built**;
 values come from the source (`Community Directory.dc.html`, `web/liquid-ios.css`,
 `web/alpha.css`, `web/village-workflow.css`). When this file and the code
 disagree, the code wins — update this file.
@@ -175,10 +175,22 @@ Shown once per app start; Back on the splash leaves the app.
 
 ### Sun symbol
 
-The sun is the community's holy symbol: it is the app icon (launcher, web
-icons, favicon), the logo on Login/Register and in the directory header,
-and the medallion on the splash. Always on its gold circular medallion so it
-reads on light and dark backgrounds.
+The sun is the community's holy symbol ("community logo 2": a gold sun on
+deep red). It is the app icon (launcher, web icons, favicon), the logo on
+Login/Register, in the directory header and on the member page, and the
+medallion on the splash. In the app it is shown as a round badge with a thin
+gold rim. While a registration waits for approval, the animated "waiting sun"
+(rays turning both ways, hourglass in the disc) replaces the logo.
+
+### Member details page
+
+Full page (not a sheet): back arrow + sun + "Member Details", then one card
+crowned by a faint turning sun: gold-ringed initial medallion, name (other
+language below), role pill (admins on the brick gradient), **Call** (brick
+gradient) and **WhatsApp** (saffron gradient), numbers, native village with
+taluka/district, current residence, and "see all members from <village>"
+which filters the directory. Two tones only — brick and saffron; no green on
+this page.
 
 ### Contact row
 

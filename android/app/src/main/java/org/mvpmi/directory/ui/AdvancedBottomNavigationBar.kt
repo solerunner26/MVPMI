@@ -125,7 +125,9 @@ fun AdvancedBottomNavigationBar(
             .hazeEffect(state = hazeState) {
                 blurRadius = 34.dp
                 backgroundColor = colors.page
-                tints = listOf(HazeTint(colors.glassOverlay))
+                // A frosted base keeps labels readable over any row (the
+                // page behind is a WebView), then the 15 % white crystal layer.
+                tints = listOf(HazeTint(colors.page.copy(alpha = if (colors.dark) 0.62f else 0.55f)), HazeTint(colors.glassOverlay))
                 noiseFactor = 0.06f
                 fallbackTint = HazeTint(colors.glassFallback)
             }

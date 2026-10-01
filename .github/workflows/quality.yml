@@ -151,6 +151,8 @@ jobs:
             android/app/build/outputs/apk/debug/
           retention-days: 7
   android-device-tests:
+    # Run on demand only (Actions → Run workflow); the owner tests on his phone.
+    if: github.event_name == 'workflow_dispatch'
     # Real instrumented tests (android/app/src/androidTest) on Android
     # emulators for API 29, 33 and 36, against a test server running THIS
     # commit with synthetic data. See docs/ANDROID_DEVICE_TESTS.md.
@@ -259,7 +261,8 @@ jobs:
     # "latest", so the server's hourly update is not triggered by it).
     if: github.event_name == 'push' && github.ref == 'refs/heads/alpha/v1.1-audit'
     # Released only when the emulator tests passed too (owner, 30 Sep 2026).
-    needs: [android, android-device-tests]
+    # Emulator tests no longer gate alpha releases (owner tests on his phone).
+    needs: [android]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -319,13 +322,16 @@ jobs:
             KIND="Test build (debug-signed: uninstall the old app before installing a newer alpha)"
           fi
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify out/mvpmi.apk
-          printf 'Version: %s\nServer: %s\nSource commit: %s\n%s\n' "${TAG#v}" "$LIVE_URL" "$GITHUB_SHA" "$KIND" > out/BUILD-INFO.txt
-          (cd out && sha256sum mvpmi.apk > SHA256SUMS.txt)
+          BUILD=$(( ${{ github.run_number }} + 100 ))
+          printf 'Version: %s\nBuild: %s\nServer: %s\nSource commit: %s\n%s\n' "${TAG#v}" "$BUILD" "$LIVE_URL" "$GITHUB_SHA" "$KIND" > out/BUILD-INFO.txt
+          # Same APK under a name that shows version and build (the download page links this name).
+          cp out/mvpmi.apk "out/MVPMI-$TAG-build$BUILD.apk"
+          (cd out && sha256sum mvpmi.apk "MVPMI-$TAG-build$BUILD.apk" > SHA256SUMS.txt)
       - name: Publish the pre-release
         if: steps.tag.outputs.tag != ''
         shell: bash
         run: |
           TAG="${{ steps.tag.outputs.tag }}"
-          gh release create "$TAG" out/mvpmi.apk out/SHA256SUMS.txt out/BUILD-INFO.txt \
+          gh release create "$TAG" out/mvpmi.apk out/MVPMI-*.apk out/SHA256SUMS.txt out/BUILD-INFO.txt \
             --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease \
             --title "MVPMI $TAG (alpha)" --notes-file .github/alpha-release-notes.md

@@ -185,7 +185,7 @@ export function APendingScreen({ lang, onLang, data, onEdit, onWithdraw, onGoLog
     "main",
     { className: "alpha-screen alpha-auth", "data-testid": "Pending screen" },
     ah("div", { className: "alpha-auth-top" }, ah(ALanguageSwitch, { lang, onLang })),
-    ah(ABrand, { lang }),
+    ah(ABrand, { lang, waiting: !approved && !rejected }),
     offline ? ah(AOfflineBanner, { lang, onRetry }) : null,
     ah(
       "section",

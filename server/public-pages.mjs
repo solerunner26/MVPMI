@@ -1,11 +1,13 @@
 // Public information pages required for app stores and for members:
 //   /privacy          — privacy policy (Gujarati + English)
 //   /delete-account   — how to remove your data
-//   /download         — link to install the Android app (when uploaded)
+//   /download         — link to install the Android app; the file name
+//                       carries the version and build (MVPMI-v1.3.0-alpha.2-build123.apk)
 // Contact details come from the live configuration (main administrator's
 // number set in the admin panel, optional PRIVACY_CONTACT_EMAIL), never from
 // sample data.
-import { existsSync, statSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -92,14 +94,64 @@ export function installPublicPages(app, store, { env = process.env, downloadDir 
     ),
   );
 
-  // APK_URL (e.g. the GitHub release asset) keeps large downloads off the
-  // server; a local file in downloadDir is used when APK_URL is not set.
-  const apkUrl = String(env.APK_URL || "").trim();
+  // The APK offered at /download always matches the version the server
+  // runs: on start (production) the server fetches its own release's APK
+  // into downloadDir when the copy there is from another version. Before the
+  // copy is ready, the download goes straight to that GitHub release.
+  const appRoot = fileURLToPath(new URL("..", import.meta.url));
+  let serverTag = String(env.APP_TAG || "").trim();
+  if (!serverTag && env.NODE_ENV === "production")
+    try {
+      serverTag = execFileSync("git", ["describe", "--tags", "--exact-match"], { cwd: appRoot, stdio: ["ignore", "pipe", "ignore"], timeout: 4000 })
+        .toString()
+        .trim();
+    } catch {}
+  const RELEASES = "https://github.com/solerunner26/MVPMI/releases/download/";
+  const readText = (f) => {
+    try {
+      return readFileSync(join(downloadDir, f), "utf8").trim();
+    } catch {
+      return "";
+    }
+  };
+  const local = () => existsSync(join(downloadDir, "mvpmi.apk"));
+  const current = () => ({ tag: readText("VERSION"), build: readText("BUILD") });
+  const apkName = ({ tag, build }) => "MVPMI-" + (tag || "app") + (build ? "-build" + build : "") + ".apk";
+  let remoteBuild = "";
+  let syncing = null;
+  async function syncApk() {
+    if (!serverTag || syncing) return;
+    if (local() && current().tag === serverTag) return;
+    syncing = (async () => {
+      const info = await fetch(RELEASES + serverTag + "/BUILD-INFO.txt");
+      if (info.ok) remoteBuild = (/^Build:\s*(\d+)/m.exec(await info.text()) || [])[1] || "";
+      const r = await fetch(RELEASES + serverTag + "/mvpmi.apk");
+      if (!r.ok) return;
+      const bytes = Buffer.from(await r.arrayBuffer());
+      if (bytes.length < 100000) return;
+      mkdirSync(downloadDir, { recursive: true });
+      const tmp = join(downloadDir, ".apk.sync");
+      writeFileSync(tmp, bytes);
+      renameSync(tmp, join(downloadDir, "mvpmi.apk"));
+      writeFileSync(join(downloadDir, "BUILD"), remoteBuild + "\n");
+      writeFileSync(join(downloadDir, "VERSION"), serverTag + "\n");
+      console.log("APK " + serverTag + " ready at /download");
+    })()
+      .catch((e) => console.error("APK sync failed: " + e.message))
+      .finally(() => {
+        syncing = null;
+      });
+  }
+  if (serverTag) setTimeout(syncApk, 3000).unref();
+  const fresh = () => local() && (!serverTag || current().tag === serverTag);
+  const offered = () => (fresh() ? current() : { tag: serverTag, build: remoteBuild });
+
   app.get(["/download", "/app"], (req, res) => {
-    const apk = join(downloadDir, "mvpmi.apk");
-    const local = existsSync(apk);
-    const has = local || /^https:\/\//.test(apkUrl);
-    const size = local ? " (" + (statSync(apk).size / 1048576).toFixed(1) + " MB)" : "";
+    const has = local() || !!serverTag || /^https:\/\//.test(String(env.APK_URL || ""));
+    const info = offered();
+    const size = fresh() ? " (" + (statSync(join(downloadDir, "mvpmi.apk")).size / 1048576).toFixed(1) + " MB)" : "";
+    const href = "/download/" + apkName(info);
+    const version = info.tag ? `<p><small>આવૃત્તિ · Version <b>${esc(info.tag.replace(/^v/, ""))}</b>${info.build ? ` · બિલ્ડ · Build <b>${esc(info.build)}</b>` : ""}<br>ફાઇલ · File: ${esc(apkName(info))}</small></p>` : "";
     send(
       res,
       page(
@@ -107,22 +159,30 @@ export function installPublicPages(app, store, { env = process.env, downloadDir 
         `<h1>${community.gu}<br><span class="en">${community.en} · Android app</span></h1>
 ${
   has
-    ? `<p><a class="btn" href="/download/mvpmi.apk" download>એપ ડાઉનલોડ કરો · Download app${size}</a></p>
+    ? `<p><a class="btn" href="${esc(href)}" download="${esc(apkName(info))}">એપ ડાઉનલોડ કરો · Download app${size}</a></p>${version}
 <div class="card"><ol><li>ડાઉનલોડ પૂરું થાય પછી ફાઇલ ખોલો. <span class="en">Open the file when the download finishes.</span></li>
 <li>ફોન પૂછે તો «આ સ્રોતમાંથી મંજૂરી આપો» ચાલુ કરો. <span class="en">If asked, allow installing from this source (Chrome).</span></li>
-<li>«ઇન્સ્ટોલ» દબાવો અને એપ ખોલો. <span class="en">Tap Install, then open the app.</span></li></ol></div>`
+<li>«ઇન્સ્ટોલ» દબાવો અને એપ ખોલો. <span class="en">Tap Install, then open the app.</span></li>
+<li>એપમાં સેટિંગ્સ નીચે આવૃત્તિ અને બિલ્ડ દેખાય છે. <span class="en">The app shows its version and build at the bottom of Settings.</span></li></ol></div>`
     : `<p>એપ ટૂંક સમયમાં ઉપલબ્ધ થશે. ત્યાં સુધી આ સાઇટ Chrome માં વાપરી શકો છો. <span class="en">The app will be available soon. Meanwhile you can use this site in Chrome.</span></p>`
 }
 <p><a href="/">વેબ પર ખોલો · Open on the web</a> · <a href="/privacy">ગોપનીયતા · Privacy</a></p>`,
       ),
     );
   });
-  // The APK is served with the right type so phones offer to install it.
-  app.get("/download/mvpmi.apk", (req, res, next) => {
-    const apk = join(downloadDir, "mvpmi.apk");
-    if (!existsSync(apk)) return /^https:\/\//.test(apkUrl) ? res.redirect(302, apkUrl) : next();
-    res.set("Content-Type", "application/vnd.android.package-archive");
+  // The APK is served with the right type so phones offer to install it,
+  // under a name that shows the version and build.
+  app.get(["/download/mvpmi.apk", /^\/download\/MVPMI-[\w.-]+\.apk$/], (req, res, next) => {
     res.set("Cache-Control", "no-cache");
-    res.download(apk, "mvpmi.apk");
+    if (fresh()) {
+      res.set("Content-Type", "application/vnd.android.package-archive");
+      return res.download(join(downloadDir, "mvpmi.apk"), apkName(current()));
+    }
+    if (serverTag) {
+      syncApk();
+      return res.redirect(302, RELEASES + serverTag + "/" + (remoteBuild ? apkName({ tag: serverTag, build: remoteBuild }) : "mvpmi.apk"));
+    }
+    if (/^https:\/\//.test(String(env.APK_URL || ""))) return res.redirect(302, String(env.APK_URL).trim());
+    next();
   });
 }

@@ -241,7 +241,7 @@ class MainActivity : ComponentActivity() {
             allowContentAccess = false
             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
             setSupportMultipleWindows(false)
-            userAgentString += " MVPMlAndroid/" + BuildConfig.VERSION_NAME
+            userAgentString += " MVPMlAndroid/" + BuildConfig.VERSION_NAME + " MVPMlBuild/" + BuildConfig.VERSION_CODE
         }
         web.addJavascriptInterface(Bridge(), "mvpmiBridge")
         CookieManager.getInstance().setAcceptCookie(true)

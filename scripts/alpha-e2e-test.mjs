@@ -1005,9 +1005,18 @@ await flow("s8", async (env) => {
   await row(S, "Contact row", "Tap the row", "full details sheet; Back closes it").run(async () => {
     await page.locator(".alpha-row-main").first().click();
     await page.getByTestId("Contact details").waitFor();
+    await page.waitForTimeout(450);
     await shot(page, "s8-contact");
+    for (const id of ["Member name", "Member role", "Member number", "Member village list"]) await page.getByTestId(id).first().waitFor();
     await back(page);
     await page.getByTestId("Contact details").waitFor({ state: "detached" });
+  });
+  await row(S, "Member details", "See all members from the village", "closes the page and filters the directory to that village").run(async () => {
+    await page.locator(".alpha-row-main").first().click();
+    await page.getByTestId("Member village list").click();
+    await page.getByTestId("Contact details").waitFor({ state: "detached" });
+    assert.ok(await page.locator('[data-testid="Village chips"] button[aria-pressed="true"]').filter({ hasNotText: "All" }).count());
+    await page.getByTestId("Chip all").click();
   });
   await row(S, "Directory", "My Profile icon", "opens My Profile; Settings is reached from there").run(async () => {
     await page.getByTestId("Profile and settings").click();
@@ -1527,6 +1536,41 @@ await flow("s11", async (env) => {
       await c.close();
     });
 });
+
+// Visual review only (run with ALPHA_ONLY=look): Pixel-size screenshots of the
+// main screens in Gujarati + English, light + dark. No assertions.
+if (only && only.has("look"))
+  await flow("look", async (env) => {
+    seedLong(env);
+    env.seedMembers(12);
+    const va = await env.ensureVA();
+    for (const [lang, theme] of [["gu", "light"], ["en", "dark"]]) {
+      const ctx = await browser.newContext({ viewport: { width: 412, height: 892 }, deviceScaleFactor: 2 });
+      await ctx.addInitScript((p) => localStorage.setItem("mvpmi-preferences", JSON.stringify(p)), { lang, theme });
+      const page = await ctx.newPage();
+      await page.goto(env.url);
+      await page.waitForTimeout(600);
+      await page.screenshot({ path: `test-results/look/${lang}-${theme}-1-login.png` });
+      await loginMobile(page, va.mobile);
+      await page.getByTestId("Contact row").nth(4).waitFor();
+      await page.waitForTimeout(400);
+      await page.screenshot({ path: `test-results/look/${lang}-${theme}-2-directory.png` });
+      await page.locator(".alpha-row-main").nth(1).click();
+      await page.waitForTimeout(500);
+      await page.screenshot({ path: `test-results/look/${lang}-${theme}-3-member.png` });
+      await page.locator(".alpha-md-scroll").evaluate((el) => el.scrollTo(0, 9999));
+      await page.waitForTimeout(200);
+      await page.screenshot({ path: `test-results/look/${lang}-${theme}-4-member-bottom.png` });
+      await back(page);
+      await page.getByTestId("Profile and settings").click();
+      await page.waitForTimeout(400);
+      await page.screenshot({ path: `test-results/look/${lang}-${theme}-5-profile.png` });
+      await page.getByTestId("Profile settings").click();
+      await page.waitForTimeout(400);
+      await page.screenshot({ path: `test-results/look/${lang}-${theme}-6-settings.png` });
+      await ctx.close();
+    }
+  });
 
 await browser.close();
 // ---------------------------------------------------------------- Report

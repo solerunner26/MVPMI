@@ -17,12 +17,16 @@ latest_tag() { curl -fsS "$REPO_API/releases/latest" | jq -r '.tag_name // empty
 
 fetch_apk() {
   local tag="$1" tmp
-  # With APK_URL set, members download from GitHub directly (no server traffic).
-  grep -q '^APK_URL=https' /etc/mvpmi.env 2>/dev/null && return 0
+  # Always keep a local copy of THIS version's APK (the download page names
+  # it MVPMI-<tag>-build<n>.apk); the server also self-syncs on start.
+  mkdir -p "$DATA/downloads"
   tmp=$(mktemp -p "$DATA/downloads" .apk.XXXXXX)
+  curl -fsSL "https://github.com/solerunner26/MVPMI/releases/download/$tag/BUILD-INFO.txt" 2>/dev/null \
+    | sed -n 's/^Build: *//p' > "$DATA/downloads/BUILD" || true
   if curl -fsSL "https://github.com/solerunner26/MVPMI/releases/download/$tag/mvpmi.apk" -o "$tmp"; then
     chown mvpmi:mvpmi "$tmp"; chmod 644 "$tmp"
     mv -f "$tmp" "$DATA/downloads/mvpmi.apk"
+    chown mvpmi:mvpmi "$DATA/downloads/BUILD" 2>/dev/null || true
     echo "$tag" > "$DATA/downloads/VERSION"
     echo "APK $tag ready at /download"
   else

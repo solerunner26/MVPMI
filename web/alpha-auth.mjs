@@ -2,11 +2,13 @@
 // first-password screen, the optional PIN lock screen, and re-opening the admin
 // tools.
 
-function ABrand({ lang }) {
+function ABrand({ lang, waiting }) {
   return ah(
     "div",
-    { className: "alpha-brand" },
-    ah("img", { src: "/brand/sun-logo-192.png", alt: "", width: 72, height: 72, className: "alpha-brand-mark" }),
+    { className: "alpha-brand" + (waiting ? " is-waiting" : "") },
+    waiting
+      ? ah(ASunWait, { size: 128 })
+      : ah("img", { src: "/brand/sun-logo-192.png", alt: "", width: 72, height: 72, className: "alpha-brand-mark" }),
     ah(AOneLine, { as: "p", className: "alpha-brand-community", text: t("app.community", lang), max: 17, min: 11 }),
     ah("h1", { className: "alpha-brand-title" }, t("app.title", lang)),
   );

@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.3.0 — alpha 2 (2 October 2026)
+
+- New community sun logo ("community logo 2") for the launcher icon, web
+  icons, header, login, splash and member page.
+- Member details: full page with sun-crowned card (both names, role, Call /
+  WhatsApp in brick and saffron, numbers, native village, current residence,
+  "see all members from this village").
+- Pending approval: the turning "waiting sun" with hourglass is back.
+- Android: the page no longer reserves the camera-cutout area a second time
+  (empty band above the community name on Pixel phones).
+- Download: the server always offers the APK of the version it runs (it
+  syncs it from the release on start); file name and page show version and
+  build; Settings shows version and build.
+- Browser glass bar more opaque for legibility; native bar has a frosted base.
+- CI: emulator tests run on demand only and no longer gate alpha releases.
+
 ## 1.3.0 — alpha 1 (2 October 2026)
 
 - **Native shell (Android, Jetpack Compose):** splash screen at start (deity
