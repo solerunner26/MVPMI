@@ -122,16 +122,19 @@ if [ -n "${GITHUB_ACTIONS:-}" ]; then
 import base64, io, sys
 from PIL import Image
 api, out = sys.argv[1], sys.argv[2]
-for name in ("splash", "bar"):
+for name, size, q in (("splash", (200, 420), 40), ("bar", (300, 200), 50)):
     try:
         im = Image.open(f"{out}/native-{name}.png").convert("RGB")
     except Exception:
         continue
     if name == "bar":
-        im = im.crop((0, int(im.height * 0.62), im.width, im.height))
-    im.thumbnail((300, 520))
+        im = im.crop((0, int(im.height * 0.72), im.width, im.height))
+    im.thumbnail(size)
     buf = io.BytesIO()
-    im.save(buf, "JPEG", quality=55)
-    print(f"::notice title=API {api} native {name} preview::" + base64.b64encode(buf.getvalue()).decode())
+    im.save(buf, "JPEG", quality=q, optimize=True)
+    data = base64.b64encode(buf.getvalue()).decode()
+    parts = [data[i:i + 3900] for i in range(0, len(data), 3900)][:4]
+    for k, part in enumerate(parts, 1):
+        print(f"::notice title=API {api} native {name} preview {k}/{len(parts)}::" + part)
 PY
 fi
