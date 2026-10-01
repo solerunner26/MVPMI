@@ -179,7 +179,8 @@ class App(val scenario: ActivityScenario<MainActivity>) {
             T.poll(3000) { !keyboardShown() }
             SystemClock.sleep(500)
         }
-        val tab = T.device.wait(Until.findObject(By.res("nav_$key")), 15000) ?: fail("bottom bar tab nav_$key not shown")
+        val tab = T.device.wait(Until.findObject(By.res("nav_$key")), 15000)
+            ?: throw AssertionError("bottom bar tab nav_$key not shown")
         tab.click()
         SystemClock.sleep(500)
     }
@@ -190,7 +191,7 @@ class App(val scenario: ActivityScenario<MainActivity>) {
             nav(key)
             if (T.poll(6000) { done() }) return
         }
-        fail("Tab nav_$key did not lead to: $what")
+        throw AssertionError("Tab nav_$key did not lead to: $what")
     }
 
     /** Real finger tap on the centre of the element. */

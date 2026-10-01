@@ -1,7 +1,7 @@
 # Design — MVPMI Community Directory
 
 Design reference for the Mahuva Kshatriya Rajput Samaj community directory
-(Android app + web, version 1.2.0-alpha.3). It describes the app **as built**;
+(Android app + web, version 1.3.0-alpha.1). It describes the app **as built**;
 values come from the source (`Community Directory.dc.html`, `web/liquid-ios.css`,
 `web/alpha.css`, `web/village-workflow.css`). When this file and the code
 disagree, the code wins — update this file.
@@ -126,14 +126,59 @@ exists for readability.
 ### Directory header (owner-specified, 3 lines)
 
 ```
-Line 1  [logo] Community name (≤3 lines)   [ Search…        ] (🔍)
-Line 2  (Filter) (My Profile) (Admin Tools*) (Dark theme) (Language)
+Line 1  (☀ sun logo)  Mahuva Kshatriya Rajput Samaj      ← always ONE line
+Line 2  [ 🔍 Search name, number or village            ]
 Line 3  [All] [Thorala] [Sathra] [Taredi] [Lilvan] …   ← scrolls sideways
-        * Admin Tools only for admins
 ```
 
-While the search box is focused or has text, the community name steps aside
-and the box takes the whole line. The Filter icon hides/shows line 3.
+The community name never wraps: it shrinks (20 → 12 px) until it fits, in
+both languages. The search hint falls back to "Search" when a large text
+size leaves no room. The village chips are always visible (the old Filter
+icon was removed — the chips do that job).
+
+### Bottom navigation bar (floating glass capsule)
+
+```
+ ╭──────────────────────────────────────────────────╮
+ │ (👤)      (⚙/🛡)      ( 🔍 )      (🌙)      (अ/A) │
+ │ Profile  Settings*   Search     Dark    English  │
+ ╰──────────────────────────────────────────────────╯
+   * Admins see "Admin" (shield, with request badge) instead of Settings
+```
+
+- Five tabs, Search raised in the centre on the brand gradient. Theme and
+  Language are toggles (they act, they don't navigate); the language tab
+  names the language you switch TO.
+- Inactive icons are outlined, the active one is filled inside a rounded
+  pill; icon swap and pill use spring motion (bouncy spatial, calm effects);
+  light haptic tick on tap.
+- "Liquid crystal" glass: the page is blurred live behind the bar (34 dp on
+  Android 12+, 28 px backdrop-filter in browsers), a white 15 % overlay, a
+  glossy top highlight and a thin glowing rim. Android 10–11 get a solid
+  tinted glass.
+- Floats 10–12 dp above the system navigation bar (window insets); the
+  member list scrolls under it. Hidden on the splash, while the keyboard is
+  open, and under sheets and dialogs. Shown on Directory, My Profile,
+  Settings and Admin.
+- Android: native Jetpack Compose (`AdvancedBottomNavigationBar`, Material 3
+  `NavigationBar` + Haze). Browsers: the same design in HTML/CSS.
+
+### Splash screen (Android app)
+
+The deity image in a tall arch with a gold rim and a slow glow, the sun
+medallion overlapping its foot (slowly turning), the community name on one
+line, "Bhavnagar district • Sangathan, Sanskar ane Seva", member counts
+(village / total, when known), a big **"પ્રવેશ કરો • Enter Directory"**
+button — the app opens only when it is pressed — and Main Admin / Village
+Admin contact chips. Brand saffron and brick (not the sample's green).
+Shown once per app start; Back on the splash leaves the app.
+
+### Sun symbol
+
+The sun is the community's holy symbol: it is the app icon (launcher, web
+icons, favicon), the logo on Login/Register and in the directory header,
+and the medallion on the splash. Always on its gold circular medallion so it
+reads on light and dark backgrounds.
 
 ### Contact row
 
@@ -187,9 +232,9 @@ See the screenshot walkthrough (63 steps) for every screen in order.
 
 ## 8. Themes and language
 
-- **Light** (default) and **Dark**, switched from the directory header; the
+- **Light** (default) and **Dark**, switched from the bottom bar; the
   choice is remembered. Every colour is a token with both values.
-- **Gujarati** (default) and **English**, switched from the header (and on
+- **Gujarati** (default) and **English**, switched from the bottom bar (and on
   Login/Lock). The choice is remembered; the Android system prompts
   (fingerprint, save sheet) use the same language.
 
