@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.3.0 — alpha 1 (2 October 2026)
+
+- **Native shell (Android, Jetpack Compose):** splash screen at start (deity
+  arch, turning sun medallion, one-line community name, member counts,
+  "Enter Directory" button, admin contacts); the app opens only from its
+  button. Back on the splash leaves the app.
+- **Bottom navigation bar:** floating glass capsule (Material 3
+  NavigationBar + live blur via Haze on Android 12+, tinted glass on 10–11):
+  Profile · Settings/Admin · Search (raised, centre) · Theme · Language.
+  Outlined icons when inactive, filled in a rounded pill when active, spring
+  motion, haptics, above the system navigation bar. Hidden on the splash,
+  with the keyboard open and under sheets. Browsers get the same bar in CSS.
+- **Directory header:** line 1 sun logo + community name (always one line),
+  line 2 the search box, line 3 village chips (always visible). The filter
+  icon and the header icon row are removed (they moved to the bottom bar).
+- **Sun symbol** is the launcher icon, web icons, favicon and logo.
+- Tests: new NativeShellTest on API 29/33/36; browser e2e updated (178).
+
 ## 1.2.0 — alpha 3 (30 September 2026)
 
 - alpha 2 could not be installed on the server (esbuild was a development-only package; the server installs runtime packages only).

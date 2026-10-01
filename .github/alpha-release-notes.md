@@ -1,9 +1,13 @@
-**Alpha 3 test build (v1.2.0-alpha.3: alpha 2 plus a lock-screen fix; server install fixed)** of the Mahuva Kshatriya Rajput Samaj community directory. For invited testers only.
+**Alpha test build v1.3.0-alpha.1 — new look: splash screen, bottom bar and the sun symbol** for the Mahuva Kshatriya Rajput Samaj community directory. For invited testers only.
 
 - **mvpmi.apk** — install on Android phones (Android 10 or newer). It connects to https://samaj.kavigsv.com.
 - **BUILD-INFO.txt** — version, server and signed / test build. This is a test-signed build: **uninstall the previous alpha first**.
 - **SHA256SUMS.txt** — checksum to verify the download.
 
-Fixed since alpha 1: names no longer run under the Call/WhatsApp buttons at large text; Backup & export on Android now opens the save sheet; a failed change/removal proposal keeps what you typed; the review panel no longer redraws itself while idle; the search box gets the whole line while searching; Settings labels aligned; smaller review tabs; English cards say "Location:". Also fixed: blank screen on phones with an old Android System WebView; a login lost when the app was closed right after logging in; the notification permission question appearing on the Login screen. Login by mobile number is unchanged.
+New in this build:
+- **Splash screen** when the app opens: the Mataji image, the sun medallion, the community name and member counts. Press **"પ્રવેશ કરો • Enter Directory"** to go in.
+- **Bottom bar** (floating glass): My Profile · Settings (Admin for administrators) · **Search** in the centre · Dark/Light theme · Language.
+- **Sun symbol** as the app icon and logo; the community name always fits on one line in Gujarati and English.
+- The filter icon is gone: the village chips are always shown. The member list scrolls under the glass bar.
 
-Tested: 138 server tests, 175 browser checks, and Android emulator tests on API 29, 33 and 36 (see the CI run for details and what is not covered).
+Tested: 138 server tests, 178 browser checks, and Android emulator tests on API 29, 33 and 36, including a new test for the splash screen and the bottom bar.

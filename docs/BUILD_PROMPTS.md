@@ -1,7 +1,7 @@
 # Community Directory — Complete App-Building Prompt Pack
 
 **Project:** Mahuva Kshatriya Rajput Samaj — Community Phone Directory (codename MVPMI)
-**Owner:** Jaldip Vala · **Prepared:** 30 September 2026 · **Based on:** working app v1.2.0-alpha.3
+**Owner:** Jaldip Vala · **Prepared:** 30 September 2026 · **Based on:** working app v1.3.0-alpha.1
 **Purpose:** rebuild the same app, module by module, with any AI coding system, then keep adding upgrades.
 
 ---
@@ -421,13 +421,32 @@ once.
 ```text
 MODULE 6: DIRECTORY. Home screen for MEMBER and above.
 
-HEADER — exactly three lines (owner decision):
-Line 1: [small logo] [community name, max 3 short lines] [search box] [search button]
-Line 2 (icon row, in this order): Filter · My Profile · Admin Tools (admins only,
-  with a badge = number of items waiting) · Dark/Light theme · Language
-Line 3: chips "All" + each village (scroll sideways). Filter icon hides/shows line 3.
-While the search box is focused or has text, the community name steps aside so the
-box gets the whole line. Placeholder: "શોધો" / "Search", never cut off.
+HEADER — exactly three lines (owner decision, 2 Oct 2026):
+Line 1: [sun logo — the community's holy symbol, on a gold circular medallion]
+  [community name — ALWAYS ONE LINE in both languages; shrink the font to fit]
+Line 2: search box across the full width, magnifier inside, placeholder
+  "નામ, નંબર કે ગામ શોધો" / "Search name, number or village" (falls back to
+  "શોધો" / "Search" when it would be cut off at large text sizes).
+Line 3: chips "All" + each village (scroll sideways), always visible. No filter icon.
+
+BOTTOM NAVIGATION BAR (replaces the old header icon row):
+Floating glass capsule above the system navigation bar (window insets), five tabs:
+My Profile · Settings (members) / Admin Tools with a badge (admins) · SEARCH raised
+in the centre on the brand gradient (focuses the search box) · Dark/Light theme
+(toggle) · Language (toggle; label = the language you switch TO).
+Outlined icons when inactive, Filled inside a rounded pill when active; spring
+transitions; light haptic tick. "Liquid crystal" glass: live backdrop blur of the
+page behind (~30 dp), white 15 % overlay, glossy top highlight, thin glowing rim;
+solid tinted fallback where blur is unavailable. The list scrolls under it. Shown on
+Directory, My Profile, Settings, Admin; hidden on splash, with the keyboard open and
+under sheets/dialogs. Android: Jetpack Compose Material 3 NavigationBar in a
+reusable, state-driven AdvancedBottomNavigationBar composable (Haze for the blur).
+
+SPLASH (Android app, each start): deity image in a tall arch with a gold rim and a
+soft glow, the sun medallion over its foot (slowly turning), one-line community
+name, "ભાવનગર જિલ્લો • સંગઠન, સંસ્કાર અને સેવા", member counts, a big
+"પ્રવેશ કરો • Enter Directory" button (the app opens ONLY from this button), and
+Main Admin / Village Admin contact chips. Brand saffron/brick colours.
 
 LIST ROW: round avatar (first letter on brand gradient, or photo later) · name
 (Gujarati or English by language; wraps to 2 lines then "…"; NEVER painted under the
