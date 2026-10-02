@@ -119,22 +119,28 @@ fun AdvancedBottomNavigationBar(
     Box(
         modifier
             .widthIn(max = 460.dp)
-            .fillMaxWidth()
-            .shadow(elevation = 22.dp, shape = shape, ambientColor = colors.shadow, spotColor = colors.shadow)
-            .clip(shape)
-            .hazeEffect(state = hazeState) {
-                blurRadius = 34.dp
-                backgroundColor = colors.page
-                // A frosted base keeps labels readable over any row (the
-                // page behind is a WebView), then the 15 % white crystal layer.
-                tints = listOf(HazeTint(colors.page.copy(alpha = if (colors.dark) 0.62f else 0.55f)), HazeTint(colors.glassOverlay))
-                noiseFactor = 0.06f
-                fallbackTint = HazeTint(colors.glassFallback)
-            }
-            // Glossy highlight on the upper half, like light on curved glass.
-            .background(Brush.verticalGradient(listOf(colors.glassRimTop.copy(alpha = if (colors.dark) 0.10f else 0.32f), Color.Transparent)))
-            .border(1.dp, Brush.verticalGradient(listOf(colors.glassRimTop, colors.glassRimBottom)), shape),
+            .fillMaxWidth(),
     ) {
+        // The glass is its own clipped layer BEHIND the tabs, so the raised
+        // centre Search button can rise above the capsule without being cut.
+        Box(
+            Modifier
+                .matchParentSize()
+                .shadow(elevation = 22.dp, shape = shape, ambientColor = colors.shadow, spotColor = colors.shadow)
+                .clip(shape)
+                .hazeEffect(state = hazeState) {
+                    blurRadius = 34.dp
+                    backgroundColor = colors.page
+                    // A frosted base keeps labels readable over any row (the
+                    // page behind is a WebView), then the 15 % white crystal layer.
+                    tints = listOf(HazeTint(colors.page.copy(alpha = if (colors.dark) 0.62f else 0.55f)), HazeTint(colors.glassOverlay))
+                    noiseFactor = 0.06f
+                    fallbackTint = HazeTint(colors.glassFallback)
+                }
+                // Glossy highlight on the upper half, like light on curved glass.
+                .background(Brush.verticalGradient(listOf(colors.glassRimTop.copy(alpha = if (colors.dark) 0.10f else 0.32f), Color.Transparent)))
+                .border(1.dp, Brush.verticalGradient(listOf(colors.glassRimTop, colors.glassRimBottom)), shape),
+        )
         NavigationBar(
             containerColor = Color.Transparent,
             contentColor = colors.ink,

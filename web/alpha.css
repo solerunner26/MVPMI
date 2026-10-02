@@ -1674,3 +1674,27 @@ html .app.lq[data-theme="dark"] {
   font-size: var(--f-md, 16px);
   margin-top: 4px;
 }
+
+/* ---- Calm tiles: no spinning suns (owner, 2 Oct 2026: the rotating tile
+   suns made the admin screens flicker on phones). Every decorative sun
+   stays still; only the splash sun turns, slowly, on its own screen. ---- */
+.app .mvpmi-tile .tile-sun,
+.app .mvpmi-tile .tile-sun *,
+.app .segment-sun,
+.app .segment-sun *,
+.app .alpha-md-watermark {
+  animation: none !important;
+  transform: none !important;
+  will-change: auto !important;
+}
+
+/* ---- Room for the bottom bar on the admin panels (legacy screens scroll
+   inside .noscroll): the last tiles always scroll clear of the bar. ---- */
+html.has-bottomnav .app .noscroll {
+  padding-bottom: calc(28px + 96px + env(safe-area-inset-bottom, 0px)) !important;
+  scroll-padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+}
+html.native-nav.has-bottomnav .app .noscroll {
+  padding-bottom: calc(28px + var(--native-bar-space, 104px)) !important;
+  scroll-padding-bottom: var(--native-bar-space, 104px);
+}

@@ -1583,6 +1583,16 @@ if (only && only.has("look"))
     await a.page.getByTestId("Admin").click();
     await a.page.waitForTimeout(800);
     await a.page.screenshot({ path: "test-results/look/en-light-8-admin.png" });
+    // The last tile scrolls fully clear of the bottom bar.
+    const clear = await a.page.evaluate(() => {
+      const sc = document.querySelector(".noscroll");
+      sc.scrollTop = sc.scrollHeight;
+      const last = [...document.querySelectorAll(".mvpmi-tile")].pop().getBoundingClientRect();
+      const bar = document.querySelector(".alpha-bottomnav-glass").getBoundingClientRect();
+      return last.bottom <= bar.top + 1;
+    });
+    console.log("LOOK last admin tile clear of bar:", clear);
+    await a.page.screenshot({ path: "test-results/look/en-light-9-admin-bottom.png" });
     await a.ctx.close();
   });
 

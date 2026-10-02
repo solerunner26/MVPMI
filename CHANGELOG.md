@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.0 — alpha 4 (2 October 2026)
+
+- Tile suns (and the member-card watermark) no longer rotate: the admin
+  screens flickered on phones.
+- Admin panels (legacy .noscroll scroller) reserve room for the bottom bar,
+  so the last tiles scroll fully clear of it (browser and app).
+- Native bar: the glass is a separate clipped layer behind the tabs, so the
+  raised centre Search button is never cut at the top.
+
 ## 1.3.0 — alpha 3 (2 October 2026)
 
 - Logo: the embossed 3D sun cut out on its own (no disc or ring) for every
