@@ -73,7 +73,12 @@ export function ASettingsScreen(p) {
         ),
       ),
       p.notificationPanel
-        ? ah("section", { className: "alpha-section" }, ah("h2", { className: "settings-label" }, t("settings.notifications", lang)), p.notificationPanel)
+        ? ah(
+            "section",
+            { className: "alpha-section" },
+            ah("h2", { className: "settings-label" }, t("settings.notifications", lang)),
+            ah("div", { className: "alpha-card lq-glass alpha-notif-card" }, p.notificationPanel),
+          )
         : null,
       ah(
         ASection,
@@ -93,27 +98,63 @@ export function ASettingsScreen(p) {
 export function AProfileScreen({ lang, account, member, onBack, onChangePassword, onSettings, onRequestChange, onRequestRemoval, pendingChange, pendingRemoval, offline, onToggleLock, onChangeLockPin, biometricAvailable, onToggleBiometric }) {
   const main = account.role === "MAIN_ADMIN";
   const m = member || account;
-  const rows = [
-    [t("field.name", lang), lang === "en" ? m.name : m.nameGu || m.name],
-    [t("field.mobile", lang), "+91 " + formatMobile(m.phone)],
-    ...(m.phone2 ? [[t("field.phone2", lang), "+91 " + formatMobile(m.phone2)]] : []),
-    [t("field.village", lang), villageName(m.village, lang)],
-    [t("field.taluka", lang), lang === "en" ? "Mahuva" : "મહુવા"],
-    [t("field.district", lang), lang === "en" ? "Bhavnagar" : "ભાવનગર"],
-    [t("field.location", lang), m.currentLocation || "—"],
-    [t("profile.role", lang), t("role." + account.role, lang)],
-  ];
+  const other = lang === "en" ? "gu" : "en";
+  const nameIn = (l) => (l === "en" ? m.name : m.nameGu || m.name) || "";
+  const name = nameIn(lang);
+  const second = nameIn(other);
+  const label = (key) => ah("small", { className: "alpha-md-label" }, t(key, lang), ah("span", null, " • " + t(key, other)));
+  const item = (icon, cls, key, value, sub, testId) =>
+    ah(
+      "div",
+      { className: "alpha-md-item", "data-testid": testId },
+      ah("span", { className: "alpha-md-ico " + cls }, ah(AIcon, { name: icon })),
+      ah("span", { className: "alpha-md-text" }, label(key), ah("strong", null, value), sub ? ah("small", { className: "alpha-md-sub" }, sub) : null),
+    );
+  const vOther = villageName(m.village, other);
   return ah(
     "main",
     { className: "alpha-screen", "data-testid": main ? "Main Admin profile" : "Profile screen" },
     ah(ATopBar, { title: t("profile.title", lang), onBack, backLabel: t("common.back", lang) }),
     ah(
       "div",
-      { className: "alpha-scroll" },
+      { className: "alpha-scroll alpha-md-scope" },
+      // Same sun-crowned card as Member Details, so the two pages match.
       ah(
-        "section",
-        { className: "alpha-card lq-glass" },
-        ah("dl", { className: "alpha-details alpha-profile-details" }, ...rows.flatMap(([k, v]) => [ah("dt", { key: k + "t" }, k), ah("dd", { key: k + "d" }, v)])),
+        "article",
+        { className: "alpha-md-card alpha-profile-card" },
+        ah("img", { src: "/brand/sun-logo-192.png", alt: "", className: "alpha-md-watermark", "aria-hidden": true }),
+        ah(
+          "div",
+          { className: "alpha-md-hero" },
+          ah("span", { className: "alpha-md-avatar", "aria-hidden": true }, ah("span", null, name.trim().charAt(0) || "?")),
+          ah("h3", { className: "alpha-md-name" }, name),
+          second && second !== name ? ah("p", { className: "alpha-md-name2" }, second) : null,
+          ah(
+            "span",
+            { className: "alpha-md-role role-" + String(account.role || "MEMBER").toLowerCase() },
+            ah(AIcon, { name: account.role === "MEMBER" ? "user" : "shield-check" }),
+            " " + t("role." + account.role, lang) + " • " + t("role." + account.role, other),
+          ),
+        ),
+        ah(
+          "section",
+          { className: "alpha-md-box" },
+          item("device-mobile", "phone", "dir.primaryPhone", "+91 " + formatMobile(m.phone), null, "Profile mobile"),
+          m.phone2 ? item(m.label2 === "other" ? "phone" : "briefcase", "phone", m.label2 === "other" ? "dir.other" : "dir.work", "+91 " + formatMobile(m.phone2)) : null,
+        ),
+        ah(
+          "section",
+          { className: "alpha-md-box" },
+          item(
+            "house-line",
+            "place",
+            "dir.nativeVillage",
+            villageName(m.village, lang) + (vOther !== villageName(m.village, lang) ? " (" + vOther + ")" : ""),
+            t("dir.talukaDistrict", lang, { taluka: lang === "en" ? "Mahuva" : "મહુવા", district: lang === "en" ? "Bhavnagar" : "ભાવનગર" }),
+            "Profile village",
+          ),
+          item("map-pin", "home", "dir.currentResidence", m.currentLocation || "—"),
+        ),
       ),
       pendingChange ? ah(ANotice, { kind: "info" }, t("profile.pendingChange", lang)) : null,
       pendingRemoval ? ah(ANotice, { kind: "info" }, t("profile.pendingRemoval", lang)) : null,
@@ -141,20 +182,12 @@ export function AProfileScreen({ lang, account, member, onBack, onChangePassword
           : null,
       ),
       ah(
-        "div",
-        { className: "alpha-actions alpha-actions-column" },
-        main
-          ? ah(
-              AButton,
-              { kind: "primary", onClick: onChangePassword, "data-testid": "Profile change password" },
-              ah(AIcon, { name: "password" }),
-              " ",
-              t("profile.changePassword", lang),
-            )
-          : null,
-        ah(AButton, { onClick: onSettings, "data-testid": "Profile settings" }, ah(AIcon, { name: "gear" }), " ", t("settings.title", lang)),
-        main ? null : ah(AButton, { onClick: onRequestChange, "data-testid": "Profile request change" }, t("profile.requestChange", lang)),
-        main ? null : ah(AButton, { kind: "danger", onClick: onRequestRemoval, "data-testid": "Profile request removal" }, t("profile.requestRemoval", lang)),
+        ASection,
+        { title: t("profile.actions", lang) },
+        main ? ah(AMenuItem, { icon: "password", label: t("profile.changePassword", lang), onClick: onChangePassword, testId: "Profile change password" }) : null,
+        ah(AMenuItem, { icon: "gear-six", label: t("settings.title", lang), onClick: onSettings, testId: "Profile settings" }),
+        main ? null : ah(AMenuItem, { icon: "pencil-simple", label: t("profile.requestChange", lang), onClick: onRequestChange, testId: "Profile request change" }),
+        main ? null : ah(AMenuItem, { icon: "user-minus", label: t("profile.requestRemoval", lang), onClick: onRequestRemoval, testId: "Profile request removal", danger: true }),
       ),
     ),
   );

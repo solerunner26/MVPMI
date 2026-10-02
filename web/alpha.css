@@ -245,13 +245,16 @@
   box-shadow: var(--lq-inner);
 }
 .app.lq .alpha-round-action.call {
-  color: var(--ok);
+  color: #b2402c;
 }
 .app.lq .alpha-round-action.whatsapp {
-  color: #128c4b;
+  color: #9a5b0b;
+}
+.app.lq[data-theme="dark"] .alpha-round-action.call {
+  color: #ff9d74;
 }
 .app.lq[data-theme="dark"] .alpha-round-action.whatsapp {
-  color: #6bd49a;
+  color: #f3bc6a;
 }
 .app.lq .alpha-empty {
   margin: 24px 18px;
@@ -836,18 +839,19 @@
   justify-content: space-between;
   gap: 4px;
 }
-/* Own name green, every admin red (dark themes get lighter tones). */
+/* Two tones only (owner, 2 Oct 2026): own name deep saffron, every admin
+   brick; dark themes get lighter tones. No green anywhere. */
 .app.lq .alpha-row-name.is-me {
-  color: #17692f;
+  color: #9a5b0b;
 }
 .app.lq .alpha-row-name.is-admin {
-  color: #c62828;
+  color: #b2402c;
 }
 .app.lq[data-theme="dark"] .alpha-row-name.is-me {
-  color: #5ee08a;
+  color: #f3bc6a;
 }
 .app.lq[data-theme="dark"] .alpha-row-name.is-admin {
-  color: #ff7b7b;
+  color: #ff9d74;
 }
 
 /* ---- Errors at the very top ------------------------------------------------ */
@@ -1046,7 +1050,7 @@
   /* Liquid crystal: deep blur, high translucency, glossy rim. */
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.15)) padding-box,
-    rgba(255, 250, 244, 0.74) padding-box;
+    rgba(255, 250, 244, 0.9) padding-box;
   border: 1px solid rgba(255, 255, 255, 0.7);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.85),
@@ -1059,7 +1063,7 @@
 .app[data-theme="dark"] .alpha-bottomnav-glass {
   background:
     linear-gradient(180deg, rgba(255, 240, 225, 0.14), rgba(255, 240, 225, 0.03)) padding-box,
-    rgba(28, 18, 16, 0.8) padding-box;
+    rgba(28, 18, 16, 0.94) padding-box;
   border-color: rgba(255, 220, 190, 0.22);
   box-shadow:
     inset 0 1px 0 rgba(255, 235, 215, 0.22),
@@ -1428,7 +1432,7 @@ html.native-host {
   color: var(--ink2);
   font-weight: 600;
 }
-.app .alpha-md-label span { opacity: 0.75; }
+.app .alpha-md-label span { font-weight: 500; }
 .app .alpha-md-text strong {
   color: var(--ink);
   font-size: var(--f-md, 17px);
@@ -1492,4 +1496,181 @@ html.native-host {
 .app.lq .alpha-md-page .alpha-md-link,
 .app.lq .alpha-md-page .alpha-md-text {
   text-align: start;
+}
+
+/* ---- One palette everywhere: brick + saffron (owner, 2 Oct 2026) ----
+   "Success" uses deep saffron instead of green so no screen shows a
+   different accent. */
+html .app.lq {
+  --ok: #8a5208;
+  --okBg: rgba(233, 161, 59, 0.16);
+}
+html .app.lq[data-theme="dark"] {
+  --ok: #f3bc6a;
+  --okBg: rgba(243, 188, 106, 0.14);
+}
+/* The sun logo stands on its own everywhere: no disc, no ring, no frame;
+   only a soft warm glow so it lifts off light and dark grounds. */
+.app.lq .alpha-brand-mark,
+.app.lq .alpha-dirlogo,
+.app.lq .alpha-dirbrand .alpha-dirlogo,
+.app .alpha-md-toplogo,
+.app .alpha-md-eyebrow img,
+.app .alpha-md-foot img {
+  border-radius: 0;
+  box-shadow: none;
+  background: none;
+  filter: drop-shadow(0 2px 4px rgba(120, 50, 10, 0.28));
+}
+.app.lq .alpha-brand-mark {
+  width: 88px;
+  height: 88px;
+}
+.app.lq .alpha-dirbrand .alpha-dirlogo {
+  width: 38px;
+  height: 38px;
+}
+
+/* ---- Sun logo button + web splash (darshan) ------------------------- */
+.app .alpha-dirlogo-btn {
+  all: unset;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: -3px -3px -3px -6px;
+  border-radius: 50%;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 380ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.app .alpha-dirlogo-btn:active { transform: scale(0.9) rotate(-12deg); }
+.app .alpha-dirlogo-btn:focus-visible { outline: 2px solid #e9a13b; outline-offset: 1px; }
+.app .alpha-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  max-height: none;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  overflow-y: auto;
+  background:
+    radial-gradient(80% 50% at 50% 30%, rgba(233, 161, 59, 0.35), transparent 70%),
+    #f7eee5;
+  animation: mdIn 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.app[data-theme="dark"] .alpha-splash {
+  background: radial-gradient(80% 50% at 50% 30%, rgba(178, 64, 44, 0.45), transparent 70%), #120b0a;
+}
+.app .alpha-splash-card {
+  width: min(100%, 420px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 18px 16px;
+  border-radius: 32px;
+  background: var(--md-card, #fffaf4);
+  background-color: #fffaf4;
+  border: 1px solid rgba(233, 161, 59, 0.35);
+  box-shadow: 0 28px 60px -30px rgba(110, 50, 24, 0.7);
+}
+.app[data-theme="dark"] .alpha-splash-card { background-color: #1e1412; }
+.app .alpha-splash-arch {
+  position: relative;
+  width: 86%;
+  aspect-ratio: 0.8;
+  margin-bottom: 40px;
+}
+.app .alpha-splash-deity {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+  border-radius: 50% 50% 9% 9% / 40% 40% 7% 7%;
+  border: 3px solid #e9a13b;
+  box-shadow: 0 18px 40px -18px rgba(178, 64, 44, 0.8), 0 0 50px -10px rgba(233, 161, 59, 0.6);
+}
+.app .alpha-splash-sun {
+  position: absolute;
+  left: calc(50% - 46px);
+  bottom: -44px;
+  width: 92px;
+  height: 92px;
+  filter: drop-shadow(0 6px 12px rgba(120, 50, 10, 0.45));
+  animation: swTurn 90s linear infinite;
+}
+.app .alpha-splash-name { margin: 6px 0 0; width: 100%; text-align: center; color: var(--ink); font-weight: 800; }
+.app .alpha-splash-sub { margin: 0; color: var(--ink2); text-align: center; font-size: var(--f-sm, 14px); }
+.app .alpha-splash-enter {
+  all: unset;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 56px;
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: 20px;
+  cursor: pointer;
+  color: #fff;
+  font-weight: 800;
+  font-size: var(--f-md, 17px);
+  background: linear-gradient(160deg, #c8502f 0%, #b2402c 55%, #9c3421 100%);
+  box-shadow: 0 14px 28px -14px rgba(178, 64, 44, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.app .alpha-splash-enter:focus-visible { outline: 2px solid #e9a13b; outline-offset: 2px; }
+.app .alpha-splash-foot { margin: 2px 0 0; color: #9a5b0b; font-size: var(--f-sm, 14px); font-weight: 700; }
+.app[data-theme="dark"] .alpha-splash-foot { color: #f3bc6a; }
+@media (prefers-reduced-motion: reduce) {
+  .app .alpha-splash, .app .alpha-splash-sun { animation: none; }
+}
+
+/* My Profile reuses the Member Details card (same tokens, no page frame). */
+.app .alpha-md-scope {
+  --md-card: linear-gradient(180deg, #fffaf3 0%, #fbf1e4 100%);
+  --md-box: #ffffff;
+  --md-line: rgba(178, 120, 60, 0.18);
+  --md-gold: #d99a3a;
+  --md-brick: #b2402c;
+  --md-saffron: #e9a13b;
+  --md-ico: rgba(233, 161, 59, 0.16);
+}
+.app[data-theme="dark"] .alpha-md-scope {
+  --md-card: linear-gradient(180deg, #2a1c18 0%, #1d1412 100%);
+  --md-box: rgba(255, 245, 235, 0.05);
+  --md-line: rgba(243, 188, 106, 0.16);
+  --md-gold: #f3bc6a;
+  --md-brick: #ff9d74;
+  --md-saffron: #f3bc6a;
+  --md-ico: rgba(243, 188, 106, 0.12);
+}
+.app .alpha-profile-card { width: 100%; box-sizing: border-box; margin-bottom: 6px; flex: none; }
+.app .alpha-profile-card .alpha-md-hero { padding-top: 4px; }
+.app .alpha-notif-card { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.app .alpha-notif-card p { margin: 0; }
+/* Text size: no dead space between the slider and Reset. */
+.app.lq .alpha-menu > .alpha-range { padding-bottom: 2px; margin-bottom: 0; }
+.app.lq .alpha-menu > .alpha-reset-button { margin-top: -4px; margin-bottom: 2px; }
+/* Splash in browsers: always fits the phone. */
+.app .alpha-splash { grid-template-columns: minmax(0, 420px); justify-content: center; }
+.app .alpha-splash-card { min-width: 0; width: 100%; box-sizing: border-box; }
+.app .alpha-splash-arch { width: min(74%, 46vh * 0.8); }
+.app .alpha-splash-name { min-width: 0; max-width: 100%; }
+/* Admin tiles: title and description stay together (no empty middle). */
+.app.lq .mvpmi-tile {
+  gap: 4px;
+  min-height: 0;
+  justify-content: flex-start;
+}
+.app.lq .mvpmi-tile .tile-hint {
+  margin-top: 0;
+  line-height: 1.3;
+}
+.app.lq .mvpmi-tile .tile-label {
+  font-size: var(--f-md, 16px);
+  margin-top: 4px;
 }

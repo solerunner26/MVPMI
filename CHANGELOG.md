@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.3.0 — alpha 3 (2 October 2026)
+
+- Logo: the embossed 3D sun cut out on its own (no disc or ring) for every
+  in-app use and the splash; the launcher icon is the full embossed square.
+- One palette: green removed everywhere (row Call/WhatsApp icons, own name,
+  success notes, legacy WhatsApp button); own name deep saffron, admins brick.
+- Sun logo in the directory header opens the splash (native) or the same
+  darshan page in browsers; Enter or Back returns.
+- My Profile rebuilt on the Member Details card; actions as a menu card.
+- Spacing: text-size card, admin tiles (no hollow middle), notifications card.
+
 ## 1.3.0 — alpha 2 (2 October 2026)
 
 - New community sun logo ("community logo 2") for the launcher icon, web

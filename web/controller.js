@@ -277,6 +277,10 @@ class Component extends DesignComponent {
       this.setState({ topError: null });
       return true;
     }
+    if (s.webSplash) {
+      this.setState({ webSplash: false });
+      return true;
+    }
     if (s.contact) {
       this.setState({ contact: null });
       return true;
@@ -348,7 +352,7 @@ class Component extends DesignComponent {
     const s = this.state;
     const role = s.account?.role;
     const isAdmin = !s.offline && (role === "MAIN_ADMIN" || role === "VILLAGE_ADMIN");
-    const overlay = !!(s.alphaDialog || s.contact || s.confirm || s.workflowOpen || s.allAdminsOpen || s.createdAdmin || s.picker || s.dial);
+    const overlay = !!(s.alphaDialog || s.webSplash || s.contact || s.confirm || s.workflowOpen || s.allAdminsOpen || s.createdAdmin || s.picker || s.dial);
     const visible = !!(s.loaded && s.account && !s.locked && ["directory", "profile", "settings", "admin"].includes(s.screen) && !overlay);
     const active = s.screen === "directory" ? "search" : s.screen;
     return { visible, active, isAdmin, adminBadge: isAdmin ? this.pendingAdminCount() || 0 : 0, dark: s.theme === "dark", lang: s.lang };
@@ -1336,6 +1340,11 @@ class Component extends DesignComponent {
           onQuery: (value) => this.set("query", value),
           onVillage: (value) => this.set("dirVillage", value),
           onOpenContact: (m) => this.setState({ contact: m }),
+          onSun: () => {
+            const bridge = androidBridge();
+            if (bridge && typeof bridge.openSplash === "function") bridge.openSplash();
+            else this.setState({ webSplash: true });
+          },
           offline: s.connected === false,
           lastUpdated: s.lastConfirmed,
           onRetry: () => this.refresh(),
@@ -1352,6 +1361,7 @@ class Component extends DesignComponent {
     const d = s.alphaDialog;
     const close = () => this.setState({ alphaDialog: null });
     const nodes = [];
+    if (s.webSplash) nodes.push(h(AWebSplash, { key: "splash", lang, onEnter: () => this.setState({ webSplash: false }) }));
     if (s.contact)
       nodes.push(
         h(AContactSheet, {

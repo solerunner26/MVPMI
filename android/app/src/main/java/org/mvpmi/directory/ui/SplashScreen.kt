@@ -34,7 +34,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.TextAutoSize
@@ -161,24 +160,20 @@ fun SplashScreen(info: SplashInfo, colors: ShellColors, onEnter: () -> Unit, onC
                 }
                 Box(
                     Modifier
-                        .offset(y = 34.dp)
-                        .size(72.dp)
-                        .graphicsLayer { scaleX = sunIn.value; scaleY = sunIn.value }
-                        .shadow(16.dp, CircleShape, ambientColor = colors.saffron, spotColor = colors.saffron)
-                        .clip(CircleShape)
-                        .background(colors.card)
-                        .border(3.dp, colors.goldRing, CircleShape)
-                        .padding(6.dp),
+                        // The embossed sun on its own: no disc, no ring (owner, 2 Oct 2026).
+                        .offset(y = 40.dp)
+                        .size(92.dp)
+                        .graphicsLayer { scaleX = sunIn.value; scaleY = sunIn.value },
                     contentAlignment = Alignment.Center,
                 ) {
                     Image(
                         painter = painterResource(R.drawable.sun_medallion),
                         contentDescription = l("સૂર્ય — સમાજનું પવિત્ર પ્રતીક", "Sun — the community's holy symbol"),
-                        modifier = Modifier.fillMaxSize().clip(CircleShape).rotate(if (motionOn) angle else 0f),
+                        modifier = Modifier.fillMaxSize().rotate(if (motionOn) angle else 0f),
                     )
                 }
             }
-            Spacer(Modifier.height(48.dp))
+            Spacer(Modifier.height(60.dp))
 
             // ---- Community name: ONE line in both languages (auto-size).
             BasicText(

@@ -553,3 +553,31 @@ export function ASunWait({ size = 132, testId = "Waiting sun" }) {
     dangerouslySetInnerHTML: { __html: SUN_WAIT_SVG },
   });
 }
+
+// Browsers: the same darshan the Android splash shows (the app shows its
+// native splash instead). Opened by the sun logo; "Enter" or Back closes it.
+export function AWebSplash({ lang, onEnter }) {
+  return ah(
+    "div",
+    { className: "alpha-splash", role: "dialog", "aria-modal": true, "aria-label": t("app.community", lang), "data-testid": "Splash" },
+    ah(
+      "div",
+      { className: "alpha-splash-card" },
+      ah(
+        "div",
+        { className: "alpha-splash-arch" },
+        ah("img", { src: "/brand/splash-deity.jpg", alt: t("splash.mataji", lang), className: "alpha-splash-deity" }),
+        ah("img", { src: "/brand/sun-logo-192.png", alt: "", className: "alpha-splash-sun", "aria-hidden": true }),
+      ),
+      ah(AOneLine, { as: "h2", className: "alpha-splash-name", text: t("app.community", lang), max: 24, min: 13 }),
+      ah("p", { className: "alpha-splash-sub" }, t("splash.subtitle", lang)),
+      ah(
+        "button",
+        { type: "button", className: "alpha-splash-enter", onClick: onEnter, "data-testid": "Splash enter", autoFocus: true },
+        t("splash.enter", lang),
+        ah(AIcon, { name: "arrow-right" }),
+      ),
+      ah("p", { className: "alpha-splash-foot" }, "જય ભવાની • જય માતાજી"),
+    ),
+  );
+}

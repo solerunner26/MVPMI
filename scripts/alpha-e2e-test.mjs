@@ -916,15 +916,15 @@ await flow("s8", async (env) => {
     await shot(page, "s8-directory");
     return visible + " rows visible, rows " + Math.round(height) + " px";
   });
-  await row(S, "Directory", "Names: own GREEN, admins RED, no 'You'", "colours as requested").run(async () => {
+  await row(S, "Directory", "Names: own SAFFRON, admins BRICK, no 'You'", "colours as requested").run(async () => {
     const me = page.locator('.alpha-row-name[data-role="me"]');
     assert.equal(await me.count(), 1);
-    assert.equal(await me.evaluate((el) => getComputedStyle(el).color), "rgb(23, 105, 47)");
+    assert.equal(await me.evaluate((el) => getComputedStyle(el).color), "rgb(154, 91, 11)");
     const admins = page.locator('.alpha-row-name[data-role="admin"]');
     assert.ok((await admins.count()) >= 2, "Main Admin and the Village Admin");
-    for (const c of await admins.evaluateAll((els) => els.map((el) => getComputedStyle(el).color))) assert.equal(c, "rgb(198, 40, 40)");
+    for (const c of await admins.evaluateAll((els) => els.map((el) => getComputedStyle(el).color))) assert.equal(c, "rgb(178, 64, 44)");
     const plain = await page.locator(".alpha-row-name:not([data-role])").first().evaluate((el) => getComputedStyle(el).color);
-    assert.notEqual(plain, "rgb(198, 40, 40)");
+    assert.notEqual(plain, "rgb(178, 64, 44)");
     assert.equal(await page.locator(".alpha-list").getByText(/\bYou\b|તમે/).count(), 0, "no 'You'");
     // The names really are the admins'.
     const adminNames = await admins.allInnerTexts();
@@ -982,7 +982,7 @@ await flow("s8", async (env) => {
     await page.locator('.app[data-theme="dark"]').waitFor();
     await shot(page, "s8-dark");
     const admin = await page.locator('.alpha-row-name[data-role="admin"]').first().evaluate((el) => getComputedStyle(el).color);
-    assert.notEqual(admin, "rgb(198, 40, 40)", "lighter red on dark");
+    assert.notEqual(admin, "rgb(178, 64, 44)", "lighter red on dark");
     await page.getByTestId("Theme toggle").click();
     await page.locator('.app[data-theme="light"], .app:not([data-theme="dark"])').first().waitFor();
     assert.equal(await page.locator('.app[data-theme="dark"]').count(), 0);
@@ -1568,8 +1568,22 @@ if (only && only.has("look"))
       await page.getByTestId("Profile settings").click();
       await page.waitForTimeout(400);
       await page.screenshot({ path: `test-results/look/${lang}-${theme}-6-settings.png` });
+      await back(page);
+      await back(page);
+      await page.getByTestId("Sun logo").click();
+      await page.getByTestId("Splash").waitFor();
+      await page.waitForTimeout(500);
+      await page.screenshot({ path: `test-results/look/${lang}-${theme}-7-splash.png` });
+      await page.getByTestId("Splash enter").click();
       await ctx.close();
     }
+    const a = await phone(env.url, { viewport: { width: 412, height: 892 } });
+    await loginMain(a.page);
+    await waitScreen(a.page, "directory");
+    await a.page.getByTestId("Admin").click();
+    await a.page.waitForTimeout(800);
+    await a.page.screenshot({ path: "test-results/look/en-light-8-admin.png" });
+    await a.ctx.close();
   });
 
 await browser.close();

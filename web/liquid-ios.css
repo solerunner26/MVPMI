@@ -962,15 +962,15 @@ body:has(.app.lq) {
   color: #fff !important;
 }
 .app.lq .contact-whatsapp {
-  color: #0e6b3a !important;
+  color: #9a5b0b !important;
   border: 1px solid var(--lq-rim-b) !important;
   border-color: var(--lq-rim-t) var(--lq-rim-r) var(--lq-rim-b) var(--lq-rim-l) !important;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0) 55%) padding-box !important;
-  box-shadow: var(--lq-inner), 0 8px 18px -10px rgba(20, 120, 60, 0.55) !important;
+  box-shadow: var(--lq-inner), 0 8px 18px -10px rgba(178, 64, 44, 0.45) !important;
 }
 .app.lq[data-theme="dark"] .contact-whatsapp {
-  color: #7ff0a8 !important;
+  color: #f3bc6a !important;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0) 55%) padding-box !important;
 }

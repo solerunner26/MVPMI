@@ -243,6 +243,7 @@ export function ADirectoryScreen({
   onQuery,
   onVillage,
   onOpenContact,
+  onSun,
   offline,
   lastUpdated,
   onRetry,
@@ -297,7 +298,11 @@ export function ADirectoryScreen({
       ah(
         "div",
         { className: "alpha-dirline alpha-dirbrand" },
-        ah("img", { src: "/brand/sun-logo-96.png", alt: "", width: 36, height: 36, className: "alpha-dirlogo" }),
+        ah(
+          "button",
+          { type: "button", className: "alpha-dirlogo-btn", onClick: onSun, "aria-label": t("splash.open", lang), "data-testid": "Sun logo" },
+          ah("img", { src: "/brand/sun-logo-96.png", alt: "", width: 38, height: 38, className: "alpha-dirlogo" }),
+        ),
         ah(AOneLine, { className: "alpha-dirname", testId: "Community name", text: t("app.community", lang), max: 20, min: 12 }),
       ),
       // Line 2: search (the bottom bar's centre button jumps here).

@@ -44,15 +44,17 @@ test("Android static source: secure window, narrow bridge, no SSL bypass, no cli
   assert.ok(source.includes("Intent.ACTION_DIAL"));
   assert.ok(source.includes("request.isForMainFrame"));
   assert.ok(source.includes("onReceivedHttpError"));
-  // The web bridge is deliberate and narrow: eleven annotated methods (save
+  // The web bridge is deliberate and narrow: twelve annotated methods (save
   // sheet, print sheet, notification, device registration, pull now, the
   // four fingerprint-unlock calls, the screen-privacy switch and the
-  // bottom-bar state for the native Compose shell).
+  // bottom-bar state for the native Compose shell, and the sun logo that
+  // re-opens the splash).
   assert.ok(source.includes('addJavascriptInterface(Bridge(), "mvpmiBridge")'));
   assert.equal(
     (source.match(/@android\.webkit\.JavascriptInterface/g) || []).length,
-    11,
+    12,
   );
+  assert.ok(source.includes("fun openSplash("), "the header sun opens the splash");
   assert.ok(source.includes("fun navState("), "the page tells the native bar what to show");
   const shell = read("app/src/main/java/org/mvpmi/directory/ui/AppShell.kt");
   assert.ok(shell.includes("WindowInsets.navigationBars"), "bar sits above the system navigation bar");

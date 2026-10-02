@@ -35,6 +35,7 @@ class MainActivity : ComponentActivity() {
     // Native shell state (splash screen + bottom bar), fed by the page.
     private var navUi by mutableStateOf(NavUi())
     private var showSplash by mutableStateOf(false)
+    private var splashFromLogo = false
     private var splashInfo by mutableStateOf(SplashInfo())
     private var lastInsets = 0f to 0f
     private var backPending = false
@@ -67,6 +68,17 @@ class MainActivity : ComponentActivity() {
         /** The page reports what the native bottom bar and splash should show:
          *  visibility, active tab, role, theme, language and member counts
          *  (never phone numbers). */
+        /** The sun logo in the page header shows the splash (Mataji) again;
+         *  "Enter Directory" or Back returns to the page. */
+        @android.webkit.JavascriptInterface
+        fun openSplash() {
+            runOnUiThread {
+                splashFromLogo = true
+                showSplash = true
+                applySystemBars()
+            }
+        }
+
         @android.webkit.JavascriptInterface
         fun navState(json: String) {
             val o = try { JSONObject(json) } catch (_: Exception) { return }
@@ -222,7 +234,7 @@ class MainActivity : ComponentActivity() {
                 nav = navUi,
                 showSplash = showSplash,
                 splash = splashInfo.copy(gujarati = navUi.gujarati),
-                onEnter = { showSplash = false; applySystemBars() },
+                onEnter = { showSplash = false; splashFromLogo = false; applySystemBars() },
                 onContactAdmins = { showSplash = false; applySystemBars(); webNav("admins") },
                 onTab = { key -> webNav(key) },
                 onInsets = { bar, inset -> lastInsets = bar to inset; pushInsets() },
@@ -231,7 +243,11 @@ class MainActivity : ComponentActivity() {
         // One Back handler for every Android version (predictive Back on 13+).
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (showSplash) finish() else navigateBack()
+                when {
+                    showSplash && splashFromLogo -> { showSplash = false; splashFromLogo = false; applySystemBars() }
+                    showSplash -> finish()
+                    else -> navigateBack()
+                }
             }
         })
         web.settings.apply {
