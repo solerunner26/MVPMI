@@ -380,6 +380,13 @@ class NativeShellTest {
             for (key in listOf("profile", "settings", "search", "theme", "lang"))
                 assertTrue("tab $key", T.device.wait(Until.hasObject(By.res("nav_$key")), 10000) == true)
             assertFalse("members get Settings, not Admin", T.device.hasObject(By.res("nav_admin")))
+            // The bar is a strip at the bottom, never a layer over the page.
+            val screenH = T.device.displayHeight
+            for (key in listOf("profile", "search", "lang")) {
+                val r = T.device.findObject(By.res("nav_$key")).visibleBounds
+                assertTrue("tab $key is in the bottom quarter (top=${r.top}, screen=$screenH)", r.top > screenH * 3 / 4)
+                assertTrue("tab $key is not taller than a bar (h=${r.height()})", r.height() < screenH / 6)
+            }
             T.shell("screencap -p /sdcard/Download/mvpmi-bar.png")
             // The list scrolls under the glass: the page leaves room for the bar.
             T.waitUntil(10000, "bar space in the page") {

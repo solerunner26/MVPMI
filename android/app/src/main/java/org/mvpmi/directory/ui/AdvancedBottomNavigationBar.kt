@@ -15,7 +15,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Column
@@ -232,7 +231,9 @@ private fun RowScope.CenterSearchItem(d: BarDestination, selected: Boolean, colo
     Column(
         Modifier
             .weight(1f)
-            .fillMaxHeight()
+            // A fixed height, never "fill": filling made the whole bar grow
+            // to the screen's height and swallow taps meant for the page.
+            .height(80.dp)
             .testTag("nav_" + d.key)
             .semantics(mergeDescendants = true) { contentDescription = d.description; role = Role.Tab; this.selected = selected }
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick)

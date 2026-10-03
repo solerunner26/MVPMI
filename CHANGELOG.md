@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.1 (3 October 2026) — official release
+
+- Android: the Search tab no longer stretches the bottom bar over the whole
+  screen (it blocked taps on members, the PIN switch and admin tiles).
+- Emulator tests now fail the job when a test fails (the screenshot preview
+  step had masked the result), retries start clean, failures report what the
+  tap hit plus a screenshot; a new test checks the bar stays a bottom strip.
+- First official release signed with the permanent key (v1.3.0 was
+  published before this fix and should not be shared).
+
 ## 1.3.0 — alpha 5 (3 October 2026)
 
 - Community renamed: Mahuva Vala Rajput Samaj / મહુવા વાળા રાજપૂત સમાજ; app
