@@ -101,11 +101,12 @@ export function villageState(store, req) {
       })),
     villageAdmin: !!vaMember,
     villageAdminName: vaMember ? vaMember.nameGu || vaMember.name : null,
+    villageAdminNameEn: vaMember ? vaMember.name : null,
     villageAdminVillage: vaMember ? vaMember.village : null,
     adminDirectory: {
       main: (() => {
         const m = store.get("members", mainAdminId(store));
-        return m ? { name: m.nameGu || m.name, nameEn: m.name, phone: m.phone } : null;
+        return m ? { name: m.nameGu || m.name, nameGu: m.nameGu || m.name, nameEn: m.name, phone: m.phone } : null;
       })(),
       villages: store
         .all("villages")
@@ -117,7 +118,14 @@ export function villageState(store, req) {
             village: v.gu,
             villageEn: v.en,
             admin: m
-              ? { name: m.name, phone: m.phone, location: m.currentLocation || "" }
+              ? {
+                  name: m.name,
+                  nameGu: m.nameGu || m.name,
+                  phone: m.phone,
+                  location: m.currentLocation || "",
+                  locationEn: m.currentLocationEn || m.currentLocation || "",
+                  locationGu: m.currentLocationGu || m.currentLocation || "",
+                }
               : null,
           };
         }),

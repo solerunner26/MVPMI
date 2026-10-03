@@ -2,7 +2,7 @@
 export const UI_COPY = {
   exploreVillages: ["ગામ પસંદ કરો", "Explore villages"],
   dismissSettings: ["પાછા જાઓ", "Dismiss settings"],
-  communityName: ["મહુવા ક્ષત્રિય રાજપૂત સમાજ", "Mahuva Kshatriya Rajput Samaj"],
+  communityName: ["મહુવા વાળા રાજપૂત સમાજ", "Mahuva Vala Rajput Samaj"],
   welcome: ["સમાજમાં તમારું સ્વાગત છે", "A place for our people"],
   directoryView: ["યાદીનો દેખાવ", "Directory view"],
   villages: ["ગામો", "Villages"],

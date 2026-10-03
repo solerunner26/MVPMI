@@ -21,7 +21,7 @@ export function directorySearch(members, query, villages = VILLAGE_LIST) {
   const list = members.filter((m) => {
     if (byDigits) return String(m.phone || "").includes(digits) || String(m.phone2 || "").includes(digits);
     const v = villages.find((x) => x.gu === m.village || x.en === m.village) || { gu: m.village, en: m.village };
-    return [m.name, m.nameGu, m.firstName, m.surname, v.gu, v.en, m.tehsil, TALUKA.en, m.district, DISTRICT.en, m.currentLocation]
+    return [m.name, m.nameGu, m.firstName, m.surname, v.gu, v.en, m.tehsil, TALUKA.en, m.district, DISTRICT.en, m.currentLocation, m.currentLocationEn, m.currentLocationGu]
       .some((field) => lower(field).includes(ql));
   });
   return { active: true, list };
@@ -67,7 +67,7 @@ function AContactActions({ phone, name, lang, compact }) {
 function AContactRow({ m, lang, onOpen, isMe }) {
   // Own name green; every admin (Main or Village) red.
   const nameClass = "alpha-row-name" + (isMe ? " is-me" : m.adminRole ? " is-admin" : "");
-  const name = lang === "en" ? m.name : m.nameGu || m.name;
+  const name = nameFor(m, lang);
   const place = villageName(m.village, lang) + " • " + (lang === "en" ? TALUKA.en : TALUKA.gu);
   return ah(
     "li",
@@ -98,7 +98,7 @@ function AContactRow({ m, lang, onOpen, isMe }) {
 // residence, and a link to everyone from the same village.
 export function AContactSheet({ m, lang, onClose, members = [], meId, onShowVillage }) {
   const other = lang === "en" ? "gu" : "en";
-  const nameIn = (l) => (l === "en" ? m.name : m.nameGu || m.name) || "";
+  const nameIn = (l) => nameFor(m, l) || "";
   const name = nameIn(lang);
   const second = nameIn(other);
   const both = (key) => [t(key, lang), t(key, other)];
@@ -209,7 +209,7 @@ export function AContactSheet({ m, lang, onClose, members = [], meId, onShowVill
               "span",
               { className: "alpha-md-text" },
               label("dir.currentResidence"),
-              ah("strong", null, m.currentLocation || "—"),
+              ah("strong", null, placeFor(m, lang) || "—"),
             ),
           ),
         ),

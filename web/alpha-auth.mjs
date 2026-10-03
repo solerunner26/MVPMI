@@ -193,7 +193,7 @@ export function ASetPinScreen({ lang, onLang, api, onDone, onSignOut, account })
         },
       },
       ah("h2", null, t("setpw.title", lang)),
-      account ? ah("p", { className: "alpha-hint" }, (lang === "en" ? account.name : account.nameGu || account.name) + " · " + formatMobile(account.phone)) : null,
+      account ? ah("p", { className: "alpha-hint" }, nameFor(account, lang) + " · " + formatMobile(account.phone)) : null,
       // The account name lets Google Password Manager save the new password.
       ah("input", { type: "text", name: "username", autoComplete: "username", value: account?.phone || "", readOnly: true, tabIndex: -1, className: "alpha-sr-only", "aria-hidden": true }),
       ah("p", { className: "alpha-hint" }, t("setpw.intro", lang)),
@@ -257,7 +257,7 @@ export function ALockScreen({ lang, onLang, account, offline, unlock, onBiometri
         },
       },
       ah("h2", null, ah(AIcon, { name: "lock-key" }), " ", t("lock.title", lang)),
-      account ? ah("p", { className: "alpha-hint" }, (lang === "en" ? account.name : account.nameGu || account.name) + " · " + formatMobile(account.phone)) : null,
+      account ? ah("p", { className: "alpha-hint" }, nameFor(account, lang) + " · " + formatMobile(account.phone)) : null,
       offline ? ah(ANotice, { kind: "info" }, t("lock.offline", lang)) : null,
       ah(
         AField,

@@ -107,7 +107,7 @@ Object.assign(STR, {
 // ---- Shared words -------------------------------------------------------
 Object.assign(STR, {
   "app.title": ["સમાજ સંપર્ક યાદી", "Community Directory"],
-  "app.community": ["મહુવા ક્ષત્રિય રાજપૂત સમાજ", "Mahuva Kshatriya Rajput Samaj"],
+  "app.community": ["મહુવા વાળા રાજપૂત સમાજ", "Mahuva Vala Rajput Samaj"],
   "common.back": ["પાછા જાઓ", "Back"],
   "common.close": ["બંધ કરો", "Close"],
   "common.cancel": ["રદ કરો", "Cancel"],
@@ -320,8 +320,8 @@ Object.assign(STR, {
   "bar.admin": ["એડમિન", "Admin"],
   "bar.settings": ["સેટિંગ્સ", "Settings"],
   "bar.search": ["શોધો", "Search"],
-  "bar.dark": ["ઘેરો", "Dark"],
-  "bar.light": ["આછો", "Light"],
+  "bar.dark": ["કલર", "Dark"],
+  "bar.light": ["કલર", "Light"],
   "bar.lang": ["English", "ગુજરાતી"],
   "bar.langLabel": ["ભાષા: English કરો", "Language: switch to ગુજરાતી"],
   "dir.searchShort": ["શોધવા ઓછામાં ઓછા ૩ અક્ષર લખો", "Type at least 3 characters to search"],
@@ -385,7 +385,7 @@ export function errorMessage(error, lang = "gu") {
   if (error.code === "VERIFY_FIRST" && error.info?.admin) {
     const a = error.info.admin;
     return t("err.VERIFY_FIRST_WHO", lang, {
-      name: lang === "en" ? a.name : a.nameGu || a.name,
+      name: (typeof nameFor === "function" ? nameFor(a, lang) : stringsNameFallback(a, lang)),
       phone: a.phone,
     });
   }
@@ -399,4 +399,9 @@ export function errorMessage(error, lang = "gu") {
   // wrong.
   const plain = typeof singleLanguageStatus === "function" ? singleLanguageStatus(raw, "en") : raw;
   return lang === "gu" && !/[\u0a80-\u0aff]/.test(raw) && shown !== plain ? shown + " (" + plain + ")" : shown;
+}
+
+// Node tests load this file alone (no translit.mjs): plain field choice.
+function stringsNameFallback(x, lang) {
+  return x ? (lang === "en" ? x.name : x.nameGu || x.name) : "";
 }

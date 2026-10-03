@@ -435,7 +435,7 @@ export function villageAdminMessage(issued, lang) {
   });
 }
 export function AVillageAdminCreatedDialog({ issued, lang, onClose }) {
-  const who = lang === "en" ? issued.name : issued.nameGu || issued.name;
+  const who = nameFor(issued, lang);
   return ah(
     ASheet,
     { title: t("vac.title", lang), onClose, closeLabel: t("common.done", lang), testId: "Village Admin created dialog" },

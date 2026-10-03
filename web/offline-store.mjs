@@ -55,6 +55,8 @@ export function saveOffline({ account, members, villages, at = Date.now() }) {
       tehsil: m.tehsil,
       district: m.district,
       currentLocation: m.currentLocation,
+      currentLocationEn: m.currentLocationEn,
+      currentLocationGu: m.currentLocationGu,
     })),
     villages: Array.isArray(villages) ? villages.map((v) => ({ gu: v.gu, en: v.en })) : previous?.villages || [],
     at,

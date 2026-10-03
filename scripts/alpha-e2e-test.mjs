@@ -130,8 +130,10 @@ async function openSettings(page) {
   await page.getByTestId("Profile settings").click();
   await waitScreen(page, "settings");
 }
+// Sign out is the last item under My Profile → Options (owner, 3 Oct 2026).
 async function signOut(page) {
-  await openSettings(page);
+  await page.getByTestId("Profile and settings").click();
+  await waitScreen(page, "profile");
   await page.getByTestId("Sign out of this phone").click();
   await page.getByTestId("Confirm yes").click();
   await waitScreen(page, "login");
@@ -337,7 +339,7 @@ await flow("s2", async (env) => {
     await back(page);
     await waitScreen(page, "directory");
   });
-  await row(S, "Settings", "Sign out of this phone", "clears everything, Login screen; Back leaves the app").run(async () => {
+  await row(S, "My Profile → Options", "Sign out of this phone", "clears everything, Login screen; Back leaves the app").run(async () => {
     await signOut(page);
     assert.equal(await back(page), false);
     assert.equal(await page.evaluate(() => localStorage.getItem("mvpmi.offline.v1")), null);
@@ -838,7 +840,7 @@ await flow("s7", async (env) => {
     await back(m.page);
     assert.equal(await m.page.getByTestId("Admin").count(), 0);
   });
-  await row(S, "Settings (member)", "Sign out of this phone", "Login screen; Back leaves the app (never back to the directory)").run(async () => {
+  await row(S, "My Profile → Options (member)", "Sign out of this phone", "Login screen; Back leaves the app (never back to the directory)").run(async () => {
     await signOut(m.page);
     assert.equal(await back(m.page), false);
     assert.equal(await m.page.getByTestId("Contact row").count(), 0);
@@ -872,7 +874,7 @@ await flow("s8", async (env) => {
     const chips = await box('[data-testid="Village chips"]');
     const firstRow = await box(".alpha-row");
     assert.ok(logo.width <= 40, "small logo " + logo.width);
-    assert.equal((await page.getByTestId("Community name").innerText()).trim(), "Mahuva Kshatriya Rajput Samaj");
+    assert.equal((await page.getByTestId("Community name").innerText()).trim(), "Mahuva Vala Rajput Samaj");
     const mid = (b) => b.y + b.height / 2;
     assert.ok(Math.abs(mid(name) - mid(logo)) < 14, "line 1 aligned");
     assert.ok(name.height < 34, "name on one line " + name.height);
@@ -990,7 +992,7 @@ await flow("s8", async (env) => {
   await row(S, "Directory", "Language icon", "switches Gujarati ↔ English").run(async () => {
     await page.getByTestId("Language toggle").click();
     await page.locator("html[lang=gu]").waitFor();
-    assert.equal((await page.getByTestId("Community name").innerText()).trim(), "મહુવા ક્ષત્રિય રાજપૂત સમાજ");
+    assert.equal((await page.getByTestId("Community name").innerText()).trim(), "મહુવા વાળા રાજપૂત સમાજ");
     await page.getByTestId("Language toggle").click();
     await page.locator("html[lang=en]").waitFor();
   });
@@ -1022,14 +1024,17 @@ await flow("s8", async (env) => {
     await page.getByTestId("Profile and settings").click();
     await waitScreen(page, "profile");
     await shot(page, "s8-profile");
-    for (const id of ["Profile PIN lock", "Profile settings", "Profile request change", "Profile request removal"]) await page.getByTestId(id).waitFor();
+    for (const id of ["Profile PIN lock", "Profile settings", "Profile request change", "Profile request removal", "Sign out of this phone"]) await page.getByTestId(id).waitFor();
+    // Options order: Settings, Request change, Request removal, Sign out.
+    const order = await page.locator(".alpha-menu-item").evaluateAll((els) => els.map((e) => e.dataset.testid).filter((x) => x && x !== "Profile change lock PIN"));
+    assert.deepEqual(order.slice(-4), ["Profile settings", "Profile request change", "Profile request removal", "Sign out of this phone"]);
     await page.getByTestId("Profile settings").click();
     await waitScreen(page, "settings");
   });
-  await row(S, "Settings", "(contents)", "profile, requests, text size + Reset, notifications, admins, sign out — no language, no theme, no PIN").run(async () => {
-    for (const id of ["Settings my profile", "Settings request change", "Settings request removal", "Settings text size", "Settings text size reset", "Settings all admins", "Sign out of this phone"])
+  await row(S, "Settings", "(contents)", "profile, requests, text size + Reset, notifications, admins — no sign out (it is in My Profile), no language, no theme, no PIN").run(async () => {
+    for (const id of ["Settings my profile", "Settings request change", "Settings request removal", "Settings text size", "Settings text size reset", "Settings all admins"])
       await page.getByTestId(id).waitFor();
-    for (const id of ["Settings Gujarati", "Settings English", "Settings light", "Settings dark", "Settings app lock", "Settings change PIN"])
+    for (const id of ["Settings Gujarati", "Settings English", "Settings light", "Settings dark", "Settings app lock", "Settings change PIN", "Sign out of this phone"])
       assert.equal(await page.getByTestId(id).count(), 0, id + " was removed");
     await shot(page, "s8-settings");
   });
@@ -1124,7 +1129,7 @@ await flow("s1", async (env) => {
     await page.getByTestId("Offline banner").click({ timeout: 3000 }).catch(() => {});
     await page.getByTestId("Offline banner").waitFor({ state: "detached", timeout: 15000 });
   });
-  await row(S, "Settings", "Sign out of this phone", "the saved copy is wiped from the phone").run(async () => {
+  await row(S, "My Profile → Options", "Sign out of this phone", "the saved copy is wiped from the phone").run(async () => {
     await signOut(page);
     assert.equal(await page.evaluate(() => localStorage.getItem("mvpmi.offline.v1")), null);
   });
@@ -1162,7 +1167,7 @@ await flow("s9", async (env) => {
   await loginMobile(page, "9813131313");
   await waitScreen(page, "directory");
   const viaIcon = async () => page.getByTestId("Language toggle").click();
-  await checkLang("Directory", "મહુવા ક્ષત્રિય રાજપૂત સમાજ", "Mahuva Kshatriya Rajput Samaj", async () => viaIcon());
+  await checkLang("Directory", "મહુવા વાળા રાજપૂત સમાજ", "Mahuva Vala Rajput Samaj", async () => viaIcon());
   await page.getByTestId("Profile and settings").click();
   await waitScreen(page, "profile");
   const viaDirectory = async () => {

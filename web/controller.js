@@ -1295,6 +1295,7 @@ class Component extends DesignComponent {
           onSettings: () => this.setState({ screen: "settings", settingsFrom: "profile" }),
           onRequestChange: () => this.openEditRequest(),
           onRequestRemoval: () => this.askRemovalRequest(),
+          onSignOut: () => this.signOutOfPhone(),
         });
       case "edit":
       case "adminedit": {
@@ -1507,8 +1508,8 @@ class Component extends DesignComponent {
       s.theme === "dark" ? "ph-duotone ph-sun" : "ph-duotone ph-moon";
     v.canReview = s.role === "admin" || !!s.villageAdmin;
     v.communityName = bilingual(
-      "મહુવા ક્ષત્રિય રાજપૂત સમાજ",
-      "Mahuva Kshatriya Rajput Samaj",
+      "મહુવા વાળા રાજપૂત સમાજ",
+      "Mahuva Vala Rajput Samaj",
       s.lang,
     );
     v.allAdminsPanel = s.allAdminsOpen
@@ -1788,8 +1789,8 @@ class Component extends DesignComponent {
           .filter((a) => lastLedgerEvent(a).action === "reject")
           .map((a) => ({
             id: a.id,
-            nameGu: a.name,
-            name: a.name,
+            nameGu: bothScripts(a.name).gu || a.name,
+            name: bothScripts(a.name).en || a.name,
             phone: a.phone,
             village: a.village,
             place: villageLabelPair(a.village),
@@ -1808,8 +1809,8 @@ class Component extends DesignComponent {
           .filter((a) => lastLedgerEvent(a).action === "closed")
           .map((a) => ({
             id: a.id,
-            nameGu: a.name,
-            name: a.name,
+            nameGu: bothScripts(a.name).gu || a.name,
+            name: bothScripts(a.name).en || a.name,
             phone: a.phone,
             village: a.village,
             place: villageLabelPair(a.village),

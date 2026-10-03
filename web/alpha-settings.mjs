@@ -44,7 +44,7 @@ export function ASettingsScreen(p) {
         ah(AMenuItem, {
           icon: "identification-card",
           label: t("profile.title", lang),
-          detail: (lang === "en" ? account.name : account.nameGu || account.name) + " · " + t("role." + account.role, lang),
+          detail: nameFor(account, lang) + " · " + t("role." + account.role, lang),
           onClick: p.onProfile,
           testId: "Settings my profile",
         }),
@@ -85,21 +85,16 @@ export function ASettingsScreen(p) {
         { title: t("settings.admins", lang) },
         ah(AMenuItem, { icon: "users-three", label: t("settings.admins", lang), onClick: p.onAdmins, testId: "Settings all admins" }),
       ),
-      ah(
-        "div",
-        { className: "alpha-actions alpha-actions-column" },
-        ah(AButton, { kind: "danger", onClick: p.onSignOut, "data-testid": "Sign out of this phone" }, ah(AIcon, { name: "sign-out" }), " ", t("settings.signout", lang)),
-      ),
       p.version ? ah("p", { className: "alpha-version" }, t("settings.version", lang) + " " + p.version) : null,
     ),
   );
 }
 
-export function AProfileScreen({ lang, account, member, onBack, onChangePassword, onSettings, onRequestChange, onRequestRemoval, pendingChange, pendingRemoval, offline, onToggleLock, onChangeLockPin, biometricAvailable, onToggleBiometric }) {
+export function AProfileScreen({ lang, account, member, onBack, onChangePassword, onSettings, onRequestChange, onRequestRemoval, onSignOut, pendingChange, pendingRemoval, offline, onToggleLock, onChangeLockPin, biometricAvailable, onToggleBiometric }) {
   const main = account.role === "MAIN_ADMIN";
   const m = member || account;
   const other = lang === "en" ? "gu" : "en";
-  const nameIn = (l) => (l === "en" ? m.name : m.nameGu || m.name) || "";
+  const nameIn = (l) => nameFor(m, l) || "";
   const name = nameIn(lang);
   const second = nameIn(other);
   const label = (key) => ah("small", { className: "alpha-md-label" }, t(key, lang), ah("span", null, " • " + t(key, other)));
@@ -153,7 +148,7 @@ export function AProfileScreen({ lang, account, member, onBack, onChangePassword
             t("dir.talukaDistrict", lang, { taluka: lang === "en" ? "Mahuva" : "મહુવા", district: lang === "en" ? "Bhavnagar" : "ભાવનગર" }),
             "Profile village",
           ),
-          item("map-pin", "home", "dir.currentResidence", m.currentLocation || "—"),
+          item("map-pin", "home", "dir.currentResidence", placeFor(m, lang) || "—"),
         ),
       ),
       pendingChange ? ah(ANotice, { kind: "info" }, t("profile.pendingChange", lang)) : null,
@@ -188,6 +183,8 @@ export function AProfileScreen({ lang, account, member, onBack, onChangePassword
         ah(AMenuItem, { icon: "gear-six", label: t("settings.title", lang), onClick: onSettings, testId: "Profile settings" }),
         main ? null : ah(AMenuItem, { icon: "pencil-simple", label: t("profile.requestChange", lang), onClick: onRequestChange, testId: "Profile request change" }),
         main ? null : ah(AMenuItem, { icon: "user-minus", label: t("profile.requestRemoval", lang), onClick: onRequestRemoval, testId: "Profile request removal", danger: true }),
+        // Sign out lives here for everyone (owner, 3 Oct 2026), last in Options.
+        ah(AMenuItem, { icon: "sign-out", label: t("settings.signout", lang), onClick: onSignOut, testId: "Sign out of this phone", danger: true }),
       ),
     ),
   );
@@ -233,7 +230,8 @@ export function AEditProfileScreen({ lang, villages, member, adminEdit, api, onB
     setBusy(true);
     setServerError(null);
     try {
-      const payload = { ...form, nameGu: member.nameGu && member.nameGu !== member.name ? member.nameGu : undefined };
+      // The other script is made by the server from what is typed here.
+      const payload = { ...form };
       const data = await api(adminEdit ? "admin/members/" + member.id : "profile/update", payload);
       onDirtyChange?.(false);
       onSaved(data);
@@ -256,7 +254,7 @@ export function AEditProfileScreen({ lang, villages, member, adminEdit, api, onB
   return ah(
     "main",
     { className: "alpha-screen", "data-testid": adminEdit ? "Admin edit member" : "Edit profile screen" },
-    ah(ATopBar, { title: t(adminEdit ? "edit.adminTitle" : "edit.title", lang), subtitle: adminEdit ? (lang === "en" ? member.name : member.nameGu || member.name) : "", onBack, backLabel: t("common.back", lang) }),
+    ah(ATopBar, { title: t(adminEdit ? "edit.adminTitle" : "edit.title", lang), subtitle: adminEdit ? nameFor(member, lang) : "", onBack, backLabel: t("common.back", lang) }),
     ah(
       "div",
       { className: "alpha-scroll" },

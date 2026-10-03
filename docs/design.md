@@ -1,6 +1,6 @@
 # Design — MVPMI Community Directory
 
-Design reference for the Mahuva Kshatriya Rajput Samaj community directory
+Design reference for the Mahuva Vala Rajput Samaj community directory
 (Android app + web, version 1.3.0-alpha.2). It describes the app **as built**;
 values come from the source (`Community Directory.dc.html`, `web/liquid-ios.css`,
 `web/alpha.css`, `web/village-workflow.css`). When this file and the code
@@ -126,7 +126,7 @@ exists for readability.
 ### Directory header (owner-specified, 3 lines)
 
 ```
-Line 1  (☀ sun logo)  Mahuva Kshatriya Rajput Samaj      ← always ONE line
+Line 1  (☀ sun logo)  Mahuva Vala Rajput Samaj      ← always ONE line
 Line 2  [ 🔍 Search name, number or village            ]
 Line 3  [All] [Thorala] [Sathra] [Taredi] [Lilvan] …   ← scrolls sideways
 ```

@@ -107,7 +107,7 @@ export function bilingualView(primary, alternate, lang) {
       const other = alternateMembers.get(member.id);
       return {
         ...member,
-        primaryName: bilingual(member.nameGu, member.name, lang),
+        primaryName: (typeof nameFor === "function" ? nameFor(member, lang) : bilingualNameFallback(member, lang)),
         place: pair(member.place, other?.place || member.place),
       };
     }),
@@ -135,7 +135,7 @@ export function bilingualView(primary, alternate, lang) {
         lang,
       ),
     };
-  out.profileName = bilingual(primary.me.nameGu, primary.me.name, lang);
+  out.profileName = (typeof nameFor === "function" ? nameFor(primary.me, lang) : bilingualNameFallback(primary.me, lang));
   out.contactCopy = primary.dial
     ? bilingual(primary.dial.gu, primary.dial.en, lang)
     : "";
@@ -152,4 +152,9 @@ export function memberNameOrder(lang) {
   const visible = (m) => String((m && (m[key] || m.name)) || "");
   return (a, b) =>
     visible(a).localeCompare(visible(b), locale, { sensitivity: "base" });
+}
+
+// Node tests load this file alone (no translit.mjs): plain field choice.
+function bilingualNameFallback(x, lang) {
+  return x ? (lang === "en" ? x.name : x.nameGu || x.name) : "";
 }

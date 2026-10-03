@@ -33,7 +33,8 @@ test("Village Admins log in with their mobile number; powers exist only in admin
   let s = await anyone("login", { mobile: vaMember.phone });
   assert.equal(s.villageAdmin, true);
   assert.equal(s.account.role, "VILLAGE_ADMIN");
-  assert.match(s.villageAdminName, /^Administrator/);
+  assert.match(s.villageAdminNameEn, /^Administrator/);
+  assert.match(s.villageAdminName, /[\u0A80-\u0AFF]/, "Gujarati spelling added");
   // Admins land on the directory as members too.
   assert.ok(s.members.length >= 2);
   await anyone(`village/requests/${r.id}/forward`, forward);
@@ -450,7 +451,7 @@ test("the all-admins directory lists contactable administrators for everyone", a
   const guest = f.client();
   const directory = (await guest("state")).adminDirectory;
   // The Main Admin's contact comes from the seeded account.
-  assert.equal(directory.main.name, MAIN.name);
+  assert.equal(directory.main.nameEn, MAIN.name);
   assert.equal(directory.main.phone, MAIN.mobile);
   const thorala = directory.villages.find((v) => v.village === "થોરાળા");
   assert.match(thorala.admin.name, /^Administrator/);

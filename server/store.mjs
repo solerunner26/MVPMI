@@ -1,3 +1,4 @@
+import { bothScripts, hasGujarati, toGujarati, toLatin } from "../web/translit.mjs";
 import { DatabaseSync } from "node:sqlite";
 import {
   randomUUID,
@@ -107,12 +108,18 @@ export function profile(p, registry = villages) {
         : text(p.middleName, 2, 60, "middle name");
     surname = text(p.surname, 2, 60, "surname");
   }
-  const name = [firstName, middleName, surname].filter(Boolean).join(" ");
-  text(name, 3, 120, "name");
+  const typed = [firstName, middleName, surname].filter(Boolean).join(" ");
+  text(typed, 3, 120, "name");
+  // Every name is kept in BOTH scripts (owner, 3 Oct 2026): typed in
+  // Gujarati -> English spelling added; typed in English -> Gujarati added.
+  // A Gujarati spelling sent with an English name (Main Admin set-up) wins.
+  if (p.nameGu !== undefined) text(p.nameGu, 3, 160, "Gujarati name");
+  const both = bothScripts(typed);
+  const name = text(both.en, 3, 160, "name");
   const nameGu = text(
-    p.nameGu === undefined ? name : p.nameGu,
+    hasGujarati(typed) ? typed : p.nameGu && hasGujarati(p.nameGu) ? p.nameGu : both.gu,
     3,
-    120,
+    160,
     "Gujarati name",
   );
   const number = (value, optional) => {
@@ -144,7 +151,11 @@ export function profile(p, registry = villages) {
     fail("Invalid second-number label");
   return {
     ...(p.currentLocation !== undefined
-      ? { currentLocation: text(p.currentLocation, 0, 240, "current location") }
+      ? (() => {
+          const where = text(p.currentLocation, 0, 240, "current location");
+          const w = bothScripts(where);
+          return { currentLocation: where, currentLocationEn: w.en, currentLocationGu: w.gu };
+        })()
       : {}),
     firstName,
     middleName,
@@ -161,6 +172,8 @@ export function profile(p, registry = villages) {
 }
 export const profileKeys = [
   "currentLocation",
+  "currentLocationEn",
+  "currentLocationGu",
   "firstName",
   "middleName",
   "surname",
@@ -234,6 +247,38 @@ export class Store {
     this.initializeVillages();
     this.initializeVillageRenames();
     this.initializeNameParts();
+    this.initializeBothScripts();
+  }
+  // Give every stored name and place both scripts (runs at every start, only
+  // writes records that are missing one). What people typed is never changed:
+  // a correct English name or Gujarati name stays as it is.
+  initializeBothScripts() {
+    const fill = (r) => {
+      if (!r || typeof r !== "object") return false;
+      let changed = false;
+      if (r.name || r.nameGu) {
+        const en = r.name && !hasGujarati(r.name) ? r.name : toLatin(r.name || r.nameGu);
+        const gu = r.nameGu && hasGujarati(r.nameGu) ? r.nameGu : r.name && hasGujarati(r.name) ? r.name : toGujarati(en);
+        if (en && en !== r.name) (r.name = en), (changed = true);
+        if (gu && gu !== r.nameGu) (r.nameGu = gu), (changed = true);
+      }
+      if (r.currentLocation && (!r.currentLocationEn || !r.currentLocationGu)) {
+        const w = bothScripts(r.currentLocation);
+        r.currentLocationEn = r.currentLocationEn || w.en;
+        r.currentLocationGu = r.currentLocationGu || w.gu;
+        changed = true;
+      }
+      return changed;
+    };
+    this.tx(() => {
+      for (const m of this.all("members")) if (fill(m)) this.put("members", m);
+      for (const a of this.all("archive")) if (fill(a)) this.put("archive", a);
+      for (const r of this.all("requests")) {
+        const c1 = fill(r.payload);
+        const c2 = fill(r.old);
+        if (c1 || c2) this.put("requests", r);
+      }
+    });
   }
   // Rename "ઝીંજકા" → "જીંજકા" everywhere (idempotent). Exact-string values
   // only, so member names and reasons are never touched.
@@ -585,7 +630,10 @@ export class Store {
     const canonical = (p, allowed = profileKeys) => {
       keys(p, allowed);
       const clean = profile(p, registry);
-      if (profileKeys.some((k) => p[k] !== clean[k]))
+      // Both-script fields are derived; older backups predate them and are
+      // filled in after the restore (initializeBothScripts).
+      const derived = new Set(["name", "nameGu", "currentLocationEn", "currentLocationGu"]);
+      if (profileKeys.some((k) => !derived.has(k) && p[k] !== clean[k]))
         fail("Backup profiles must use canonical, complete fields");
     };
     const member = (p) => {
@@ -934,6 +982,7 @@ export class Store {
         }
       this.audit(actor, "restore", b.exportedAt);
     });
+    this.initializeBothScripts();
   }
   // Housekeeping: expired sessions, rate-limit windows, transports, device
   // tokens and old notifications. Anonymous sessions that never applied

@@ -121,10 +121,10 @@ test("approve, search data, update stays private, direct admin edit, delete revo
   assert.ok(s.reviewQueue.some((r) => r.id === update && r.stage === "village"));
   await forward(update);
   await admin("admin/requests/" + update + "/approve", {});
-  assert.equal(
-    (await a("state")).members.find((m) => m.phone === "9000000002").nameGu,
-    "New Name",
-  );
+  const changed = (await a("state")).members.find((m) => m.phone === "9000000002");
+  assert.equal(changed.name, "New Name");
+  // Typed in English: a Gujarati spelling is added automatically.
+  assert.match(changed.nameGu, /[\u0A80-\u0AFF]/);
   await admin("admin/requests/" + update + "/approve", {}, 409);
   const id = (await a("state")).meId;
   await admin("admin/members/" + id, { ...form, name: "Direct Admin Edit" });

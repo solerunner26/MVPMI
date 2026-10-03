@@ -44,7 +44,7 @@ GitHub → repository → **Settings → Secrets and variables → Actions**:
 ## Google Play (optional, one-time USD 25 developer account)
 
 1. https://play.google.com/console → create the app
-   "મહુવા ક્ષત્રિય રાજપૂત સમાજ" (free, app).
+   "મહુવા વાળા રાજપૂત સમાજ" (free, app).
 2. **Play App Signing**: accept the default (Google keeps the app-signing
    key; `mvpmi-upload.jks` becomes your *upload* key).
 3. Store listing: use `android/play-icon-512.png` and screenshots from

@@ -1,7 +1,7 @@
-# MVPMI — મહુવા ક્ષત્રિય રાજપૂત સમાજ · Community Directory
+# MVPMI — મહુવા વાળા રાજપૂત સમાજ · Community Directory
 
-A private, bilingual (Gujarati / English) phone directory for the Mahuva
-Kshatriya Rajput Samaj. Members register once; their **Village Admin**
+A private, bilingual (Gujarati / English) phone directory for the Mahuva Vala
+Rajput Samaj. Members register once; their **Village Admin**
 verifies them and the **Main Admin** approves. Approved members log in with
 their mobile number and a 4-digit **PIN**, search the directory and call or
 WhatsApp other members. The directory is never shown without an approved

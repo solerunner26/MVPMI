@@ -954,7 +954,7 @@
   font-size: calc(15px * min(var(--fs), 1.15));
 }
 /* Very narrow phones (320px class): the three-line name keeps its normal
-   size so "Mahuva / Kshatriya / Rajput Samaj" is never cut. */
+   size so "Mahuva / Vala / Rajput Samaj" is never cut. */
 @media (max-width: 340px) {
   .app.lq .alpha-dirname {
     font-size: 13px;
@@ -1139,19 +1139,23 @@
 }
 /* Centre Search: a raised round button on the brand gradient. */
 .app .alpha-navitem.is-center .alpha-navpill {
-  width: 54px;
-  height: 54px;
-  border-radius: 27px;
-  margin-top: -18px;
+  width: 48px;
+  height: 48px;
+  border-radius: 24px;
+  margin-top: -14px;
   color: #fff;
   background: var(--grad);
   box-shadow: 0 10px 22px -8px rgba(178, 64, 44, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.45);
 }
 .app .alpha-navitem.is-center.is-active .alpha-navpill {
-  width: 54px;
+  width: 48px;
   background: var(--grad);
-  border-radius: 20px;
+  border-radius: 17px;
 }
+/* Search: its label sits right under the circle, same line as the others. */
+.app .alpha-navitem.is-center { gap: 2px; }
+.app .alpha-navitem.is-center .alpha-navlabel { color: #b2402c; font-weight: 800; }
+.app[data-theme="dark"] .alpha-navitem.is-center .alpha-navlabel { color: #ff9d74; }
 .app .alpha-navitem .alpha-badge {
   position: absolute;
   top: -4px;

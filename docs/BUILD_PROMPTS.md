@@ -1,6 +1,6 @@
 # Community Directory — Complete App-Building Prompt Pack
 
-**Project:** Mahuva Kshatriya Rajput Samaj — Community Phone Directory (codename MVPMI)
+**Project:** Mahuva Vala Rajput Samaj — Community Phone Directory (codename MVPMI)
 **Owner:** Jaldip Vala · **Prepared:** 30 September 2026 · **Based on:** working app v1.3.0-alpha.1
 **Purpose:** rebuild the same app, module by module, with any AI coding system, then keep adding upgrades.
 
@@ -64,7 +64,7 @@ code. Never change a rule written here without asking me first; if something is
 unclear, ask me one question, then continue.
 
 1. PURPOSE
-Members of the Mahuva Kshatriya Rajput Samaj (Mahuva taluka, Bhavnagar district,
+Members of the Mahuva Vala Rajput Samaj (Mahuva taluka, Bhavnagar district,
 Gujarat, India) find and contact each other. Administrators keep the information
 accurate and control who gets in. Focus: easy community connections, verified
 membership, controlled access to personal information, zero running cost.

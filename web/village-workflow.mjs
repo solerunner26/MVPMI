@@ -173,7 +173,7 @@ export function AllAdminDirectory({ data, lang, onClose }) {
           return v.admin
             ? row({
                 key: v.village,
-                name: v.admin.name,
+                name: lang === "en" ? v.admin.name : v.admin.nameGu || v.admin.name,
                 role:
                   B("ગામ એડમિન · ", "Village administrator · ") + villageName,
                 phone: v.admin.phone,
@@ -185,7 +185,7 @@ export function AllAdminDirectory({ data, lang, onClose }) {
                     h("i", { className: "ph-duotone ph-map-pin", "aria-hidden": true }),
                     " ",
                     B("હાલ : ", "Location: "),
-                    v.admin.location,
+                    (lang === "en" ? v.admin.locationEn : v.admin.locationGu) || v.admin.location,
                   ),
               })
             : h(
@@ -302,7 +302,7 @@ export function VillageWorkflow({
             ? B("સમાજ વ્યવસ્થાપન", "Community management")
             : [
                 B("ગામની ચકાસણી · ", "Village verification · "),
-                data.villageAdminName || "",
+                (lang === "en" ? data.villageAdminNameEn : data.villageAdminName) || data.villageAdminName || "",
               ],
         ),
       ),
@@ -571,7 +571,7 @@ function WorkflowDecision({ request: r, data, lang, act, busy, flash = () => {} 
   return h(
     "article",
     { className: "workflow-card", "data-request-id": r.id },
-    h("h3", null, bilingual(r.payload.nameGu, r.payload.name, lang)),
+    h("h3", null, typeof nameFor === "function" ? nameFor(r.payload, lang) : bilingual(r.payload.nameGu, r.payload.name, lang)),
     h(
       "p",
       null,
@@ -640,7 +640,7 @@ function WorkflowDecision({ request: r, data, lang, act, busy, flash = () => {} 
             r.payload.village,
         ),
     r.payload.currentLocation &&
-      h("p", null, B("હાલ : ", "Location: "), r.payload.currentLocation),
+      h("p", null, B("હાલ : ", "Location: "), typeof placeFor === "function" ? placeFor(r.payload, lang) : r.payload.currentLocation),
     h(
       "p",
       { className: "workflow-status" },
@@ -973,9 +973,9 @@ function WorkflowMemberCard({ member: m, data, lang, act, busy, pending }) {
   return h(
     "article",
     { className: "workflow-card" },
-    h("h3", null, bilingual(m.nameGu, m.name, lang)),
+    h("h3", null, typeof nameFor === "function" ? nameFor(m, lang) : bilingual(m.nameGu, m.name, lang)),
     h("p", null, m.phone, m.phone2 ? " · " + m.phone2 : ""),
-    m.currentLocation && h("p", null, B("હાલ : ", "Location: "), m.currentLocation),
+    m.currentLocation && h("p", null, B("હાલ : ", "Location: "), typeof placeFor === "function" ? placeFor(m, lang) : m.currentLocation),
     // Server-confirmed proposal state: a clear "forwarded" confirmation so
     // the administrator sees the action was taken and where it is now.
     pending &&

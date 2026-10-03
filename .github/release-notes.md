@@ -1,4 +1,4 @@
-Signed release of the Mahuva Kshatriya Rajput Samaj community directory.
+Signed release of the Mahuva Vala Rajput Samaj community directory.
 
 - **mvpmi.apk** — install on Android phones (Android 10 or newer). Share the link from the community website.
 - **mvpmi-play.aab** — upload this file in Google Play Console (Production → Create new release).

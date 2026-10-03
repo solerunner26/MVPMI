@@ -27,7 +27,7 @@ const LETTERHEAD_STYLE = `
 `;
 function letterhead(lang) {
   const name =
-    lang === "en" ? "Mahuva Kshatriya Rajput Samaj" : "મહુવા ક્ષત્રિય રાજપૂત સમાજ";
+    lang === "en" ? "Mahuva Vala Rajput Samaj" : "મહુવા વાળા રાજપૂત સમાજ";
   const district =
     lang === "en" ? "Mahuva-Bhavnagar District" : "મહુવા-ભાવનગર જિલ્લો";
   const dateLabel = lang === "en" ? "Date" : "તારીખ";
@@ -84,7 +84,7 @@ export function printDocument(members, lang = "gu") {
           .join("")}</tr>`,
     )
     .join("");
-  return `<!doctype html><html lang="${lang === "en" ? "en" : "gu"}"><head><meta charset="utf-8"><title>મહુવા ક્ષત્રિય રાજપૂત સમાજ · સમાજ સંપર્ક યાદી</title><link rel="stylesheet" href="/vendor/noto-sans-gujarati/400.css"><link rel="stylesheet" href="/vendor/manrope/400.css"><style>@page{size:A4;margin:14mm}body{font-family:'Noto Sans Gujarati',sans-serif;color:#241413}${LETTERHEAD_STYLE}small{display:block;font-size:.8em;line-height:1.6}span[lang=en],small[lang=en]{font-family:Manrope,sans-serif}table{width:100%;border-collapse:collapse;font-size:10pt}th,td{text-align:left;padding:8px;border-bottom:1px solid #bda18d;overflow-wrap:anywhere}th{background:#f7eee3}td:first-child,th:first-child{white-space:nowrap}</style></head><body>${letterhead(lang)}<h1 class="report-title">${pair("સમાજ સંપર્ક યાદી", "Community directory")}</h1><p class="report-summary">${pair(`${members.length} મંજૂર સભ્યો`, `${members.length} approved ${members.length === 1 ? "member" : "members"}`)}</p><table><thead><tr>${heads.map((h) => `<th>${pair(...h)}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></body></html>`;
+  return `<!doctype html><html lang="${lang === "en" ? "en" : "gu"}"><head><meta charset="utf-8"><title>મહુવા વાળા રાજપૂત સમાજ · સમાજ સંપર્ક યાદી</title><link rel="stylesheet" href="/vendor/noto-sans-gujarati/400.css"><link rel="stylesheet" href="/vendor/manrope/400.css"><style>@page{size:A4;margin:14mm}body{font-family:'Noto Sans Gujarati',sans-serif;color:#241413}${LETTERHEAD_STYLE}small{display:block;font-size:.8em;line-height:1.6}span[lang=en],small[lang=en]{font-family:Manrope,sans-serif}table{width:100%;border-collapse:collapse;font-size:10pt}th,td{text-align:left;padding:8px;border-bottom:1px solid #bda18d;overflow-wrap:anywhere}th{background:#f7eee3}td:first-child,th:first-child{white-space:nowrap}</style></head><body>${letterhead(lang)}<h1 class="report-title">${pair("સમાજ સંપર્ક યાદી", "Community directory")}</h1><p class="report-summary">${pair(`${members.length} મંજૂર સભ્યો`, `${members.length} approved ${members.length === 1 ? "member" : "members"}`)}</p><table><thead><tr>${heads.map((h) => `<th>${pair(...h)}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></body></html>`;
 }
 
 // Generic printable report: community letterhead, report title, optional

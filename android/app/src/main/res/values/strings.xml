@@ -4,8 +4,8 @@
      because these screens appear before the web page knows the chosen
      language. -->
 <resources>
-    <string name="app_name">મહુવા ક્ષત્રિય રાજપૂત સમાજ</string>
-    <string name="app_name_debug">મહુવા ક્ષત્રિય રાજપૂત સમાજ (ટેસ્ટ)</string>
+    <string name="app_name">વાળા સમાજ</string>
+    <string name="app_name_debug">વાળા સમાજ (ટેસ્ટ)</string>
 
     <string name="error_title_gu">સર્વર સુધી પહોંચી શકાયું નથી</string>
     <string name="error_title_en">Server not reachable</string>

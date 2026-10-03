@@ -177,7 +177,7 @@ fun SplashScreen(info: SplashInfo, colors: ShellColors, onEnter: () -> Unit, onC
 
             // ---- Community name: ONE line in both languages (auto-size).
             BasicText(
-                text = l("મહુવા ક્ષત્રિય રાજપૂત સમાજ", "Mahuva Kshatriya Rajput Samaj"),
+                text = l("મહુવા વાળા રાજપૂત સમાજ", "Mahuva Vala Rajput Samaj"),
                 maxLines = 1,
                 overflow = TextOverflow.Clip,
                 style = TextStyle(color = colors.ink, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center),

@@ -127,7 +127,7 @@ administrator.
 - The header carries the community logo and one uniform row of same-shaped
   buttons: **All admins**, the village-admin sign-in shield (hidden once a
   village administrator is signed in), **language**, **dark/light theme** and
-  **reading settings**. The community name **મહુવા ક્ષત્રિય રાજપૂત સમાજ** is the
+  **reading settings**. The community name **મહુવા વાળા રાજપૂત સમાજ** is the
   heading of the home screen (below it a signed-in village administrator
   sees their village); the signup screen heading is the community name too.
   The old "મહુવા · ભાવનગર", "આપણા લોકો" and header wordmark lines are gone.

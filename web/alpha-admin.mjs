@@ -62,7 +62,7 @@ export function AManageVillageAdmins({ lang, data, act, flash }) {
   const [selected, setSelected] = React.useState("");
   const assignments = new Map((data.villageAssignments || []).map((a) => [a.id, a]));
   const g = (v) => encodeURIComponent(v.gu);
-  const personName = (a) => (lang === "en" ? a.name : a.nameGu || a.name);
+  const personName = (a) => nameFor(a, lang);
   const v = (data.villages || []).find((x) => x.gu === selected) || null;
   const a = v ? assignments.get(v.gu) : null;
   const status = !a ? t("va.none", lang) : a.disabled ? t("va.disabled", lang) : t("va.active", lang);

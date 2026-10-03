@@ -29,7 +29,7 @@ small{color:var(--ink2)}</style></head><body><main>${body}</main></body></html>`
 }
 
 export function installPublicPages(app, store, { env = process.env, downloadDir = DOWNLOADS } = {}) {
-  const community = { gu: "મહુવા ક્ષત્રિય રાજપૂત સમાજ", en: "Mahuva Kshatriya Rajput Samaj" };
+  const community = { gu: "મહુવા વાળા રાજપૂત સમાજ", en: "Mahuva Vala Rajput Samaj" };
   const contact = () => {
     // The Main Admin's name and number, exactly as on the "All admins" page.
     const id = store.get("config", "main-admin")?.memberId;

@@ -73,7 +73,7 @@ self.addEventListener("push", (event) => {
   } catch {
     data = { title: event.data ? event.data.text() : "" };
   }
-  const title = data.title || "મહુવા ક્ષત્રિય રાજપૂત સમાજ";
+  const title = data.title || "મહુવા વાળા રાજપૂત સમાજ";
   event.waitUntil(
     self.registration.showNotification(title, {
       body: data.body || "",

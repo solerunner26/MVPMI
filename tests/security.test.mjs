@@ -297,12 +297,10 @@ test("XLSX contains literal text, not executable spreadsheet formulas", async (t
   await workbook.xlsx.load(bytes);
   let found = false;
   workbook.worksheets[0].eachRow((row) => {
-    const cell = row.getCell(2);
-    if (
-      cell.type === ExcelJS.ValueType.String &&
-      cell.value === '=HYPERLINK("https://example.invalid")'
-    )
-      found = true;
+    row.eachCell((cell) => {
+      if (cell.type === ExcelJS.ValueType.Formula) throw new Error("formula cell exported");
+      if (cell.type === ExcelJS.ValueType.String && cell.value === '=HYPERLINK("https://example.invalid")') found = true;
+    });
   });
   assert.ok(found, "Literal formula-looking name is exported as text");
 });
