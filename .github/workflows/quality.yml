@@ -52,7 +52,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      COMMUNITY_URL: ${{ inputs.community_url || vars.COMMUNITY_URL || vars.COMMUNITY_TEST_URL || 'https://example.invalid' }}
+      # The live server unless a test URL is given (owner, 3 Oct 2026).
+      COMMUNITY_URL: ${{ inputs.community_url || vars.COMMUNITY_URL || 'https://samaj.kavigsv.com' }}
       VERSION_CODE: ${{ github.run_number }}
       # v1.2.3 tags become versionName 1.2.3; other builds use the Gradle default.
       VERSION_NAME: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
@@ -113,7 +114,12 @@ jobs:
           mkdir -p release-out
           cp android/app/build/outputs/apk/release/app-release.apk release-out/mvpmi.apk
           cp android/app/build/outputs/bundle/release/app-release.aab release-out/mvpmi-play.aab
-          (cd release-out && sha256sum mvpmi.apk mvpmi-play.aab > SHA256SUMS.txt)
+          BUILD=$((VERSION_CODE + 100))
+          LABEL="${VERSION_NAME:-dev}"
+          # Same APK under a name that shows version and build (the download page links it).
+          cp release-out/mvpmi.apk "release-out/MVPMI-$LABEL-build$BUILD.apk"
+          printf 'Version: %s\nBuild: %s\nServer: %s\nSource commit: %s\nSigned release build (installs over the previous release)\n' "${LABEL#v}" "$BUILD" "$COMMUNITY_URL" "$GITHUB_SHA" > release-out/BUILD-INFO.txt
+          (cd release-out && sha256sum mvpmi.apk "MVPMI-$LABEL-build$BUILD.apk" mvpmi-play.aab > SHA256SUMS.txt)
           rm -f "$RUNNER_TEMP/mvpmi-release.jks"
           echo "built=true" >> "$GITHUB_OUTPUT"
       - name: Upload the release APK
@@ -151,8 +157,8 @@ jobs:
             android/app/build/outputs/apk/debug/
           retention-days: 7
   android-device-tests:
-    # Run on demand only (Actions → Run workflow); the owner tests on his phone.
-    if: github.event_name == 'workflow_dispatch'
+    # On demand, and before every official release (v1.2.3 tags, no "-").
+    if: github.event_name == 'workflow_dispatch' || (startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-'))
     # Real instrumented tests (android/app/src/androidTest) on Android
     # emulators for API 29, 33 and 36, against a test server running THIS
     # commit with synthetic data. See docs/ANDROID_DEVICE_TESTS.md.
@@ -225,7 +231,8 @@ jobs:
     # Tag pushes (v*) attach the APKs to a permanent GitHub release. Only this
     # job may write to the repository.
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: android
+    # An official release is published only after the emulator tests pass.
+    needs: [android, android-device-tests]
     runs-on: ubuntu-latest
     permissions:
       contents: write

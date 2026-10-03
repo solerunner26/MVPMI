@@ -1,7 +1,7 @@
 # Design — MVPMI Community Directory
 
 Design reference for the Mahuva Vala Rajput Samaj community directory
-(Android app + web, version 1.3.0-alpha.2). It describes the app **as built**;
+(Android app + web, version 1.3.0). It describes the app **as built**;
 values come from the source (`Community Directory.dc.html`, `web/liquid-ios.css`,
 `web/alpha.css`, `web/village-workflow.css`). When this file and the code
 disagree, the code wins — update this file.
@@ -144,6 +144,7 @@ icon was removed — the chips do that job).
  │ Profile  Settings*   Search     Dark    English  │
  ╰──────────────────────────────────────────────────╯
    * Admins see "Admin" (shield, with request badge) instead of Settings
+   The theme tab reads "કલર" in Gujarati (Dark / Light in English).
 ```
 
 - Five tabs, Search raised in the centre on the brand gradient. Theme and
@@ -283,3 +284,14 @@ See the screenshot walkthrough (63 steps) for every screen in order.
   members approved earlier, including over the lock screen.
 - "Create Village Admin" button wraps onto three lines in the new Village
   Admin form at 360 px.
+
+
+## Names and places in both scripts (3 Oct 2026)
+
+Every name and current location is kept in Gujarati and English. Whatever
+script someone types in, the other is added automatically (offline
+transliteration plus a word list of local names, surnames and places), and
+the app shows the one for the selected language. Member Details shows the
+other script under the name. Sign out is the last item under My Profile →
+Options. App name on the phone: વાળા સમાજ; community: મહુવા વાળા રાજપૂત સમાજ /
+Mahuva Vala Rajput Samaj.

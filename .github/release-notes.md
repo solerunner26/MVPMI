@@ -1,9 +1,9 @@
-Signed release of the Mahuva Vala Rajput Samaj community directory.
+**વાળા સમાજ — Mahuva Vala Rajput Samaj community directory, official release.**
 
-- **mvpmi.apk** — install on Android phones (Android 10 or newer). Share the link from the community website.
-- **mvpmi-play.aab** — upload this file in Google Play Console (Production → Create new release).
-- **SHA256SUMS.txt** — checksums to verify the downloads.
+- **MVPMI-v….apk** (same file as **mvpmi.apk**) — install on Android phones (Android 10 or newer); share the link https://samaj.kavigsv.com/download.
+- **mvpmi-play.aab** — for Google Play Console (Production → Create new release).
+- **BUILD-INFO.txt** (version, build) and **SHA256SUMS.txt** (checksums).
 
-Each release installs over the previous one.
+Signed with the community's permanent key: every later release installs over this one, and members stay logged in. Phones that had a test (alpha) build must uninstall it once before installing this release; the directory data on the server is not affected.
 
-**1.1 alpha:** new login (mobile + PIN; Main Admin: mobile + password). Everyone logs in again after updating. See `docs/ALPHA_TESTING.md` in the source for what to test and how to report problems.
+Tested: server tests, the full browser checklist, and Android emulator tests on Android 10, 13 and 16.

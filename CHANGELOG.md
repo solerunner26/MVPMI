@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.3.0 — alpha 5 (3 October 2026)
+
+- Community renamed: Mahuva Vala Rajput Samaj / મહુવા વાળા રાજપૂત સમાજ; app
+  name on the phone (launcher, web app) વાળા સમાજ.
+- Names and current location are stored in both scripts: typed in Gujarati
+  → English spelling added, typed in English → Gujarati added (offline
+  transliteration with a word list of local names, surnames and places).
+  Existing records are filled in at start-up; typed values are kept; old
+  backups still restore. The app shows each in the selected language.
+- Sign out moved from Settings to My Profile → Options (last item).
+- Bottom bar: Search label sits right under its button (app and web);
+  theme label in Gujarati is "કલર".
+- Release pipeline: official tags build the signed APK + Play bundle with a
+  versioned file name, run the emulator tests first, then publish.
+
 ## 1.3.0 — alpha 4 (2 October 2026)
 
 - Tile suns (and the member-card watermark) no longer rotate: the admin
