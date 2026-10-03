@@ -57,8 +57,15 @@ object T {
         return ParcelFileDescriptor.AutoCloseInputStream(pfd).use { it.bufferedReader().readText() }
     }
 
+    /** What the last real tap hit (shown in failure messages). */
+    @Volatile var lastTap: String = "none"
+
     fun waitUntil(timeoutMs: Long, what: String, check: () -> Boolean) {
-        if (!poll(timeoutMs, check)) fail("Timed out after ${timeoutMs / 1000}s waiting for: $what")
+        if (!poll(timeoutMs, check)) {
+            val shot = "/sdcard/Download/mvpmi-fail-" + SystemClock.uptimeMillis() + ".png"
+            runCatching { shell("screencap -p $shot") }
+            fail("Timed out after ${timeoutMs / 1000}s waiting for: $what [last tap: $lastTap]")
+        }
     }
 
     fun poll(timeoutMs: Long, check: () -> Boolean): Boolean {
@@ -222,11 +229,38 @@ class App(val scenario: ActivityScenario<MainActivity>) {
             "var e=document.querySelector(${q(css)}); if(!e) return null; var r=e.getBoundingClientRect();" +
                 "return {x:r.left+r.width/2, y:r.top+r.height/2, d:window.devicePixelRatio}",
         ) as? JSONObject) ?: box
-        val b = box!!
+        var b = box!!
+        // A person scrolls a control out from under the floating bottom bar
+        // before tapping it; so do we.
+        val barTop = T.device.findObject(By.res("nav_search"))?.let { bar ->
+            T.device.findObject(By.res("nav_profile"))?.visibleBounds?.top ?: bar.visibleBounds.top
+        }
         val location = IntArray(2)
         scenario.onActivity { activity -> findWebView(activity.window.decorView)!!.getLocationOnScreen(location) }
-        val d = b.getDouble("d")
-        T.device.click((location[0] + b.getDouble("x") * d).toInt(), (location[1] + b.getDouble("y") * d).toInt())
+        var d = b.getDouble("d")
+        var y = (location[1] + b.getDouble("y") * d).toInt()
+        if (barTop != null && y > barTop - 12) {
+            js(
+                "var e=document.querySelector(${q(css)}); if(!e) return 0; var p=e.parentElement;" +
+                    "while(p && !(p.scrollHeight>p.clientHeight+4 && /(auto|scroll)/.test(getComputedStyle(p).overflowY))) p=p.parentElement;" +
+                    "(p||document.scrollingElement).scrollTop += 220; return 1",
+            )
+            SystemClock.sleep(350)
+            b = (js(
+                "var e=document.querySelector(${q(css)}); if(!e) return null; var r=e.getBoundingClientRect();" +
+                    "return {x:r.left+r.width/2, y:r.top+r.height/2, d:window.devicePixelRatio}",
+            ) as? JSONObject) ?: b
+            d = b.getDouble("d")
+            y = (location[1] + b.getDouble("y") * d).toInt()
+        }
+        val x = (location[0] + b.getDouble("x") * d).toInt()
+        val hit = jsString(
+            "var e=document.elementFromPoint(${b.getDouble("x")},${b.getDouble("y")}); if(!e) return 'nothing';" +
+                "return e.tagName+'.'+String(e.className).slice(0,40)+(e.closest('[data-testid]')?(' in '+e.closest('[data-testid]').getAttribute('data-testid')):'')",
+        )
+        T.lastTap = "$css at ($x,$y) barTop=$barTop hit=$hit"
+        T.log("TAP " + T.lastTap)
+        T.device.click(x, y)
         SystemClock.sleep(400)
     }
 

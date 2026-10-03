@@ -182,7 +182,7 @@ jobs:
           retention-days: 7
   android-device-tests:
     # On demand, and before every official release (v1.2.3 tags, no "-").
-    if: always() && needs.server-and-browser.result == 'success' && (github.event_name == 'workflow_dispatch' || (startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')) || needs.stable-plan.outputs.tag != '')
+    if: always() && needs.server-and-browser.result == 'success' && (github.event_name == 'workflow_dispatch' || (startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')) || needs.stable-plan.outputs.tag != '' || startsWith(github.ref, 'refs/heads/wip/devtests'))
     # Real instrumented tests (android/app/src/androidTest) on Android
     # emulators for API 29, 33 and 36, against a test server running THIS
     # commit with synthetic data. See docs/ANDROID_DEVICE_TESTS.md.

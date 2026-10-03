@@ -79,6 +79,8 @@ run() {
   if echo "$once" | grep -qE "INSTRUMENTATION_STATUS_CODE: -(1|2)$|shortMsg=Process crashed"; then
     adb shell cmd connectivity airplane-mode disable >/dev/null 2>&1 || true
     adb shell svc wifi enable >/dev/null 2>&1 || true
+    # The retry starts from the same clean state as the first try.
+    if [ "$keep" != keep ]; then adb shell pm clear "$PKG" >/dev/null; fi
     echo "=== $target (retry)" | tee -a "$RAW"
     adb shell am instrument -w -r -e class "$PKG.$target" "$RUNNER" 2>&1 | tr -d '\r' | tee -a "$RAW" >/dev/null
   fi
@@ -113,7 +115,12 @@ adb shell locksettings clear --old 1111 >/dev/null 2>&1 || true
 kill "$WATCHER" 2>/dev/null || true
 adb logcat -d > "$OUT/logcat.txt"
 grep -h "MVPMITEST" "$OUT/logcat.txt" | grep "ENV " | tail -1 | sed 's/^.*ENV /App-reported environment: /' >> "$OUT/environment.txt"
+# Screenshots taken by the tests at the moment something timed out.
+for f in $(adb shell ls /sdcard/Download/ 2>/dev/null | tr -d '\r' | grep '^mvpmi-fail-' | head -3); do
+  adb pull "/sdcard/Download/$f" "$OUT/${f%.png}.png" >/dev/null 2>&1 || true
+done
 python3 scripts/instrument-summary.py "$API" "$OUT"
+RESULT=$?   # the test result decides the job, not the previews below
 # Small previews of the native splash and glass bar in the run annotations
 # (the artifacts hold the full-size screenshots).
 if [ -n "${GITHUB_ACTIONS:-}" ]; then
@@ -122,9 +129,12 @@ if [ -n "${GITHUB_ACTIONS:-}" ]; then
 import base64, io, sys
 from PIL import Image
 api, out = sys.argv[1], sys.argv[2]
-for name, size, q in (("splash", (200, 420), 40), ("bar", (300, 200), 50)):
+import glob, os
+fails = [os.path.basename(p)[:-4] for p in sorted(glob.glob(f"{out}/mvpmi-fail-*.png"))[:2]]
+for name, size, q in [("splash", (200, 420), 40), ("bar", (300, 200), 50)] + [(f, (200, 420), 40) for f in fails]:
     try:
-        im = Image.open(f"{out}/native-{name}.png").convert("RGB")
+        path = f"{out}/{name}.png" if name.startswith("mvpmi-fail") else f"{out}/native-{name}.png"
+        im = Image.open(path).convert("RGB")
     except Exception:
         continue
     if name == "bar":
@@ -138,3 +148,4 @@ for name, size, q in (("splash", (200, 420), 40), ("bar", (300, 200), 50)):
         print(f"::notice title=API {api} native {name} preview {k}/{len(parts)}::" + part)
 PY
 fi
+exit "$RESULT"
