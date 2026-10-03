@@ -1525,12 +1525,23 @@ await flow("s11", async (env) => {
         await p.getByTestId("Admin enter submit").click();
       }
       await p.locator(".mvpmi-tile", { hasText: "Backup & export" }).first().click();
+      // Record every status message as it appears (a short toast can come
+      // and go between two checks on a slow machine).
+      await p.evaluate(() => {
+        window.__toasts = [];
+        new MutationObserver(() =>
+          document.querySelectorAll('[role="status"]').forEach((e) => {
+            const tx = e.textContent.trim();
+            if (tx && !window.__toasts.includes(tx)) window.__toasts.push(tx);
+          }),
+        ).observe(document.body, { subtree: true, childList: true, characterData: true });
+      });
       for (const [label, file] of [["CSV list", "mvpmi-members.csv"], ["Excel (.xlsx)", "mvpmi-contacts.xlsx"]]) {
         const dl = bridge ? null : p.waitForEvent("download", { timeout: 8000 });
         await p.locator(".mvpmi-tile", { hasText: label }).first().click();
         if (bridge) {
           await p.waitForFunction((f) => window.__saved.some(([n]) => n === f), file, { timeout: 8000 });
-          await toast(p, "Choose where to save");
+          await p.waitForFunction(() => window.__toasts.some((t) => t.includes("Choose where to save")), null, { timeout: 8000 });
         } else assert.equal((await dl).suggestedFilename(), file);
       }
       if (bridge) {
