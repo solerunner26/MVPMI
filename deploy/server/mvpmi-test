@@ -1,0 +1,211 @@
+#!/usr/bin/env bash
+# TEST COPY of MVPMI on the same server (owner, 21 Oct 2026).
+#
+# A second, completely separate copy for trying new features before they go
+# live. It never changes the live app, the live database or the live APK:
+#   - its own folder      /opt/mvpmi-test/app   (a feature branch)
+#   - its own data        /var/lib/mvpmi-test   (a COPY of the live database)
+#   - its own settings    /etc/mvpmi-test.env   (port 3001, no Google Drive)
+#   - its own service     mvpmi-test.service    (no backup or update timers)
+#   - its own web address e.g. https://test.samaj.kavigsv.com
+# The copied data is cleaned so no real phone is ever notified from the test
+# copy: logins, phone registrations, push subscriptions, queued notifications
+# and the Google Drive connection are removed FROM THE COPY only.
+#
+#   sudo mvpmi-test setup  test.samaj.kavigsv.com [branch]   first time
+#   sudo mvpmi-test update [branch]        newest code of the branch + test app
+#   sudo mvpmi-test refresh-data           copy the live data again (test data is replaced)
+#   sudo mvpmi-test status
+#   sudo mvpmi-test remove                 delete the test copy (live is untouched)
+set -euo pipefail
+LIVE_APP=/opt/mvpmi/app
+LIVE_ENV=/etc/mvpmi.env
+APP=/opt/mvpmi-test/app
+DATA=/var/lib/mvpmi-test
+ENVF=/etc/mvpmi-test.env
+PORT=3001
+REPO=https://github.com/solerunner26/MVPMI.git
+TEST_RELEASE=https://github.com/solerunner26/MVPMI/releases/download/test-build
+CADDY=/etc/caddy/Caddyfile
+BEGIN="# >>> mvpmi-test (managed by mvpmi-test; live site above is untouched)"
+END="# <<< mvpmi-test"
+CMD="${1:-status}"
+[ "$(id -u)" = 0 ] || { echo "run with sudo"; exit 1; }
+as() { sudo -u mvpmi -H "$@"; }
+log() { echo "== $*"; }
+live_db() { local p; p=$(sed -n 's/^DB_PATH=//p' "$LIVE_ENV" | tail -1); echo "${p:-/var/lib/mvpmi/community.sqlite}"; }
+
+copy_data() {
+  log "copying the live database (read-only copy; live keeps running)"
+  mkdir -p "$DATA/backups" "$DATA/downloads"
+  [ -f "$DATA/community.sqlite" ] && cp "$DATA/community.sqlite" "$DATA/backups/test-before-refresh-$(date +%Y%m%d-%H%M).sqlite"
+  rm -f "$DATA/community.sqlite" "$DATA/community.sqlite-wal" "$DATA/community.sqlite-shm"
+  sqlite3 "$(live_db)" ".backup '$DATA/community.sqlite'"
+  log "cleaning the COPY: no logins, phones, push or Drive in the test copy"
+  sqlite3 "$DATA/community.sqlite" <<'SQL'
+DELETE FROM sessions;
+DELETE FROM devices;
+DELETE FROM pushSubs;
+DELETE FROM transports;
+DELETE FROM notifications;
+DELETE FROM limits;
+DELETE FROM config WHERE id IN ('drive-oauth', 'drive-backup', 'backup');
+SQL
+  chown -R mvpmi:mvpmi "$DATA"
+  echo "members in the test copy: $(sqlite3 "$DATA/community.sqlite" 'SELECT count(*) FROM members;')"
+}
+
+test_app_info() {
+  # The newest test app (built by GitHub for feature/ branches).
+  local info build
+  info=$(curl -fsSL "$TEST_RELEASE/BUILD-INFO.txt" 2>/dev/null || true)
+  build=$(printf '%s\n' "$info" | sed -n 's/^Build: *//p' | head -1)
+  sed -i '/^APP_UPDATE_/d' "$ENVF"
+  if [ -n "$build" ]; then
+    {
+      echo "APP_UPDATE_BUILD=$build"
+      echo "APP_UPDATE_VERSION=test-$build"
+      echo "APP_UPDATE_URL=$TEST_RELEASE/mvpmi-test.apk"
+    } >> "$ENVF"
+    echo "test app: build $build ($TEST_RELEASE/mvpmi-test.apk)"
+  else
+    echo "test app: not built yet"
+  fi
+}
+
+build_code() {
+  local branch="$1"
+  log "code: branch $branch"
+  if [ ! -d "$APP/.git" ]; then
+    mkdir -p /opt/mvpmi-test
+    chown mvpmi:mvpmi /opt/mvpmi-test
+    as git clone --quiet "$REPO" "$APP"
+  fi
+  cd "$APP"
+  as git fetch --quiet --force origin "$branch"
+  as git checkout --quiet -f -B test-copy "origin/$branch"
+  as npm ci --omit=dev --no-audit --no-fund
+  as npm run build
+  echo "$branch" > /opt/mvpmi-test/BRANCH
+}
+
+caddy_block() {
+  local domain="$1" tmp
+  tmp=$(mktemp)
+  cp "$CADDY" "$CADDY.before-mvpmi-test"
+  awk -v b="$BEGIN" -v e="$END" '$0==b{skip=1} !skip{print} $0==e{skip=0}' "$CADDY" > "$tmp"
+  if [ -n "$domain" ]; then
+    {
+      echo ""
+      echo "$BEGIN"
+      echo "$domain {"
+      echo "	encode zstd gzip"
+      echo "	header X-Robots-Tag \"noindex, nofollow\""
+      echo "	reverse_proxy 127.0.0.1:$PORT"
+      echo "}"
+      echo "$END"
+    } >> "$tmp"
+  fi
+  if caddy validate --config "$tmp" --adapter caddyfile >/dev/null 2>&1; then
+    install -m 644 "$tmp" "$CADDY"
+    systemctl reload caddy
+  else
+    echo "Caddy rejected the change; nothing was changed (live site untouched)"; rm -f "$tmp"; exit 1
+  fi
+  rm -f "$tmp"
+}
+
+health() {
+  for _ in $(seq 1 20); do
+    sleep 2
+    if curl -fsS "http://127.0.0.1:$PORT/api/health" >/dev/null; then echo "test copy is running on port $PORT"; return 0; fi
+  done
+  echo "test copy did not start: journalctl -u mvpmi-test -n 50"; return 1
+}
+
+case "$CMD" in
+  setup)
+    DOMAIN="${2:?usage: mvpmi-test setup test.samaj.kavigsv.com [branch]}"
+    BRANCH="${3:-feature/v1.4}"
+    [ -f "$LIVE_ENV" ] || { echo "live settings not found"; exit 1; }
+    build_code "$BRANCH"
+    copy_data
+    log "settings $ENVF (from the live settings, test values)"
+    grep -vE '^(PORT|DB_PATH|DOWNLOAD_DIR|PUBLIC_URL|VAPID_SUBJECT|GOOGLE_CLIENT_ID|GOOGLE_CLIENT_SECRET|BACKUP_PASSPHRASE|APP_TAG|APP_UPDATE_[A-Z]*)=' "$LIVE_ENV" > "$ENVF"
+    cat >> "$ENVF" <<EOF
+PORT=$PORT
+DB_PATH=$DATA/community.sqlite
+DOWNLOAD_DIR=$DATA/downloads
+PUBLIC_URL=https://$DOMAIN
+VAPID_SUBJECT=https://$DOMAIN
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+BACKUP_PASSPHRASE=
+EOF
+    echo "$DOMAIN" > /opt/mvpmi-test/DOMAIN
+    test_app_info
+    chown root:mvpmi "$ENVF"; chmod 640 "$ENVF"
+    cat > /etc/systemd/system/mvpmi-test.service <<EOF
+[Unit]
+Description=MVPMI TEST COPY (not the live app)
+After=network-online.target
+
+[Service]
+User=mvpmi
+Group=mvpmi
+WorkingDirectory=$APP
+EnvironmentFile=$ENVF
+ExecStart=/usr/bin/node server/index.mjs
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=$DATA
+MemoryMax=400M
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    install -m 755 "$APP/deploy/server/mvpmi-test" /usr/local/sbin/mvpmi-test
+    systemctl daemon-reload
+    systemctl enable --now mvpmi-test.service
+    caddy_block "$DOMAIN"
+    health
+    log "done: https://$DOMAIN (works once the DNS name points to this server)"
+    ;;
+  update)
+    BRANCH="${2:-$(cat /opt/mvpmi-test/BRANCH 2>/dev/null || echo feature/v1.4)}"
+    build_code "$BRANCH"
+    test_app_info
+    install -m 755 "$APP/deploy/server/mvpmi-test" /usr/local/sbin/mvpmi-test
+    systemctl restart mvpmi-test
+    health
+    ;;
+  refresh-data)
+    echo "This replaces the TEST copy's data with a fresh copy of the live data."
+    read -r -p "Type YES to continue: " ok
+    [ "$ok" = "YES" ] || { echo "nothing changed"; exit 0; }
+    systemctl stop mvpmi-test
+    copy_data
+    systemctl start mvpmi-test
+    health
+    ;;
+  status)
+    echo "branch: $(cat /opt/mvpmi-test/BRANCH 2>/dev/null || echo '-')  commit: $(cd "$APP" 2>/dev/null && as git rev-parse --short HEAD || echo '-')"
+    echo "address: https://$(cat /opt/mvpmi-test/DOMAIN 2>/dev/null || echo '-')"
+    systemctl is-active mvpmi-test || true
+    curl -fsS "http://127.0.0.1:$PORT/api/app-version" 2>/dev/null && echo || true
+    ;;
+  remove)
+    read -r -p "Delete the TEST copy (live stays as it is)? Type YES: " ok
+    [ "$ok" = "YES" ] || { echo "nothing changed"; exit 0; }
+    systemctl disable --now mvpmi-test.service 2>/dev/null || true
+    rm -f /etc/systemd/system/mvpmi-test.service; systemctl daemon-reload
+    caddy_block ""
+    rm -rf /opt/mvpmi-test "$DATA" "$ENVF"
+    echo "test copy removed"
+    ;;
+  *) sed -n '2,20p' "$0"; exit 1 ;;
+esac

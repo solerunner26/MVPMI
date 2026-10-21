@@ -393,3 +393,59 @@ jobs:
           gh release create "$TAG" release-out/* \
             --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest \
             --title "વાળા સમાજ $TAG" --notes-file .github/release-notes.md
+  test-build:
+    # Test copy (owner, 21 Oct 2026): every push to a feature/ branch builds a
+    # separate TEST app ("વાળા સમાજ (ટેસ્ટ)", org.mvpmi.directory.test) that
+    # talks to the test server only, and replaces the rolling pre-release
+    # "test-build". Never "latest": the live server and app are not touched.
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/feature/')
+    needs: [server-and-browser]
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TEST_URL: ${{ vars.MVPMI_TEST_URL || 'https://test.samaj.kavigsv.com' }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+      - name: Build the test APK for the test server
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.MVPMI_KEYSTORE_BASE64 }}
+          MVPMI_KEYSTORE_PASSWORD: ${{ secrets.MVPMI_KEYSTORE_PASSWORD }}
+          MVPMI_KEY_ALIAS: ${{ secrets.MVPMI_KEY_ALIAS }}
+          MVPMI_KEY_PASSWORD: ${{ secrets.MVPMI_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          sdkmanager 'platforms;android-36' 'build-tools;36.0.0' >/dev/null
+          BUILD=$(( ${{ github.run_number }} + 100 ))
+          BRANCH="${GITHUB_REF#refs/heads/}"
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/mvpmi-release.jks"
+          export MVPMI_KEYSTORE_FILE="$RUNNER_TEMP/mvpmi-release.jks"
+          gradle -p android :app:assembleRelease "-PcommunityUrl=$TEST_URL" "-PversionCode=$BUILD" "-PversionName=1.4.0-test.$BUILD" \
+            -PappIdSuffix=.test "-PappLabel=વાળા સમાજ (ટેસ્ટ)" --console=plain
+          rm -f "$RUNNER_TEMP/mvpmi-release.jks"
+          mkdir -p out
+          cp android/app/build/outputs/apk/release/app-release.apk out/mvpmi-test.apk
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify out/mvpmi-test.apk
+          printf 'Version: 1.4.0-test.%s\nBuild: %s\nServer: %s\nBranch: %s\nSource commit: %s\n' "$BUILD" "$BUILD" "$TEST_URL" "$BRANCH" "$GITHUB_SHA" > out/BUILD-INFO.txt
+          (cd out && sha256sum mvpmi-test.apk > SHA256SUMS.txt)
+      - name: Replace the rolling test pre-release
+        shell: bash
+        run: |
+          gh release delete test-build --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag 2>/dev/null || true
+          gh release create test-build out/mvpmi-test.apk out/BUILD-INFO.txt out/SHA256SUMS.txt \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --prerelease --latest=false \
+            --title "TEST app (not for members) · build $(( ${{ github.run_number }} + 100 ))" \
+            --notes "Test app for the test server only ($TEST_URL). Installs next to the real app. Not for members."

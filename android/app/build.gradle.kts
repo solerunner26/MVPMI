@@ -36,6 +36,10 @@ android {
     compileSdk = 36
     defaultConfig {
         applicationId = "org.mvpmi.directory"
+        // Test copy (owner, 21 Oct 2026): -PappIdSuffix=.test -PappLabel="…"
+        // installs a separate test app next to the real one.
+        applicationIdSuffix = providers.gradleProperty("appIdSuffix").orElse("").get().ifBlank { null }
+        manifestPlaceholders["appLabel"] = providers.gradleProperty("appLabel").orElse("@string/app_name").get()
         // Android 10 (API 29) to Android 17.
         minSdk = 29
         targetSdk = 36
