@@ -9,6 +9,10 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.outlined.Celebration
+import androidx.compose.material.icons.filled.Celebration
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.Role
@@ -41,7 +45,6 @@ import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Translate
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
@@ -87,12 +90,12 @@ data class BarDestination(
 )
 
 /**
- * The app's five tabs, Search in the middle (owner, 2 Oct 2026):
- * Profile · Admin tools (Settings for members) · Search · Theme · Language.
+ * The app's five tabs (owner, 2 Oct 2026; centre changed 21 Oct 2026):
+ * Profile · Admin tools (Settings for members) · Greeting/Messages · Theme · Language.
  * Titles, icons and destinations come from the former top icon row of the
  * directory (the Filter icon was removed: the village chips do that job).
  */
-fun barDestinations(gujarati: Boolean, isAdmin: Boolean, adminBadge: Int, dark: Boolean): List<BarDestination> {
+fun barDestinations(gujarati: Boolean, isAdmin: Boolean, adminBadge: Int, dark: Boolean, isMain: Boolean = false, unread: Int = 0): List<BarDestination> {
     fun l(gu: String, en: String) = if (gujarati) gu else en
     val second = if (isAdmin)
         BarDestination("admin", l("એડમિન", "Admin"), l("એડમિન સાધનો", "Admin tools"), Icons.Outlined.AdminPanelSettings, Icons.Filled.AdminPanelSettings, badge = adminBadge)
@@ -101,7 +104,12 @@ fun barDestinations(gujarati: Boolean, isAdmin: Boolean, adminBadge: Int, dark: 
     return listOf(
         BarDestination("profile", l("પ્રોફાઇલ", "Profile"), l("મારી પ્રોફાઇલ", "My Profile"), Icons.Outlined.AccountCircle, Icons.Filled.AccountCircle),
         second,
-        BarDestination("search", l("શોધો", "Search"), l("નામ, નંબર કે ગામ શોધો", "Search the directory"), Icons.Rounded.Search, Icons.Rounded.Search, center = true),
+        // Centre (owner, 21 Oct 2026): Greeting for the Main Admin, Messages
+        // with the unread count for everyone else; Search stays at the top.
+        if (isMain)
+            BarDestination("greeting", l("શુભેચ્છા", "Greeting"), l("શુભેચ્છા સંદેશ મોકલો", "Send a greeting"), Icons.Outlined.Celebration, Icons.Filled.Celebration, center = true)
+        else
+            BarDestination("messages", l("સંદેશ", "Messages"), l("સંદેશ કેન્દ્ર", "Message Centre"), Icons.Outlined.Email, Icons.Filled.Email, center = true, badge = unread),
         if (dark)
             BarDestination("theme", l("કલર", "Light"), l("આછો દેખાવ", "Light theme"), Icons.Outlined.LightMode, Icons.Filled.LightMode, toggle = true)
         else
@@ -251,7 +259,9 @@ private fun RowScope.CenterSearchItem(d: BarDestination, selected: Boolean, colo
                 .border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.55f), Color.Transparent)), RoundedCornerShape(corner)),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Rounded.Search, contentDescription = null, tint = Color.White, modifier = Modifier.size(26.dp))
+            BadgedBox(badge = { if (d.badge > 0) Badge { Text(if (d.badge > 99) "99+" else d.badge.toString()) } }) {
+                Icon(if (selected) d.filled else d.outlined, contentDescription = null, tint = Color.White, modifier = Modifier.size(26.dp))
+            }
         }
         Spacer(Modifier.height(3.dp))
         Text(

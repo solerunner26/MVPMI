@@ -8,8 +8,6 @@
 //   Own name is GREEN, every admin's name is RED. Rows have Call and WhatsApp;
 //   tapping a row opens the full details.
 const nativeHost = () => typeof navigator !== "undefined" && navigator.userAgent.includes("MVPMlAndroid");
-const TALUKA = { gu: "મહુવા", en: "Mahuva" };
-const DISTRICT = { gu: "ભાવનગર", en: "Bhavnagar" };
 const lower = (x) => String(x || "").toLowerCase();
 
 export function directorySearch(members, query, villages = VILLAGE_LIST) {
@@ -21,7 +19,7 @@ export function directorySearch(members, query, villages = VILLAGE_LIST) {
   const list = members.filter((m) => {
     if (byDigits) return String(m.phone || "").includes(digits) || String(m.phone2 || "").includes(digits);
     const v = villages.find((x) => x.gu === m.village || x.en === m.village) || { gu: m.village, en: m.village };
-    return [m.name, m.nameGu, m.firstName, m.surname, v.gu, v.en, m.tehsil, TALUKA.en, m.district, DISTRICT.en, m.currentLocation, m.currentLocationEn, m.currentLocationGu]
+    return [m.name, m.nameGu, m.firstName, m.surname, v.gu, v.en, m.tehsil, talukaFor(m, "en"), m.district, districtFor(m, "en"), m.currentLocation, m.currentLocationEn, m.currentLocationGu]
       .some((field) => lower(field).includes(ql));
   });
   return { active: true, list };
@@ -68,7 +66,7 @@ function AContactRow({ m, lang, onOpen, isMe }) {
   // Own name green; every admin (Main or Village) red.
   const nameClass = "alpha-row-name" + (isMe ? " is-me" : m.adminRole ? " is-admin" : "");
   const name = nameFor(m, lang);
-  const place = villageName(m.village, lang) + " • " + (lang === "en" ? TALUKA.en : TALUKA.gu);
+  const place = villageName(m.village, lang) + " • " + talukaFor(m, lang);
   return ah(
     "li",
     { className: "alpha-row", "data-testid": "Contact row" },
@@ -80,7 +78,7 @@ function AContactRow({ m, lang, onOpen, isMe }) {
         onClick: () => onOpen(m),
         "aria-label": t("dir.details", lang) + ": " + name,
       },
-      ah("span", { className: "alpha-avatar", "aria-hidden": true }, (name || "?").trim().charAt(0)),
+      ah("span", { className: "alpha-avatar" + (m.photo ? " has-photo" : ""), "aria-hidden": true }, ah(AFace, { m, name })),
       ah(
         "span",
         { className: "alpha-row-text" },
@@ -96,7 +94,7 @@ function AContactRow({ m, lang, onOpen, isMe }) {
 // "sample member contact page"). Sun-crowned card: name in both languages,
 // role, big Call / WhatsApp, every number, native village and current
 // residence, and a link to everyone from the same village.
-export function AContactSheet({ m, lang, onClose, members = [], meId, onShowVillage }) {
+export function AContactSheet({ m, lang, onClose, members = [], meId, onShowVillage, canRemovePhoto, onRemovePhoto }) {
   const other = lang === "en" ? "gu" : "en";
   const nameIn = (l) => nameFor(m, l) || "";
   const name = nameIn(lang);
@@ -141,7 +139,15 @@ export function AContactSheet({ m, lang, onClose, members = [], meId, onShowVill
         ah(
           "div",
           { className: "alpha-md-hero" },
-          ah("span", { className: "alpha-md-avatar", "aria-hidden": true }, ah("span", null, name.trim().charAt(0) || "?")),
+          ah("span", { className: "alpha-md-avatar", "aria-hidden": true }, ah(AFace, { m, name, big: true })),
+          canRemovePhoto && m.photo
+            ? ah(
+                "button",
+                { type: "button", className: "alpha-md-photo-remove", onClick: () => onRemovePhoto(m), "data-testid": "Remove member photo" },
+                ah(AIcon, { name: "image-broken" }),
+                " " + t("photo.removeTheirs", lang),
+              )
+            : null,
           ah("h3", { className: "alpha-md-name", "data-testid": "Member name" }, name),
           second && second !== name ? ah("p", { className: "alpha-md-name2" }, second) : null,
           ah(
@@ -198,7 +204,7 @@ export function AContactSheet({ m, lang, onClose, members = [], meId, onShowVill
               { className: "alpha-md-text" },
               label("dir.nativeVillage"),
               ah("strong", null, villageLine),
-              ah("small", { className: "alpha-md-sub" }, t("dir.talukaDistrict", lang, { taluka: lang === "en" ? TALUKA.en : TALUKA.gu, district: lang === "en" ? DISTRICT.en : DISTRICT.gu })),
+              ah("small", { className: "alpha-md-sub" }, t("dir.talukaDistrict", lang, { taluka: talukaFor(m, lang), district: districtFor(m, lang) })),
             ),
           ),
           ah(

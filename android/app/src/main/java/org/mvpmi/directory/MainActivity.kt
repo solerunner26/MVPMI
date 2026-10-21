@@ -35,7 +35,16 @@ class MainActivity : ComponentActivity() {
     // Native shell state (splash screen + bottom bar), fed by the page.
     private var navUi by mutableStateOf(NavUi())
     private var showSplash by mutableStateOf(false)
+    // Must-update (owner, 21 Oct 2026): non-null = the update page is shown.
+    private var update by mutableStateOf<org.mvpmi.directory.ui.UpdateUi?>(null)
+    private var updateInfo: Updater.Info? = null
+    private var lastUpdateCheck = 0L
+    @Volatile private var checking = false
     private var splashFromLogo = false
+    /** Camera photo being taken for the profile picture (file, content uri). */
+    private var photoFile: Pair<java.io.File, Uri>? = null
+    /** Screen a tapped notification asked for (e.g. "messages"). */
+    private var pendingOpen: String? = null
     private var splashInfo by mutableStateOf(SplashInfo())
     private var lastInsets = 0f to 0f
     private var backPending = false
@@ -90,7 +99,16 @@ class MainActivity : ComponentActivity() {
                     adminBadge = o.optInt("adminBadge"),
                     dark = o.optBoolean("dark"),
                     gujarati = o.optString("lang") != "en",
+                    isMain = o.optBoolean("isMain"),
+                    unread = o.optInt("unread"),
                 )
+                // A tapped greeting notification opens the Message Centre once
+                // the person is signed in and the page is ready.
+                if (o.optBoolean("loggedIn") && pendingOpen != null && navUi.visible) {
+                    val target = pendingOpen!!
+                    pendingOpen = null
+                    webNav(target)
+                }
                 val prefs = getPreferences(MODE_PRIVATE).edit()
                     .putBoolean("shellDark", navUi.dark)
                     .putBoolean("shellGujarati", navUi.gujarati)
@@ -202,8 +220,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        intent.getStringExtra(Notifications.EXTRA_OPEN)?.let { target ->
+            if (navUi.visible) webNav(target) else pendingOpen = target
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        pendingOpen = intent?.getStringExtra(Notifications.EXTRA_OPEN)
         // The app must stay visible in the recent-apps list like any other
         // app. Screenshots and the recents preview are blocked ONLY while the
         // person's optional PIN lock is on (the page tells us through
@@ -238,12 +264,15 @@ class MainActivity : ComponentActivity() {
                 onContactAdmins = { showSplash = false; applySystemBars(); webNav("admins") },
                 onTab = { key -> webNav(key) },
                 onInsets = { bar, inset -> lastInsets = bar to inset; pushInsets() },
+                update = update,
+                onUpdate = { startUpdate() },
             )
         }
         // One Back handler for every Android version (predictive Back on 13+).
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
                 when {
+                    update != null -> finish()
                     showSplash && splashFromLogo -> { showSplash = false; splashFromLogo = false; applySystemBars() }
                     showSplash -> finish()
                     else -> navigateBack()
@@ -301,6 +330,30 @@ class MainActivity : ComponentActivity() {
             override fun onShowFileChooser(view: WebView, callback: ValueCallback<Array<Uri>>, params: FileChooserParams): Boolean {
                 upload?.onReceiveValue(null)
                 upload = callback
+                // Profile picture: one sheet with the camera and the gallery.
+                if (params.acceptTypes.any { it.startsWith("image/") }) {
+                    photoFile = null
+                    val gallery = Intent(Intent.ACTION_GET_CONTENT).apply {
+                        addCategory(Intent.CATEGORY_OPENABLE)
+                        type = "image/*"
+                    }
+                    val extras = mutableListOf<Intent>()
+                    try {
+                        val dir = java.io.File(cacheDir, "photos").apply { mkdirs() }
+                        val file = java.io.File(dir, "camera-" + System.currentTimeMillis() + ".jpg")
+                        val uri = androidx.core.content.FileProvider.getUriForFile(this@MainActivity, "$packageName.photos", file)
+                        extras += Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE).apply {
+                            putExtra(android.provider.MediaStore.EXTRA_OUTPUT, uri)
+                            addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        photoFile = file to uri
+                    } catch (_: Exception) { /* no camera: gallery only */ }
+                    val chooser = Intent.createChooser(gallery, getString(R.string.photo_choose_gu) + " · " + getString(R.string.photo_choose_en))
+                        .putExtra(Intent.EXTRA_INITIAL_INTENTS, extras.toTypedArray())
+                    try { startActivityForResult(chooser, 102) }
+                    catch (_: ActivityNotFoundException) { upload?.onReceiveValue(null); upload = null; message(R.string.no_file_picker_gu, R.string.no_file_picker_en) }
+                    return true
+                }
                 val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                     addCategory(Intent.CATEGORY_OPENABLE)
                     type = "application/json"
@@ -433,6 +486,13 @@ class MainActivity : ComponentActivity() {
             upload?.onReceiveValue(if (resultCode == RESULT_OK && data?.data != null) arrayOf(data.data!!) else null)
             upload = null
         }
+        if (requestCode == 102) {
+            val picked = data?.data
+            val camera = photoFile?.takeIf { it.first.exists() && it.first.length() > 0 }?.second
+            upload?.onReceiveValue(if (resultCode != RESULT_OK) null else if (picked != null) arrayOf(picked) else camera?.let { arrayOf(it) })
+            upload = null
+            photoFile = null
+        }
         if (requestCode == 101 && pendingSave != null) {
             val (name, bytes) = pendingSave!!
             pendingSave = null
@@ -453,6 +513,67 @@ class MainActivity : ComponentActivity() {
         web.onResume()
         // Deliver anything that arrived while the app was closed.
         pullSoon()
+        checkForUpdate()
+    }
+
+    // ---- Must-update ---------------------------------------------------
+    // Checked at every open and return to the app (at most once a minute).
+    private fun checkForUpdate(force: Boolean = false) {
+        if (!BuildConfig.UPDATE_CHECK) return
+        val u = update
+        // Came back from "Allow from this source": carry on with the install.
+        if (u != null && u.needsPermission && Updater.canInstall(this)) {
+            update = u.copy(needsPermission = false)
+            if (u.ready) installNow() else startUpdate()
+            return
+        }
+        val now = System.currentTimeMillis()
+        if (checking || (!force && now - lastUpdateCheck < 60_000)) return
+        lastUpdateCheck = now
+        checking = true
+        Thread {
+            val info = try { Updater.check(serverUrl, BuildConfig.VERSION_CODE) } catch (_: Exception) { null }
+            runOnUiThread {
+                checking = false
+                if (info != null && (updateInfo == null || info.build != updateInfo?.build)) {
+                    updateInfo = info
+                    update = org.mvpmi.directory.ui.UpdateUi(version = info.version, build = info.build)
+                }
+            }
+        }.start()
+    }
+
+    private fun startUpdate() {
+        val info = updateInfo ?: return
+        val u = update ?: return
+        if (u.ready) return installNow()
+        if (u.progress != null && !u.failed) return
+        update = u.copy(progress = -1f, failed = false)
+        Thread {
+            try {
+                var last = 0L
+                Updater.download(this, info) { p ->
+                    val t = System.currentTimeMillis()
+                    if (t - last > 150) { last = t; runOnUiThread { update = update?.copy(progress = p) } }
+                }
+                runOnUiThread { update = update?.copy(progress = 1f, ready = true); installNow() }
+            } catch (_: Exception) {
+                runOnUiThread { update = update?.copy(progress = null, failed = true) }
+            }
+        }.start()
+    }
+
+    private fun installNow() {
+        if (!Updater.canInstall(this)) {
+            update = update?.copy(needsPermission = true)
+            try { Updater.openInstallPermission(this) } catch (_: Exception) {}
+            return
+        }
+        try {
+            Updater.install(this, Updater.apkFile(this))
+        } catch (_: Exception) {
+            update = update?.copy(ready = false, progress = null, failed = true)
+        }
     }
     // Lets the page know it is in the background (starts the 30-second lock).
     override fun onPause() {

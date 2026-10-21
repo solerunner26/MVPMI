@@ -48,6 +48,9 @@ android {
         // modelled on github.com/android/testing-samples). See
         // docs/ANDROID_DEVICE_TESTS.md.
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // Must-update check against the community server (owner, 21 Oct 2026).
+        // -PupdateCheck=false turns it off (emulator tests).
+        buildConfigField("boolean", "UPDATE_CHECK", providers.gradleProperty("updateCheck").orElse("true").get())
     }
     signingConfigs {
         if (keystoreFile != null) {
@@ -81,6 +84,8 @@ dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2025.04.01")
     implementation(composeBom)
     implementation("androidx.activity:activity-compose:1.10.1")
+    // FileProvider for camera photos (profile pictures).
+    implementation("androidx.core:core:1.13.1")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")

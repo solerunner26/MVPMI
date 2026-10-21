@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Profile picture taken with the camera: a temporary file in the app cache. -->
+<paths>
+    <cache-path name="photos" path="photos/" />
+    <!-- Must-update: the downloaded new version, handed to the installer. -->
+    <cache-path name="updates" path="updates/" />
+</paths>

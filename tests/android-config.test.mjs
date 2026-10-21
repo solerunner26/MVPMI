@@ -15,6 +15,8 @@ test("Android static configuration: minimal permissions, HTTPS-only, no device/c
       "android.permission.RECEIVE_BOOT_COMPLETED",
       // Optional fingerprint unlock of the app lock (Section 5).
       "android.permission.USE_BIOMETRIC",
+      // Must-update: opens Android's own Install screen for a new version.
+      "android.permission.REQUEST_INSTALL_PACKAGES",
     ],
   );
   assert.ok(manifest.includes('android:allowBackup="false"'));

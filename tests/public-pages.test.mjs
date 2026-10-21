@@ -77,3 +77,26 @@ test("download page can send members to the GitHub release APK", async (t) => {
   assert.equal(r.status, 302);
   assert.equal(r.headers.get("location"), url0);
 });
+
+test("must-update: /api/app-version names the build this server can hand out", async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "mvpmi-ver-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const { url } = await start(t, { downloadDir: dir });
+  const get = async () => (await fetch(url + "/api/app-version", { headers: { "X-MVPMI-Client": "1" } })).json();
+  assert.deepEqual(await get(), { build: 0, version: "", url: "" }, "no APK: nothing to update to");
+  writeFileSync(join(dir, "mvpmi.apk"), Buffer.from("PK fake apk"));
+  writeFileSync(join(dir, "VERSION"), "v1.4.0\n");
+  writeFileSync(join(dir, "BUILD"), "230\n");
+  assert.deepEqual(await get(), { build: 230, version: "v1.4.0", url: "/download/MVPMI-v1.4.0-build230.apk" });
+  // Also without the app header (plain GET).
+  assert.equal((await fetch(url + "/api/app-version")).status, 200);
+});
+
+test("must-update: a test copy of the server can point its test app at another APK", async (t) => {
+  const { url } = await start(t, {
+    driveEnv: { APP_UPDATE_BUILD: "305", APP_UPDATE_VERSION: "test-305", APP_UPDATE_URL: "https://github.com/x/y/releases/download/test-build/app.apk" },
+  });
+  const r = await (await fetch(url + "/api/app-version")).json();
+  assert.equal(r.build, 305);
+  assert.match(r.url, /^https:\/\/github\.com\//);
+});

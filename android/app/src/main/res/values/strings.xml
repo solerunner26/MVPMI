@@ -45,4 +45,6 @@
     <string name="biometric_title_en">Unlock with fingerprint</string>
     <string name="biometric_cancel_gu">પિન વાપરો</string>
     <string name="biometric_cancel_en">Use PIN</string>
+    <string name="photo_choose_gu">ફોટો પસંદ કરો</string>
+    <string name="photo_choose_en">Choose a photo</string>
 </resources>

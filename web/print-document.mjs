@@ -132,3 +132,43 @@ export function reportDocument(
       : ""
   }${tables || "<p>—</p>"}</body></html>`;
 }
+
+// Village-wise members (owner, 21 Oct 2026): one block per village — the
+// letterhead, the village with its taluka and district, the count, then the
+// members with both numbers and current residence. With several villages
+// each starts on a new page.
+export function villageMembersDocument(groups, lang = "gu") {
+  lang = lang === "en" ? "en" : "gu";
+  const other = lang === "gu" ? "en" : "gu";
+  const escape = (value) =>
+    String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  const pair = (gu, en) => {
+    if (!gu || !en || gu === en) return escape(gu || en || "—");
+    const v = { gu, en };
+    return `<span lang="${lang}">${escape(v[lang])}</span><small lang="${other}">${escape(v[other])}</small>`;
+  };
+  const heads = [SERIAL, ["નામ", "Name"], ["પોતાનો નંબર", "Personal number"], ["બીજો નંબર", "Second number"], ["હાલ રહેઠાણ", "Current residence"]];
+  const block = ({ village, members }, i) => {
+    const rows = members
+      .map(
+        (m, n) =>
+          `<tr><td>${n + 1}</td><td>${pair(m.nameGu, m.name)}</td><td>${escape(m.phone)}</td><td>${escape(m.phone2 || "—")}</td><td>${pair(
+            m.currentLocationGu || m.currentLocation || "",
+            m.currentLocationEn || m.currentLocation || "",
+          )}</td></tr>`,
+      )
+      .join("");
+    return `<section class="village${i ? " next" : ""}">${letterhead(lang)}<h1 class="report-title">${pair(
+      "ગામ પ્રમાણે સભ્યો · " + village.gu,
+      "Village-wise members · " + village.en,
+    )}</h1><p class="report-summary">${pair(
+      `તાલુકો ${village.talukaGu} · જિલ્લો ${village.districtGu} · ${members.length} મંજૂર સભ્યો`,
+      `Taluka ${village.talukaEn} · District ${village.districtEn} · ${members.length} approved ${members.length === 1 ? "member" : "members"}`,
+    )}</p>${
+      members.length
+        ? `<table><thead><tr>${heads.map((h) => `<th>${pair(...h)}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table>`
+        : `<p>${pair("આ ગામના કોઈ મંજૂર સભ્ય નથી.", "No approved members from this village yet.")}</p>`
+    }</section>`;
+  };
+  return `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><title>ગામ પ્રમાણે સભ્યો · Village-wise members</title><link rel="stylesheet" href="/vendor/noto-sans-gujarati/400.css"><link rel="stylesheet" href="/vendor/manrope/400.css"><style>@page{size:A4;margin:14mm}body{font-family:'Noto Sans Gujarati',sans-serif;color:#241413}${LETTERHEAD_STYLE}small{display:block;font-size:.8em;line-height:1.6}span[lang=en],small[lang=en]{font-family:Manrope,sans-serif}table{width:100%;border-collapse:collapse;font-size:10pt}th,td{text-align:left;padding:8px;border-bottom:1px solid #bda18d;overflow-wrap:anywhere}th{background:#f7eee3}td:first-child,th:first-child{white-space:nowrap}section.next{break-before:page;page-break-before:always}p{color:#6b4f48}</style></head><body>${groups.map(block).join("")}</body></html>`;
+}

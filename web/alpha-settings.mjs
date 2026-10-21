@@ -90,7 +90,7 @@ export function ASettingsScreen(p) {
   );
 }
 
-export function AProfileScreen({ lang, account, member, onBack, onChangePassword, onSettings, onRequestChange, onRequestRemoval, onSignOut, pendingChange, pendingRemoval, offline, onToggleLock, onChangeLockPin, biometricAvailable, onToggleBiometric }) {
+export function AProfileScreen({ lang, account, member, onBack, onChangePassword, onSettings, onRequestChange, onRequestRemoval, onSignOut, onPhotoPick, onPhotoRemove, pendingChange, pendingRemoval, offline, onToggleLock, onChangeLockPin, biometricAvailable, onToggleBiometric }) {
   const main = account.role === "MAIN_ADMIN";
   const m = member || account;
   const other = lang === "en" ? "gu" : "en";
@@ -106,6 +106,7 @@ export function AProfileScreen({ lang, account, member, onBack, onChangePassword
       ah("span", { className: "alpha-md-text" }, label(key), ah("strong", null, value), sub ? ah("small", { className: "alpha-md-sub" }, sub) : null),
     );
   const vOther = villageName(m.village, other);
+  const photoOf = (member && member.photo) || account.photo;
   return ah(
     "main",
     { className: "alpha-screen", "data-testid": main ? "Main Admin profile" : "Profile screen" },
@@ -121,7 +122,20 @@ export function AProfileScreen({ lang, account, member, onBack, onChangePassword
         ah(
           "div",
           { className: "alpha-md-hero" },
-          ah("span", { className: "alpha-md-avatar", "aria-hidden": true }, ah("span", null, name.trim().charAt(0) || "?")),
+          ah(
+            "button",
+            { type: "button", className: "alpha-md-avatar alpha-photo-btn", onClick: onPhotoPick, "aria-label": t(photoOf ? "photo.change" : "photo.add", lang), "data-testid": "Profile photo" },
+            ah(AFace, { m: { id: m.id, photo: photoOf }, name, big: true }),
+            ah("span", { className: "alpha-photo-cam", "aria-hidden": true }, ah(AIcon, { name: "camera" })),
+          ),
+          ah(
+            "div",
+            { className: "alpha-photo-actions" },
+            ah("button", { type: "button", className: "alpha-photo-link", onClick: onPhotoPick, "data-testid": "Profile photo pick" }, ah(AIcon, { name: "camera" }), " " + t(photoOf ? "photo.change" : "photo.add", lang)),
+            photoOf
+              ? ah("button", { type: "button", className: "alpha-photo-link danger", onClick: onPhotoRemove, "data-testid": "Profile photo remove" }, ah(AIcon, { name: "trash" }), " " + t("photo.remove", lang))
+              : null,
+          ),
           ah("h3", { className: "alpha-md-name" }, name),
           second && second !== name ? ah("p", { className: "alpha-md-name2" }, second) : null,
           ah(
@@ -145,7 +159,7 @@ export function AProfileScreen({ lang, account, member, onBack, onChangePassword
             "place",
             "dir.nativeVillage",
             villageName(m.village, lang) + (vOther !== villageName(m.village, lang) ? " (" + vOther + ")" : ""),
-            t("dir.talukaDistrict", lang, { taluka: lang === "en" ? "Mahuva" : "મહુવા", district: lang === "en" ? "Bhavnagar" : "ભાવનગર" }),
+            t("dir.talukaDistrict", lang, { taluka: talukaFor(m, lang), district: districtFor(m, lang) }),
             "Profile village",
           ),
           item("map-pin", "home", "dir.currentResidence", placeFor(m, lang) || "—"),

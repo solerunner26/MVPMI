@@ -159,9 +159,9 @@ test("village queues are scoped, self verification is denied, arbitrary villages
   assert.equal((await f.client()("enrollment", { ...example, phone: vaPhone }, 409)).code, "STATUS_APPROVED");
 });
 
-test("the village list is fixed at seven villages and adding villages is removed", async (t) => {
+test("the village list is fixed (eight villages) and adding villages is removed", async (t) => {
   const f = await fixture(t);
-  assert.equal((await f.client()("state")).villages.length, 7);
+  assert.equal((await f.client()("state")).villages.length, 8);
   await f.ensureAdmin("Thorala");
   await f.va("થોરાળા")(
     "admin/villages",
@@ -169,7 +169,7 @@ test("the village list is fixed at seven villages and adding villages is removed
     404,
   );
   await f.admin("admin/villages", { gu: "નવું ગામ", en: "New Village" }, 404);
-  assert.equal((await f.client()("state")).villages.length, 7);
+  assert.equal((await f.client()("state")).villages.length, 8);
 });
 
 test("village admin proposals always require the main administrator's final decision", async (t) => {
@@ -460,7 +460,7 @@ test("the all-admins directory lists contactable administrators for everyone", a
   assert.equal(sathra.admin, null);
 });
 
-test("the ઝીંજકા → જીંજકા rename migrates existing databases and old backups", async (t) => {
+test("villages of 21 Oct 2026: ઝીંઝકા (Rajula, Amreli) and ભાદ્રોડ, from any older database or backup", async (t) => {
   const { mkdtempSync, rmSync } = await import("node:fs");
   const { join } = await import("node:path");
   const { tmpdir } = await import("node:os");
@@ -468,50 +468,54 @@ test("the ઝીંજકા → જીંજકા rename migrates existing dat
   const dir = mkdtempSync(join(tmpdir(), "rename-"));
   const path = join(dir, "community.sqlite");
   try {
-    // A database that still carries the old spelling everywhere.
+    // A database as the live server has it: seven villages, "જીંજકા".
     const old = new Store(path);
     old.tx(() => {
-      old.del("villages", "જીંજકા");
-      old.put("villages", { id: "ઝીંજકા", gu: "ઝીંજકા", en: "Zinzaka", order: 6 });
-      old.put("members", {
-        id: "m-rename",
-        name: "Hardik Makwana",
-        nameGu: "હાર્દિક મકવાણા",
-        phone: "9003000009",
-        village: "ઝીંજકા",
-      });
-      old.put("requests", {
-        id: "r-rename",
-        kind: "new",
-        payload: { name: "Applicant", phone: "9003000099", village: "ઝીંજકા" },
-      });
-      old.put("villageAdmins", { id: "ઝીંજકા", memberId: "m-rename" });
-      old.del("config", "village-rename-jinjaka-v1");
+      for (const v of old.all("villages")) old.del("villages", v.id);
+      [["થોરાળા", "Thorala"], ["સથરા", "Sathra"], ["તરેડી", "Taredi"], ["લીલવણ", "Lilvan"], ["દૂધાળા નં 1", "Dudhala No 1"], ["તલગાજરડા", "Talgajarada"], ["જીંજકા", "Jinjaka"]].forEach(([gu, en], order) =>
+        old.put("villages", { id: gu, gu, en, order }),
+      );
+      old.put("members", { id: "m-z", name: "Hardik Makwana", nameGu: "હાર્દિક મકવાણા", phone: "9003000009", village: "જીંજકા", tehsil: "મહુવા", district: "ભાવનગર" });
+      old.put("members", { id: "m-t", name: "Asha Vala", nameGu: "આશા વાળા", phone: "9003000010", village: "થોરાળા", tehsil: "મહુવા", district: "ભાવનગર" });
+      old.put("requests", { id: "r-z", kind: "new", payload: { name: "Applicant", phone: "9003000099", village: "ઝીંજકા", tehsil: "મહુવા", district: "ભાવનગર" } });
+      old.put("villageAdmins", { id: "જીંજકા", memberId: "m-z" });
+      old.del("config", "villages-v14");
     });
     old.db.close();
 
-    // Reopening runs the migration.
     const migrated = new Store(path);
-    assert.equal(migrated.get("villages", "ઝીંજકા"), null);
-    assert.deepEqual(migrated.get("villages", "જીંજકા").en, "Jinjaka");
-    assert.equal(migrated.get("members", "m-rename").village, "જીંજકા");
-    assert.equal(
-      migrated.get("requests", "r-rename").payload.village,
-      "જીંજકા",
-    );
-    assert.ok(migrated.get("villageAdmins", "જીંજકા"));
-    assert.equal(migrated.get("villageAdmins", "ઝીંજકા"), null);
+    const list = migrated.all("villages").sort((a, b) => a.order - b.order);
+    assert.equal(list.length, 8);
+    assert.equal(list[7].gu, "ભાદ્રોડ");
+    assert.equal(list[7].en, "Bhadrod");
+    assert.equal(list[7].tehsil, "મહુવા");
+    const z = migrated.get("villages", "ઝીંઝકા");
+    assert.equal(z.en, "Zinzaka");
+    assert.equal(z.tehsil, "રાજુલા");
+    assert.equal(z.district, "અમરેલી");
+    assert.equal(z.order, 6, "same place in the list");
+    assert.equal(migrated.get("villages", "જીંજકા"), null);
+    const m = migrated.get("members", "m-z");
+    assert.deepEqual([m.village, m.tehsil, m.district, m.phone, m.nameGu], ["ઝીંઝકા", "રાજુલા", "અમરેલી", "9003000009", "હાર્દિક મકવાણા"]);
+    const other = migrated.get("members", "m-t");
+    assert.deepEqual([other.village, other.tehsil, other.district], ["થોરાળા", "મહુવા", "ભાવનગર"], "other villages unchanged");
+    assert.equal(migrated.get("requests", "r-z").payload.village, "ઝીંઝકા");
+    assert.equal(migrated.get("requests", "r-z").payload.tehsil, "રાજુલા");
+    assert.ok(migrated.get("villageAdmins", "ઝીંઝકા"));
+    assert.equal(migrated.get("villageAdmins", "જીંજકા"), null);
     migrated.db.close();
+    // Running again changes nothing.
+    const again = new Store(path);
+    assert.equal(again.all("villages").length, 8);
+    again.db.close();
 
     // Old backups normalize too, and member names are never touched.
-    const backup = {
-      village: "ઝીંજકા",
-      nested: [{ en: "Zinzaka", note: "Zinzaka village" }],
-    };
+    const backup = { village: "જીંજકા", nested: [{ en: "Jinjaka", note: "Jinjaka village" }, { village: "ઝીંજકા" }] };
     applyVillageRenames(backup);
-    assert.equal(backup.village, "જીંજકા");
-    assert.equal(backup.nested[0].en, "Jinjaka");
-    assert.equal(backup.nested[0].note, "Zinzaka village");
+    assert.equal(backup.village, "ઝીંઝકા");
+    assert.equal(backup.nested[0].en, "Zinzaka");
+    assert.equal(backup.nested[0].note, "Jinjaka village");
+    assert.equal(backup.nested[1].village, "ઝીંઝકા");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

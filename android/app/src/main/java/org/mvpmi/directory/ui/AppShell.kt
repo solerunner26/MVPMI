@@ -50,6 +50,9 @@ data class NavUi(
     val adminBadge: Int = 0,
     val dark: Boolean = false,
     val gujarati: Boolean = true,
+    /** Main Admin: the centre tab is Greeting; everyone else gets Messages. */
+    val isMain: Boolean = false,
+    val unread: Int = 0,
 )
 
 /**
@@ -69,6 +72,8 @@ fun AppShell(
     onContactAdmins: () -> Unit,
     onTab: (String) -> Unit,
     onInsets: (barSpaceDp: Float, navInsetDp: Float) -> Unit,
+    update: UpdateUi? = null,
+    onUpdate: () -> Unit = {},
 ) {
     val colors = if (nav.dark) DarkShell else LightShell
     val hazeState = remember { HazeState() }
@@ -118,7 +123,7 @@ fun AppShell(
                 contentAlignment = Alignment.Center,
             ) {
                 AdvancedBottomNavigationBar(
-                    destinations = barDestinations(nav.gujarati, nav.isAdmin, nav.adminBadge, nav.dark),
+                    destinations = barDestinations(nav.gujarati, nav.isAdmin, nav.adminBadge, nav.dark, nav.isMain, nav.unread),
                     selectedKey = nav.active,
                     onSelect = { onTab(it.key) },
                     hazeState = hazeState,
@@ -133,5 +138,7 @@ fun AppShell(
         ) {
             SplashScreen(splash, if (nav.dark) DarkShell else LightShell, onEnter, onContactAdmins)
         }
+        // Must-update page: above everything, including the splash.
+        if (update != null) UpdateScreen(update, nav.gujarati, colors, onUpdate)
     }
 }

@@ -75,7 +75,7 @@ internal object Notifications {
                     val items = JSONObject(body).optJSONArray("items")
                     if (items != null) for (i in 0 until items.length()) {
                         val item = items.getJSONObject(i)
-                        show(context, item.optString("id"), item.optString("title"), item.optString("body"))
+                        show(context, item.optString("id"), item.optString("title"), item.optString("body"), item.optString("kind"))
                     }
                     true
                 }
@@ -90,7 +90,10 @@ internal object Notifications {
         }
     }
 
-    fun show(context: Context, id: String, title: String, text: String) {
+    /** Intent extra: which screen a tapped notification opens. */
+    const val EXTRA_OPEN = "mvpmi_open"
+
+    fun show(context: Context, id: String, title: String, text: String, kind: String = "") {
         if (title.isBlank()) return
         try {
             val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -99,8 +102,10 @@ internal object Notifications {
                     NotificationChannel(CHANNEL, context.getString(R.string.notification_channel_gu) + " · " + context.getString(R.string.notification_channel_en), NotificationManager.IMPORTANCE_DEFAULT),
                 )
             }
-            val open = Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            val intent = PendingIntent.getActivity(context, 0, open, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+            val open = Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            // A greeting opens the Message Centre.
+            if (kind == "greeting") open.putExtra(EXTRA_OPEN, "messages")
+            val intent = PendingIntent.getActivity(context, if (kind == "greeting") 1 else 0, open, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
             val builder = if (Build.VERSION.SDK_INT >= 26)
                 Notification.Builder(context, CHANNEL)
             else

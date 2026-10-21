@@ -22,7 +22,8 @@ function registrationErrors(f) {
   return e;
 }
 
-export function ARegisterScreen({ lang, onLang, villages, api, initial, editing, onBack, onSubmitted, onGoLogin }) {
+// direct: the Main Admin adds an approved member (owner, 21 Oct 2026).
+export function ARegisterScreen({ lang, onLang, villages, api, initial, editing, direct, onBack, onSubmitted, onGoLogin }) {
   const [form, setForm] = React.useState(() => ({ ...emptyRegistration(), ...(initial || {}) }));
   const [consent, setConsent] = React.useState(!!editing);
   const [showPhone2, setShowPhone2] = React.useState(!!initial?.phone2);
@@ -44,7 +45,7 @@ export function ARegisterScreen({ lang, onLang, villages, api, initial, editing,
     setBusy(true);
     setServerError(null);
     try {
-      const data = await api("enrollment", { ...form, phone2: showPhone2 ? form.phone2 : "", consent: true });
+      const data = await api(direct ? "admin/members/add" : "enrollment", { ...form, phone2: showPhone2 ? form.phone2 : "", consent: true });
       onSubmitted(data);
     } catch (err) {
       setServerError({ code: err.code || (err.network ? "NETWORK" : undefined), field: err.field, message: err.message, network: err.network });
@@ -66,12 +67,12 @@ export function ARegisterScreen({ lang, onLang, villages, api, initial, editing,
   const status = serverError?.code;
   return ah(
     "main",
-    { className: "alpha-screen", "data-testid": "Register screen" },
-    ah(ATopBar, { title: t(editing ? "pending.edit" : "reg.title", lang), onBack, backLabel: t("common.back", lang) }),
+    { className: "alpha-screen", "data-testid": direct ? "Add member screen" : "Register screen" },
+    ah(ATopBar, { title: t(direct ? "add.title" : editing ? "pending.edit" : "reg.title", lang), onBack, backLabel: t("common.back", lang) }),
     ah(
       "div",
       { className: "alpha-scroll" },
-      ah("p", { className: "alpha-intro" }, t("reg.intro", lang)),
+      ah("p", { className: "alpha-intro" }, t(direct ? "add.intro" : "reg.intro", lang)),
       ah(
         "form",
         {
@@ -125,8 +126,8 @@ export function ARegisterScreen({ lang, onLang, villages, api, initial, editing,
             ...(villages || []).map((v) =>
               ah(
                 "option",
-                { key: v.gu, value: v.gu, disabled: v.hasAdmin === false },
-                (lang === "en" ? v.en : v.gu) + (v.hasAdmin === false ? " · " + t("field.noAdminYet", lang) : ""),
+                { key: v.gu, value: v.gu, disabled: !direct && v.hasAdmin === false },
+                (lang === "en" ? v.en : v.gu) + (!direct && v.hasAdmin === false ? " · " + t("field.noAdminYet", lang) : ""),
               ),
             ),
           ),
@@ -148,7 +149,7 @@ export function ARegisterScreen({ lang, onLang, villages, api, initial, editing,
               setErrors((x) => ({ ...x, consent: undefined }));
             },
           }),
-          ah("span", null, t("reg.consent", lang)),
+          ah("span", null, t(direct ? "add.consent" : "reg.consent", lang)),
         ),
         errors.consent ? ah(ANotice, { kind: "error", testId: "Consent error" }, t("err.CONSENT", lang)) : null,
         serverError
@@ -156,7 +157,7 @@ export function ARegisterScreen({ lang, onLang, villages, api, initial, editing,
               "div",
               { className: "alpha-status-box", "data-testid": "Register status" },
               ah(ANotice, { kind: status === "STATUS_PENDING" ? "info" : "error" }, alphaError(serverError, lang)),
-              status === "STATUS_APPROVED"
+              status === "STATUS_APPROVED" && !direct
                 ? ah(
                     "div",
                     { className: "alpha-actions" },
@@ -168,7 +169,7 @@ export function ARegisterScreen({ lang, onLang, villages, api, initial, editing,
         ah(
           AButton,
           { kind: "primary", type: "submit", disabled: busy, "data-testid": "Register submit" },
-          busy ? t("common.wait", lang) : t(editing ? "reg.update" : "reg.submit", lang),
+          busy ? t("common.wait", lang) : t(direct ? "add.submit" : editing ? "reg.update" : "reg.submit", lang),
         ),
       ),
     ),

@@ -31,6 +31,7 @@ const WORDS = [
   ["Africa", "આફ્રિકા"], ["Kenya", "કેન્યા"], ["Nagar", "નગર"], ["Road", "રોડ"],
   ["Society", "સોસાયટી"], ["Station", "સ્ટેશન"], ["Village", "ગામ"], ["City", "શહેર"],
   ["Thorala", "થોરાળા"], ["Sathra", "સથરા"], ["Taredi", "તરેડી"], ["Lilvan", "લીલવણ"],
+  ["Zinzaka", "ઝીંઝકા"], ["Bhadrod", "ભાદ્રોડ"], ["Talgajarada", "તલગાજરડા"], ["Dudhala", "દૂધાળા"],
   // surnames
   ["Vala", "વાળા"], ["Chudasama", "ચુડાસમા"], ["Gohil", "ગોહિલ"], ["Jadeja", "જાડેજા"],
   ["Parmar", "પરમાર"], ["Zala", "ઝાલા"], ["Jhala", "ઝાલા"], ["Rathod", "રાઠોડ"], ["Solanki", "સોલંકી"],
@@ -280,4 +281,15 @@ export function placeFor(m, lang) {
   if (!m) return "";
   if (lang === "en") return m.currentLocationEn || toLatin(m.currentLocation || "");
   return m.currentLocationGu || toGujarati(m.currentLocation || "");
+}
+
+// Taluka and district of a member (stored in Gujarati per village; most
+// villages are Mahuva / Bhavnagar, ઝીંઝકા is Rajula / Amreli).
+export function talukaFor(m, lang) {
+  const gu = (m && m.tehsil) || "મહુવા";
+  return lang === "en" ? toLatin(gu) : gu;
+}
+export function districtFor(m, lang) {
+  const gu = (m && m.district) || "ભાવનગર";
+  return lang === "en" ? toLatin(gu) : gu;
 }

@@ -48,7 +48,7 @@ export function AOneLine({ text, className = "", testId, max = 20, min = 12, as 
 // natively in Jetpack Compose and hides this one). Five tabs, Search in the
 // middle: Profile · Admin tools (Settings for members) · Search · Theme ·
 // Language. Outline icon when inactive, filled icon in a pill when active.
-export function ABottomNav({ lang, active, isAdmin, adminBadge, dark, onProfile, onAdmin, onSettings, onSearch, onTheme, onLang }) {
+export function ABottomNav({ lang, active, isAdmin, isMain, unread = 0, adminBadge, dark, onProfile, onAdmin, onSettings, onCenter, onTheme, onLang }) {
   const item = (key, icon, label, onClick, opts = {}) =>
     ah(
       "button",
@@ -79,7 +79,11 @@ export function ABottomNav({ lang, active, isAdmin, adminBadge, dark, onProfile,
       isAdmin
         ? item("admin", "shield-check", t("bar.admin", lang), onAdmin, { testId: "Admin", aria: t("nav.adminTools", lang), badge: adminBadge })
         : item("settings", "gear-six", t("bar.settings", lang), onSettings, { testId: "Settings tab", aria: t("settings.title", lang) }),
-      item("search", "magnifying-glass", t("bar.search", lang), onSearch, { testId: "Search", center: true, aria: t("dir.search", lang) }),
+      // Centre (owner, 21 Oct 2026): Greeting for the Main Admin, Messages
+      // (with the unread count) for everyone else. Search stays at the top.
+      isMain
+        ? item("greeting", "confetti", t("bar.greet", lang), onCenter, { testId: "Greeting", center: true, aria: t("greet.title", lang) })
+        : item("messages", "envelope-simple", t("bar.messages", lang), onCenter, { testId: "Messages", center: true, aria: t("msg.title", lang), badge: unread }),
       item("theme", dark ? "sun" : "moon", t(dark ? "bar.light" : "bar.dark", lang), onTheme, { testId: "Theme toggle", aria: t(dark ? "dir.lightOn" : "dir.darkOn", lang) }),
       item("lang", "translate", t("bar.lang", lang), onLang, { testId: "Language toggle", aria: t("bar.langLabel", lang) }),
     ),
@@ -449,6 +453,43 @@ export function AVillageAdminCreatedDialog({ issued, lang, onClose }) {
     ),
   );
 }
+// ---- Member added directly by the Main Admin (owner, 21 Oct 2026) ---------
+export function memberAddedMessage(added, lang) {
+  return t("add.msg", lang, {
+    name: added.nameGu || added.name,
+    nameEn: added.name || added.nameGu,
+    phone: formatMobile(added.phone),
+    url: "samaj.kavigsv.com/download",
+  });
+}
+export function AMemberAddedDialog({ added, lang, onClose, onAnother }) {
+  const who = nameFor(added, lang);
+  return ah(
+    ASheet,
+    { title: t("add.doneTitle", lang), onClose, closeLabel: t("common.done", lang), testId: "Member added dialog" },
+    ah("p", { className: "alpha-sheet-body", "data-testid": "Member added text" }, t("add.doneBody", lang, { name: who, phone: formatMobile(added.phone) })),
+    ah(
+      "div",
+      { className: "alpha-actions" },
+      ah(
+        "a",
+        {
+          role: "button",
+          className: "lq-btn alpha-button alpha-whatsapp",
+          href: "https://wa.me/91" + added.phone + "?text=" + encodeURIComponent(memberAddedMessage(added, lang)),
+          target: "_blank",
+          rel: "noopener noreferrer",
+          "data-testid": "Member added WhatsApp",
+        },
+        ah(AIcon, { name: "whatsapp-logo" }),
+        " ",
+        t("vac.share", lang),
+      ),
+      ah(AButton, { onClick: onAnother, "data-testid": "Member added another" }, ah(AIcon, { name: "user-plus" }), " ", t("add.another", lang)),
+      ah(AButton, { onClick: onClose, "data-testid": "Member added done" }, t("common.done", lang)),
+    ),
+  );
+}
 export function AWhatsAppLink({ issued, lang, testId }) {
   return ah(
     "a",
@@ -580,4 +621,89 @@ export function AWebSplash({ lang, onEnter }) {
       ah("p", { className: "alpha-splash-foot" }, "જય ભવાની • જય માતાજી"),
     ),
   );
+}
+
+// Main Admin → Reports → Village-wise members: pick one village or all.
+export function AVillageReportDialog({ lang, villages, members, onClose, onPick, format = "pdf" }) {
+  const count = (gu) => members.filter((m) => m.village === gu).length;
+  const item = (key, label, sub, onClick) =>
+    ah(
+      "button",
+      { key, type: "button", className: "alpha-menu-item", onClick, "data-testid": "Village report " + key },
+      ah(AIcon, { name: key === "all" ? "files" : "map-pin-line" }),
+      ah("span", null, label, ah("small", null, sub)),
+      ah(AIcon, { name: format === "csv" ? "file-csv" : "file-pdf", className: "alpha-caret" }),
+    );
+  return ah(
+    ASheet,
+    { title: t("vr.title", lang), onClose, closeLabel: t("common.close", lang), testId: "Village report dialog" },
+    ah("p", { className: "alpha-hint" }, t("vr.hint", lang)),
+    ah(
+      "div",
+      { className: "alpha-card lq-glass alpha-menu" },
+      item("all", t("vr.all", lang), t(format === "csv" ? "vr.allCsv" : "vr.allSub", lang, { n: members.length }), () => onPick("")),
+      ...villages.map((v) => item(v.en, lang === "en" ? v.en : v.gu, t("vr.count", lang, { n: count(v.gu) }), () => onPick(v.gu))),
+    ),
+  );
+}
+
+// A member's face: their profile picture, or the first letter of their name
+// when they have none (owner, 21 Oct 2026). `photo` is the picture's version.
+export function photoUrl(m) {
+  return m && m.id && m.photo ? "/api/photos/" + encodeURIComponent(m.id) + "?v=" + m.photo : "";
+}
+export function AFace({ m, name, big }) {
+  const [broken, setBroken] = React.useState(false);
+  const url = photoUrl(m);
+  const letter = (name || "?").trim().charAt(0) || "?";
+  if (url && !broken)
+    return ah("img", {
+      className: "alpha-face" + (big ? " big" : ""),
+      src: url,
+      alt: "",
+      loading: "lazy",
+      decoding: "async",
+      onError: () => setBroken(true),
+    });
+  return big ? ah("span", null, letter) : letter;
+}
+// Picks a photo (camera or gallery), turns it into a small square JPEG on the
+// phone and returns it as a data URL (about 30-60 KB).
+export function pickPhoto() {
+  return new Promise((resolve, reject) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.style.display = "none";
+    document.body.appendChild(input);
+    input.onchange = () => {
+      const file = input.files && input.files[0];
+      input.remove();
+      if (!file) return resolve(null);
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const side = Math.min(img.naturalWidth, img.naturalHeight);
+          const size = Math.min(480, side);
+          const canvas = document.createElement("canvas");
+          canvas.width = canvas.height = size;
+          const c = canvas.getContext("2d");
+          c.fillStyle = "#fff";
+          c.fillRect(0, 0, size, size);
+          c.drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, size, size);
+          URL.revokeObjectURL(url);
+          resolve(canvas.toDataURL("image/jpeg", 0.82));
+        } catch (e) {
+          reject(e);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(Object.assign(new Error("This file is not a picture"), { code: "PHOTO_BAD" }));
+      };
+      img.src = url;
+    };
+    input.click();
+  });
 }

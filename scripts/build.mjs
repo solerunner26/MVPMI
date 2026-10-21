@@ -245,6 +245,7 @@ for (const file of [
   "alpha-register.mjs",
   "alpha-directory.mjs",
   "alpha-settings.mjs",
+  "alpha-messages.mjs",
   "alpha-admin.mjs",
 ])
   logic += "\n" + read("web/" + file, "utf8").replaceAll("export ", "");
@@ -272,7 +273,7 @@ ${read("web/alpha.css", "utf8")}</style></helmet>${template}</x-dc><script type=
     for (const [name] of text.matchAll(/ph-[a-z0-9-]+/g)) used.add(name);
   // Alpha screens name their icons without the "ph-" prefix
   // (AIcon { name: "funnel" }, AIconButton { icon: "funnel" }).
-  for (const file of ["alpha-ui", "alpha-auth", "alpha-register", "alpha-directory", "alpha-settings", "alpha-admin"])
+  for (const file of ["alpha-ui", "alpha-auth", "alpha-register", "alpha-directory", "alpha-settings", "alpha-messages", "alpha-admin"])
     for (const [, name] of read("web/" + file + ".mjs", "utf8").matchAll(/"([a-z][a-z0-9-]*)"/g))
       used.add("ph-" + name);
   const full = read("node_modules/@phosphor-icons/web/src/duotone/style.css", "utf8");

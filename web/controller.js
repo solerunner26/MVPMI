@@ -26,6 +26,28 @@ class Component extends DesignComponent {
       "Print sheet opened — choose Save as PDF.",
     );
   }
+  // Village-wise members PDF: one village, or every village on its own pages.
+  printVillageReport(villageGu) {
+    const lang = this.state.lang;
+    const list = (this.state.villages || VILLAGE_LIST).filter((v) => !villageGu || v.gu === villageGu);
+    const groups = list.map((v) => ({
+      village: {
+        gu: v.gu,
+        en: v.en,
+        talukaGu: talukaFor(v, "gu"),
+        talukaEn: talukaFor(v, "en"),
+        districtGu: districtFor(v, "gu"),
+        districtEn: districtFor(v, "en"),
+      },
+      members: (this.state.members || []).filter((m) => m.village === v.gu).sort(memberNameOrder(lang)),
+    }));
+    const one = list.length === 1 ? list[0] : null;
+    this.printReport(
+      one ? "ગામ પ્રમાણે સભ્યો · " + one.gu : "ગામ પ્રમાણે સભ્યો · બધાં ગામ",
+      one ? "Village-wise members · " + one.en : "Village-wise members · all villages",
+      villageMembersDocument(groups, lang),
+    );
+  }
   printPdf(members) {
     members = [...members].sort(memberNameOrder(this.state.lang));
     this.printReport(
@@ -40,10 +62,10 @@ class Component extends DesignComponent {
           villageEn:
             VILLAGE_LIST.find((v) => v.gu === m.village || v.en === m.village)
               ?.en || m.village,
-          tehsilGu: TEHSIL_GU,
-          tehsilEn: TEHSIL_EN,
-          districtGu: DISTRICT_GU,
-          districtEn: DISTRICT_EN,
+          tehsilGu: talukaFor(m, "gu"),
+          tehsilEn: talukaFor(m, "en"),
+          districtGu: districtFor(m, "gu"),
+          districtEn: districtFor(m, "en"),
         })),
         this.state.lang,
       ),
@@ -321,6 +343,12 @@ class Component extends DesignComponent {
       case "adminedit":
         this.leaveEdit();
         return true;
+      case "addmember":
+        this.setState({ screen: "admin", memberAdded: null });
+        return true;
+      case "messages":
+        this.set("screen", ["profile", "settings", "admin"].includes(s.messagesFrom) ? s.messagesFrom : "directory");
+        return true;
       case "admin":
         if (s.tab !== "home") {
           if (s.tab === "stats" && s.statsVillage) this.setState({ statsVillage: null });
@@ -352,10 +380,21 @@ class Component extends DesignComponent {
     const s = this.state;
     const role = s.account?.role;
     const isAdmin = !s.offline && (role === "MAIN_ADMIN" || role === "VILLAGE_ADMIN");
-    const overlay = !!(s.alphaDialog || s.webSplash || s.contact || s.confirm || s.workflowOpen || s.allAdminsOpen || s.createdAdmin || s.picker || s.dial);
-    const visible = !!(s.loaded && s.account && !s.locked && ["directory", "profile", "settings", "admin"].includes(s.screen) && !overlay);
-    const active = s.screen === "directory" ? "search" : s.screen;
-    return { visible, active, isAdmin, adminBadge: isAdmin ? this.pendingAdminCount() || 0 : 0, dark: s.theme === "dark", lang: s.lang };
+    const overlay = !!(s.alphaDialog || s.webSplash || s.contact || s.confirm || s.workflowOpen || s.allAdminsOpen || s.createdAdmin || s.memberAdded || s.picker || s.dial);
+    const visible = !!(s.loaded && s.account && !s.locked && ["directory", "profile", "settings", "admin", "messages"].includes(s.screen) && !overlay && !this._flashMessage());
+    const isMain = role === "MAIN_ADMIN";
+    const active = s.screen === "directory" ? "" : s.screen;
+    return {
+      visible,
+      active,
+      isAdmin,
+      isMain,
+      center: isMain ? "greeting" : "messages",
+      unread: isMain ? 0 : s.messagesUnread || 0,
+      adminBadge: isAdmin ? this.pendingAdminCount() || 0 : 0,
+      dark: s.theme === "dark",
+      lang: s.lang,
+    };
   }
   navGo(target) {
     const s = this.state;
@@ -374,6 +413,12 @@ class Component extends DesignComponent {
         break;
       case "profile":
         this.setState({ screen: "profile", profileFrom: "directory" });
+        break;
+      case "greeting":
+        if (s.account?.role === "MAIN_ADMIN") this.setState({ alphaDialog: { type: "greeting" } });
+        break;
+      case "messages":
+        this.setState({ screen: "messages", messagesFrom: s.screen === "messages" ? s.messagesFrom : s.screen });
         break;
       case "settings":
         this.setState({ screen: "settings", settingsFrom: "directory" });
@@ -599,7 +644,8 @@ class Component extends DesignComponent {
     if (a.mustSetPin) return screen === "setpin";
     if (data.locked) return screen === "lock";
     if (screen === "admin" || screen === "adminedit") return data.role === "admin";
-    return ["directory", "settings", "profile", "edit"].includes(screen);
+    if (screen === "addmember") return data.role === "admin" && a.role === "MAIN_ADMIN";
+    return ["directory", "settings", "profile", "edit", "messages"].includes(screen);
   }
   apply(data, initial = false, screen) {
     if (!this._alive) return;
@@ -607,12 +653,12 @@ class Component extends DesignComponent {
       VILLAGE_LIST.splice(
         0,
         VILLAGE_LIST.length,
-        ...data.villages.map((v) => ({ gu: v.gu, en: v.en })),
+        ...data.villages.map((v) => ({ gu: v.gu, en: v.en, tehsil: v.tehsil, district: v.district })),
       );
       VILLAGES.splice(
         0,
         VILLAGES.length,
-        ...data.villages.map((v) => [v.en, v.gu, TEHSIL_EN, TEHSIL_GU]),
+        ...data.villages.map((v) => [v.en, v.gu, talukaFor(v, "en"), talukaFor(v, "gu")]),
       );
     }
     const current = this.state;
@@ -877,6 +923,42 @@ class Component extends DesignComponent {
   flashKey(key, vars) {
     this.flash(t(key, "gu", vars), t(key, "en", vars));
   }
+  // A red "are you sure?" dialog above everything (also above the member page).
+  askDanger(titleKey, bodyKey, yesKey, onYes) {
+    const lang = this.state.lang;
+    this.setState({ alphaDialog: { type: "confirm", title: t(titleKey, lang), body: t(bodyKey, lang), yes: t(yesKey, lang), danger: true, onYes } });
+  }
+  // Profile picture: camera or gallery, made small on the phone, then saved.
+  changePhoto() {
+    pickPhoto()
+      .then((data) => {
+        if (!data) return;
+        this.flashKey("photo.saving");
+        return this.run(async () => {
+          this.apply(await this.api("profile/photo", { data }));
+          this.flashKey("photo.saved");
+        });
+      })
+      .catch((e) => this.setState({ topError: e }));
+  }
+  // Greetings: the newest message not yet closed or read is the flash card.
+  _flashMessage() {
+    const s = this.state;
+    if (!s.account || s.locked || s.screen === "messages" || ["login", "pending", "lock", "setpw"].includes(s.screen)) return null;
+    return (s.messages || []).find((m) => !m.closed && !m.read) || null;
+  }
+  messageAction(id, action) {
+    // Optimistic: the card closes at once; the server confirms in the background.
+    this.setState((st) => ({
+      messages: (st.messages || [])
+        .filter((m) => !(action === "delete" && m.id === id))
+        .map((m) => (m.id !== id ? m : { ...m, closed: true, read: m.read || action === "read" })),
+      messagesUnread: (st.messages || []).filter((m) => m.id !== id && !m.read).length + (action === "close" && (st.messages || []).some((m) => m.id === id && !m.read) ? 1 : 0),
+    }));
+    this.api("messages/" + encodeURIComponent(id) + "/" + action, {})
+      .then((data) => this.apply(data))
+      .catch(() => {});
+  }
   confirmAction(
     gu,
     en,
@@ -898,7 +980,11 @@ class Component extends DesignComponent {
         bodyEn: body,
         yesGu,
         yesEn,
-        onYes,
+        // The dialog closes first (a follow-up dialog opened by onYes stays).
+        onYes: () => {
+          this.setState({ confirm: null });
+          onYes();
+        },
       },
     });
   }
@@ -1277,6 +1363,15 @@ class Component extends DesignComponent {
           onAdmins: goAdmins,
           onSignOut: () => this.signOutOfPhone(),
         });
+      case "messages":
+        return h(AMessageCentre, {
+          key: "messages",
+          lang,
+          messages: s.messages || [],
+          onBack: () => this.handleBack(),
+          onRead: (id) => this.messageAction(id, "read"),
+          onDelete: (id) => this.askDanger("msg.deleteQ", "msg.deleteBody", "msg.delete", () => this.messageAction(id, "delete")),
+        });
       case "profile":
         return h(AProfileScreen, {
           key: "profile",
@@ -1296,6 +1391,30 @@ class Component extends DesignComponent {
           onRequestChange: () => this.openEditRequest(),
           onRequestRemoval: () => this.askRemovalRequest(),
           onSignOut: () => this.signOutOfPhone(),
+          onPhotoPick: () => this.changePhoto(),
+          onPhotoRemove: () =>
+            this.askDanger("photo.removeQ", "photo.removeBody", "photo.remove", () =>
+              this.run(async () => {
+                this.apply(await this.api("profile/photo/delete", {}));
+                this.flashKey("photo.removed");
+              }),
+            ),
+        });
+      case "addmember":
+        return h(ARegisterScreen, {
+          key: "addmember" + (s.addMemberKey || 0),
+          lang,
+          onLang,
+          api,
+          direct: true,
+          villages: s.villages || VILLAGE_LIST,
+          onBack: () => this.handleBack(),
+          onSubmitted: (data) => {
+            const { added, ...rest } = data;
+            this.apply(rest, false, "addmember");
+            this.setState({ memberAdded: added });
+          },
+          onGoLogin: () => {},
         });
       case "edit":
       case "adminedit": {
@@ -1373,6 +1492,19 @@ class Component extends DesignComponent {
           meId: s.account?.id,
           onClose: () => this.setState({ contact: null }),
           onShowVillage: (village) => this.setState({ contact: null, screen: "directory", dirVillage: village, query: "" }),
+          // Main Admin: any photo; Village Admin: photos of their village.
+          canRemovePhoto:
+            s.account?.role === "MAIN_ADMIN" ||
+            (s.account?.role === "VILLAGE_ADMIN" && s.account?.village === s.contact.village && s.contact.id !== s.account?.id),
+          onRemovePhoto: (m) =>
+            this.askDanger("photo.removeQ", "photo.removeBody", "photo.remove", () =>
+              this.run(async () => {
+                const data = await this.api("members/" + encodeURIComponent(m.id) + "/photo/delete", {});
+                this.apply(data);
+                this.setState({ contact: (data.members || []).find((x) => x.id === m.id) || null });
+                this.flashKey("photo.removed");
+              }),
+            ),
         }),
       );
     if (d?.type === "changePassword")
@@ -1402,6 +1534,45 @@ class Component extends DesignComponent {
             rememberOfflineUnlock(s.account?.id, pin);
             this.flashKey("lock.setDone");
             this.refresh();
+          },
+        }),
+      );
+    if (d?.type === "greeting")
+      nodes.push(
+        h(AGreetingComposer, {
+          key: "greeting",
+          lang,
+          members: (s.members || []).filter((m) => m.id !== s.account?.id).sort(memberNameOrder(lang)),
+          sent: s.greetingsSent || [],
+          busy: !!s.busy,
+          onClose: close,
+          onSend: (body) =>
+            this.run(async () => {
+              const data = await this.api("admin/greetings", body);
+              close();
+              this.apply(data);
+              this.flashKey("greet.done", { n: data.sent?.count ?? 0 });
+            }),
+        }),
+      );
+    if (d?.type === "villageReport")
+      nodes.push(
+        h(AVillageReportDialog, {
+          key: "villageReport",
+          lang,
+          villages: s.villages || VILLAGE_LIST,
+          members: s.members || [],
+          onClose: close,
+          format: d.format,
+          onPick: (gu) => {
+            close();
+            if (d.format === "csv") {
+              const v = (s.villages || VILLAGE_LIST).find((x) => x.gu === gu);
+              this.file(
+                "export.csv?type=members&lang=" + s.lang + (gu ? "&village=" + encodeURIComponent(gu) : ""),
+                "mvpmi-members-" + (v ? v.en.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "all-villages") + ".csv",
+              );
+            } else this.printVillageReport(gu);
           },
         }),
       );
@@ -1449,8 +1620,33 @@ class Component extends DesignComponent {
           onNo: close,
         }),
       );
+    if (s.memberAdded)
+      nodes.push(
+        h(AMemberAddedDialog, {
+          key: "member-added",
+          added: s.memberAdded,
+          lang,
+          onClose: () => this.setState({ memberAdded: null, screen: "admin" }),
+          onAnother: () => this.setState({ memberAdded: null, addMemberKey: (s.addMemberKey || 0) + 1 }),
+        }),
+      );
     if (s.createdAdmin)
       nodes.push(h(AVillageAdminCreatedDialog, { key: "created", issued: s.createdAdmin, lang, onClose: () => this.setState({ createdAdmin: null }) }));
+    const flashMsg = !s.alphaDialog && !s.contact && !s.confirm ? this._flashMessage() : null;
+    if (flashMsg)
+      nodes.push(
+        h(AFlashMessage, {
+          key: "flash-" + flashMsg.id,
+          lang,
+          message: flashMsg,
+          more: (s.messages || []).filter((m) => !m.closed && !m.read && m.id !== flashMsg.id).length,
+          onClose: () => this.messageAction(flashMsg.id, "close"),
+          onOpen: () => {
+            this.messageAction(flashMsg.id, "close");
+            this.navGo("messages");
+          },
+        }),
+      );
     const bar = this._barState();
     if (bar.visible && !(androidBridge() && typeof androidBridge().navState === "function"))
       nodes.push(
@@ -1464,7 +1660,9 @@ class Component extends DesignComponent {
           onProfile: () => this.navGo("profile"),
           onAdmin: () => this.navGo("admin"),
           onSettings: () => this.navGo("settings"),
-          onSearch: () => this.navGo("search"),
+          onCenter: () => this.navGo(bar.center),
+          isMain: bar.isMain,
+          unread: bar.unread,
           onTheme: () => this.navGo("theme"),
           onLang: () => this.navGo("lang"),
         }),
@@ -1585,6 +1783,17 @@ class Component extends DesignComponent {
         hint: this.P("ગામ પસંદ કરો · બનાવો · બંધ કરો", "choose a village · create · disable"),
         onClick: () => v.openWorkflow("villages"),
       },
+      ...(s.account?.role === "MAIN_ADMIN"
+        ? [
+            {
+              gu: STR["add.tile"][0],
+              en: STR["add.tile"][1],
+              count: 0,
+              hint: this.P(STR["add.tileHint"][0], STR["add.tileHint"][1]),
+              onClick: () => this.setState({ screen: "addmember", memberAdded: null, addMemberKey: (s.addMemberKey || 0) + 1 }),
+            },
+          ]
+        : []),
       {
         gu: STR["profile.title"][0],
         en: STR["profile.title"][1],
@@ -2045,6 +2254,17 @@ class Component extends DesignComponent {
             "export.csv?type=members&lang=" + s.lang,
             "mvpmi-members.csv",
           ),
+      },
+      {
+        gu: "ગામ પ્રમાણે સભ્યો",
+        en: "Village-wise members",
+        descGu: "ગામ પસંદ કરો: તે ગામના બધા મંજૂર સભ્યોની PDF.",
+        descEn: "Choose a village: a PDF of all its approved members.",
+        icon: "ph-duotone ph-map-pin-line",
+        bg: "rgba(233,161,59,.18)",
+        fg: "var(--ind)",
+        onPdf: () => this.setState({ alphaDialog: { type: "villageReport", format: "pdf" } }),
+        onCsv: () => this.setState({ alphaDialog: { type: "villageReport", format: "csv" } }),
       },
       {
         gu: "ગામ પ્રમાણે સારાંશ",

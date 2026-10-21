@@ -9,18 +9,24 @@ import {
 } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+// Each village has its own taluka and district (Gujarati; English comes
+// from translit). Owner, 21 Oct 2026: ભાદ્રોડ added; ઝીંઝકા is in Rajula
+// taluka, Amreli district.
+const MAHUVA = { tehsil: "મહુવા", district: "ભાવનગર" };
 export const villages = [
-  { en: "Thorala", gu: "થોરાળા" },
-  { en: "Sathra", gu: "સથરા" },
-  { en: "Taredi", gu: "તરેડી" },
-  { en: "Lilvan", gu: "લીલવણ" },
-  { en: "Dudhala No 1", gu: "દૂધાળા નં 1" },
-  { en: "Talgajarada", gu: "તલગાજરડા" },
-  { en: "Jinjaka", gu: "જીંજકા" },
+  { en: "Thorala", gu: "થોરાળા", ...MAHUVA },
+  { en: "Sathra", gu: "સથરા", ...MAHUVA },
+  { en: "Taredi", gu: "તરેડી", ...MAHUVA },
+  { en: "Lilvan", gu: "લીલવણ", ...MAHUVA },
+  { en: "Dudhala No 1", gu: "દૂધાળા નં 1", ...MAHUVA },
+  { en: "Talgajarada", gu: "તલગાજરડા", ...MAHUVA },
+  { en: "Zinzaka", gu: "ઝીંઝકા", tehsil: "રાજુલા", district: "અમરેલી" },
+  { en: "Bhadrod", gu: "ભાદ્રોડ", ...MAHUVA },
 ];
-// The village "ઝીંજકા" was renamed to "જીંજકા" (September 2026). Exact-string
-// aliases keep existing databases, old backups and audit trails consistent.
-export const VILLAGE_RENAMES = { "ઝીંજકા": "જીંજકા", Zinzaka: "Jinjaka" };
+// Earlier spellings of ઝીંઝકા ("ઝીંજકા" until Sept 2026, then "જીંજકા").
+// Exact-string aliases keep existing databases, old backups and audit
+// trails consistent.
+export const VILLAGE_RENAMES = { "ઝીંજકા": "ઝીંઝકા", "જીંજકા": "ઝીંઝકા", Jinjaka: "Zinzaka" };
 export const renameVillageText = (v) =>
   typeof v === "string" ? VILLAGE_RENAMES[v] || v : v;
 export function applyVillageRenames(value) {
@@ -166,8 +172,8 @@ export function profile(p, registry = villages) {
     phone2,
     label2: p.label2 || "work",
     village: village.gu,
-    tehsil: "મહુવા",
-    district: "ભાવનગર",
+    tehsil: village.tehsil || villages.find((v) => v.gu === village.gu)?.tehsil || "મહુવા",
+    district: village.district || villages.find((v) => v.gu === village.gu)?.district || "ભાવનગર",
   };
 }
 export const profileKeys = [
@@ -230,6 +236,11 @@ const tables = new Set([
   "pushSubs",
   // "Forgot PIN?" requests waiting for a Village Admin (Section 4).
   "pinResets",
+  // Main Admin greetings and each member's Message Centre (Oct 2026).
+  "greetings",
+  "inbox",
+  // Profile pictures: one small JPEG per member (Oct 2026).
+  "photos",
 ]);
 const table = (t) => {
   if (!tables.has(t)) throw new Error("Unknown database table");
@@ -246,6 +257,7 @@ export class Store {
       );
     this.initializeVillages();
     this.initializeVillageRenames();
+    this.initializeVillagesV14();
     this.initializeNameParts();
     this.initializeBothScripts();
   }
@@ -278,6 +290,51 @@ export class Store {
         const c2 = fill(r.old);
         if (c1 || c2) this.put("requests", r);
       }
+    });
+  }
+  // Village list of 21 Oct 2026 (idempotent, runs once): ભાદ્રોડ added, the
+  // old spellings become ઝીંઝકા everywhere, and every village row and every
+  // member, request and archive copy of that village gets its taluka and
+  // district. Nothing is deleted; only these fields change.
+  initializeVillagesV14() {
+    if (this.get("config", "villages-v14")) return;
+    this.tx(() => {
+      // 1. New spelling everywhere (exact strings only, as before).
+      for (const table of ["villages", "villageAdmins", "members", "requests", "archive", "rejections"]) {
+        for (const row of this.all(table)) {
+          const next = applyVillageRenames(structuredClone(row));
+          if (JSON.stringify(next) === JSON.stringify(row)) continue;
+          if (next.id !== row.id) this.del(table, row.id);
+          this.put(table, next);
+        }
+      }
+      // Notifications addressed to the old village's admin.
+      for (const n of this.all("notifications"))
+        if (typeof n.to === "string" && n.to.startsWith("village:")) {
+          const v = renameVillageText(n.to.slice(8));
+          if ("village:" + v !== n.to) this.put("notifications", { ...n, to: "village:" + v });
+        }
+      // 2. Every village row: taluka/district; add any new village.
+      const rows = this.all("villages");
+      let order = rows.reduce((m, r) => Math.max(m, Number.isFinite(r.order) ? r.order : -1), -1);
+      for (const v of villages) {
+        const row = rows.find((r) => r.gu === v.gu);
+        if (row) this.put("villages", { ...row, en: v.en, tehsil: v.tehsil, district: v.district });
+        else if (this.get("config", "village-workflow-v1")) this.put("villages", { ...v, id: v.gu, order: ++order });
+      }
+      // 3. People of each village carry its taluka/district.
+      const place = new Map(villages.map((v) => [v.gu, v]));
+      const fix = (p) => {
+        const v = p && place.get(p.village);
+        if (!v || (p.tehsil === v.tehsil && p.district === v.district)) return false;
+        p.tehsil = v.tehsil;
+        p.district = v.district;
+        return true;
+      };
+      for (const m of this.all("members")) if (fix(m)) this.put("members", m);
+      for (const a of this.all("archive")) if (fix(a) | fix(a.snapshot)) this.put("archive", a);
+      for (const r of this.all("requests")) if (fix(r.payload) | fix(r.old)) this.put("requests", r);
+      this.put("config", { id: "villages-v14", at: Date.now() });
     });
   }
   // Rename "ઝીંજકા" → "જીંજકા" everywhere (idempotent). Exact-string values
@@ -546,8 +603,28 @@ export class Store {
     };
   }
   validateBackup(b) {
-    // Backups exported before the ઝીંજકા → જીંજકા rename keep working.
+    // Backups exported before the village renames keep working.
     applyVillageRenames(b);
+    // Backups made before 21 Oct 2026: add new villages and the per-village
+    // taluka/district (as the start-up migration does for the database).
+    if (isRecord(b) && Array.isArray(b.villages) && b.schemaVersion === 2) {
+      let order = b.villages.reduce((m, r) => Math.max(m, Number.isInteger(r?.order) ? r.order : -1), -1);
+      for (const v of villages) {
+        const row = b.villages.find((r) => r && r.gu === v.gu);
+        if (row) Object.assign(row, { tehsil: v.tehsil, district: v.district });
+        else b.villages.push({ id: v.gu, gu: v.gu, en: v.en, order: ++order, tehsil: v.tehsil, district: v.district });
+      }
+    }
+    const placeOf = new Map(villages.map((v) => [v.gu, v]));
+    const withPlace = (r) => {
+      const v = r && isRecord(r) && placeOf.get(r.village);
+      if (v && r.tehsil !== undefined) Object.assign(r, { tehsil: v.tehsil, district: v.district });
+    };
+    if (isRecord(b)) {
+      for (const m of Array.isArray(b.members) ? b.members : []) withPlace(m);
+      for (const a of Array.isArray(b.archive) ? b.archive : []) (withPlace(a), withPlace(a?.snapshot));
+      for (const r of Array.isArray(b.requests) ? b.requests : []) (withPlace(r?.payload), withPlace(r?.old));
+    }
     // Older backups predate the three-part names; derive the parts on import.
     const withNameParts = (record) => {
       if (record && isRecord(record) && !record.firstName && record.name) {
@@ -602,7 +679,7 @@ export class Store {
       text(v.gu, 2, 80, "village");
       text(v.en, 2, 80, "village");
       if (b.schemaVersion === 2) {
-        keys(v, ["id", "gu", "en", "order"]);
+        keys(v, ["id", "gu", "en", "order", "tehsil", "district"]);
         if (v.id !== v.gu || !Number.isInteger(v.order))
           fail("Invalid village record");
       }

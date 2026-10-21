@@ -1,3 +1,4 @@
+import { toLatin } from "../web/translit.mjs";
 import {
   installVillageApproval,
   activeAssignment,
@@ -28,6 +29,9 @@ import {
 import { ROLES } from "./terms.mjs";
 import { installDriveBackup } from "./drive-backup-routes.mjs";
 import { installPublicPages } from "./public-pages.mjs";
+import { installGreetings, greetingState } from "./greetings.mjs";
+import { installPhotos, photoVersions } from "./photos.mjs";
+import { installDirectAdd } from "./direct-add.mjs";
 import express from "express";
 import ExcelJS from "exceljs";
 import { randomUUID } from "node:crypto";
@@ -241,6 +245,7 @@ export function createApp({
       phone: me.phone,
       village: me.village,
       currentLocation: me.currentLocation || "",
+      photo: store.get("photos", me.id)?.at,
       notice,
       ...lockFor(req),
     };
@@ -279,15 +284,19 @@ export function createApp({
                   .map((v) => activeAssignment(store, v.gu)?.memberId)
                   .filter(Boolean),
               );
-              // adminRole lets the app show admin names in red.
+              // adminRole lets the app show admin names in red; photo is the
+              // version of the member's profile picture (none: no photo).
+              const photos = photoVersions(store);
               return store.all("members").map((m) => ({
                 ...publicProfile(m),
+                photo: photos.get(m.id),
                 adminRole: m.id === mainId ? "MAIN_ADMIN" : vaIds.has(m.id) ? "VILLAGE_ADMIN" : undefined,
               }));
             })()
           : [],
       ...lock,
       latestNotificationAt: notifier.latestAt(req.session),
+      ...greetingState(store, req),
       newRequests: req.isAdmin
         ? visible
             .filter((r) => r.kind === "new")
@@ -346,6 +355,9 @@ export function createApp({
     return {
       ...data,
       members: [],
+      messages: [],
+      messagesUnread: 0,
+      greetingsSent: [],
       reviewQueue: [],
       villageProposals: [],
       villageAssignments: [],
@@ -364,6 +376,9 @@ export function createApp({
   installAppLock(app, store, { required: requireAppLock });
   installAuth(app, store, { rate, state: lockedState, alert, knownClient, clientKey });
   installNotificationRoutes(app, store, notifier, { rate });
+  installDirectAdd(app, store, { admin, rate, state: (req) => lockedState(req), notify });
+  installGreetings(app, store, { notifier, rate, state: (req) => lockedState(req), mainAdminId });
+  installPhotos(app, store, { rate, state: (req) => lockedState(req), locked: (req) => !!lockFor(req).locked });
   installVillageApproval(app, store, {
     admin,
     state: lockedState,
@@ -904,8 +919,8 @@ export function createApp({
             ? pair("બીજો", "Other")
             : m.label2,
         place(m.village),
-        pair("મહુવા", "Mahuva"),
-        pair("ભાવનગર", "Bhavnagar"),
+        pair(m.tehsil || "મહુવા", toLatin(m.tehsil || "મહુવા")),
+        pair(m.district || "ભાવનગર", toLatin(m.district || "ભાવનગર")),
       ]);
     sheet.getRow(1).font = { bold: true };
     sheet.getRow(1).alignment = { vertical: "middle", wrapText: true };
@@ -940,7 +955,9 @@ export function createApp({
     // rows that the emitter prefixes with a running serial number.
     const head = (cells) => rows.push({ h: cells });
     const section = (gu, en) => rows.push({ s: [L(gu, en)] });
-    const members = store.all("members");
+    // ?village=<gu> limits the member list to one village (village-wise report).
+    const onlyVillage = typeof req.query.village === "string" && req.query.village ? req.query.village : "";
+    const members = store.all("members").filter((m) => !onlyVillage || m.village === onlyVillage);
     const requests = store.all("requests");
     const archive = store.all("archive");
     const rejections = store.all("rejections");
@@ -970,8 +987,8 @@ export function createApp({
           m.phone2,
           m.label2,
           villageLabel(m.village),
-          L("મહુવા", "Mahuva"),
-          L("ભાવનગર", "Bhavnagar"),
+          L(m.tehsil || "મહુવા", toLatin(m.tehsil || "મહુવા")),
+          L(m.district || "ભાવનગર", toLatin(m.district || "ભાવનગર")),
           m.currentLocation || "",
         ]);
     } else if (type === "villages") {
@@ -1142,8 +1159,9 @@ export function createApp({
     });
     res.send("\uFEFF" + lines.map((r) => r.map(csvCell).join(",")).join("\r\n"));
   });
-  app.use("/api", (req, res) => res.status(404).json({ error: "Not found" }));
+  // Public pages first: they include /api/app-version (no login needed).
   installPublicPages(app, store, { env: driveEnv, ...(options.downloadDir ? { downloadDir: options.downloadDir } : {}) });
+  app.use("/api", (req, res) => res.status(404).json({ error: "Not found" }));
   // The service worker must be able to control the whole site.
   app.get("/sw.js", (req, res, next) => {
     res.set("Service-Worker-Allowed", "/");

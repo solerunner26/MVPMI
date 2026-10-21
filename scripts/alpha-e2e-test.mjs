@@ -374,7 +374,7 @@ await flow("s3", async (env) => {
     await main.page.getByRole("button", { name: /Manage Village Admins/ }).click();
     await main.page.getByTestId("VA village select").waitFor();
     assert.equal(await main.page.locator('[data-testid^="Village admin "]').count(), 0);
-    assert.equal(await main.page.getByTestId("VA village select").locator("option").count(), 8, "'Choose' + 7 villages");
+    assert.equal(await main.page.getByTestId("VA village select").locator("option").count(), 9, "'Choose' + 8 villages");
     await shot(main.page, "s3-manage-dropdown");
   });
   await row(S, "Manage Village Admins", "Choose Thorala → Create Village Admin", "hand-over dialog: no PIN, Call and WhatsApp").run(async () => {
@@ -885,19 +885,20 @@ await flow("s8", async (env) => {
     assert.equal(await page.getByTestId("Village filter").count(), 0, "filter icon removed");
     await shot(page, "s8-directory-header");
   });
-  await row(S, "Directory", "(bottom bar)", "My Profile, Settings, Search (centre), Dark theme, Language; fixed at the bottom").run(async () => {
+  await row(S, "Directory", "(bottom bar)", "My Profile, Settings, Messages (centre), Dark theme, Language; fixed at the bottom").run(async () => {
     const ids = await page.locator('[data-testid="Bottom bar"] button').evaluateAll((els) => els.map((e) => e.getAttribute("data-testid")));
-    assert.deepEqual(ids, ["Profile and settings", "Settings tab", "Search", "Theme toggle", "Language toggle"]);
+    // v1.4 (owner, 21 Oct 2026): the centre Search duplicated the search box;
+    // members get the Message Centre there, the Main Admin gets Greeting.
+    assert.deepEqual(ids, ["Profile and settings", "Settings tab", "Messages", "Theme toggle", "Language toggle"]);
     const bar = await page.getByTestId("Bottom bar").boundingBox();
     const vh = page.viewportSize().height;
     assert.ok(bar.y + bar.height <= vh + 1 && bar.y + bar.height > vh - 40, "at the bottom");
-    assert.ok(await page.locator('[data-testid="Search"].is-active').count(), "Search active on the directory");
   });
   await row(S, "Directory", "(line 3 chips)", "'All' first, then the villages").run(async () => {
     const chips = await page.locator('[data-testid="Village chips"] button').evaluateAll((els) => els.map((e) => e.textContent.trim()));
     assert.equal(chips[0], "All");
     assert.deepEqual(chips.slice(1), ["Thorala", "Sathra", ...chips.slice(3)].slice(0, chips.length - 1).map((x, i) => chips[i + 1]));
-    assert.equal(chips.length, 8);
+    assert.equal(chips.length, 9, "All + 8 villages (Bhadrod added)");
   });
   await row(S, "Directory", "(layout on a 6-inch phone, 360×728)", "at least 7 contacts fully visible").run(async () => {
     const visible = await page.evaluate(() => {
@@ -964,10 +965,12 @@ await flow("s8", async (env) => {
     assert.notEqual(await page.evaluate(() => document.activeElement?.dataset?.testid || ""), "Search input");
     await page.getByTestId("Directory count").filter({ hasText: "1 found" }).waitFor();
   });
-  await row(S, "Bottom bar", "Search (centre)", "jumps to the search box and focuses it").run(async () => {
-    await page.getByTestId("Search").click();
-    await page.waitForFunction(() => document.activeElement?.dataset?.testid === "Search input");
-    await page.getByTestId("Search input").blur();
+  await row(S, "Bottom bar", "Messages (centre)", "opens the Message Centre; Back returns to the directory").run(async () => {
+    await page.getByTestId("Messages").click();
+    await waitScreen(page, "messages");
+    await page.getByTestId("Message centre").waitFor();
+    await back(page);
+    await waitScreen(page, "directory");
   });
   await row(S, "Search", "Clear the box", "everyone is listed again").run(async () => {
     await page.getByTestId("Search input").fill("");
@@ -1056,9 +1059,9 @@ await flow("s8", async (env) => {
   const a = await phone(env.url);
   await loginMain(a.page);
   await waitScreen(a.page, "directory");
-  await row(S, "Directory (Main Admin)", "(bottom bar)", "My Profile, Admin Tools, Search, Dark theme, Language").run(async () => {
+  await row(S, "Directory (Main Admin)", "(bottom bar)", "My Profile, Admin Tools, Greeting, Dark theme, Language").run(async () => {
     const ids = await a.page.locator('[data-testid="Bottom bar"] button').evaluateAll((els) => els.map((e) => e.getAttribute("data-testid")));
-    assert.deepEqual(ids, ["Profile and settings", "Admin", "Search", "Theme toggle", "Language toggle"]);
+    assert.deepEqual(ids, ["Profile and settings", "Admin", "Greeting", "Theme toggle", "Language toggle"]);
     const admin = await a.page.locator('.alpha-row-name[data-role="me"]').count();
     assert.equal(admin, 1, "own name (even as admin) is the green one");
   });
@@ -1551,6 +1554,140 @@ await flow("s11", async (env) => {
       }
       await c.close();
     });
+});
+
+// ---------------------------------------------------------------- Section 12
+// v1.4 features (owner, 21 Oct 2026): villages, greetings + Message Centre,
+// profile pictures, village-wise report, Main Admin adds a member directly.
+await flow("s12", async (env) => {
+  const S = "12 v1.4 features";
+  await env.ensureVA("થોરાળા", "9800000010");
+  await env.approvedMember("9811111111", "થોરાળા", "Asha Vala");
+  await env.approvedMember("9822222222", "થોરાળા", "Bhavesh Vala");
+  const m = await phone(env.url);
+  await loginMobile(m.page, "9811111111");
+  await waitScreen(m.page, "directory");
+  await row(S, "Directory", "Village chips", "Bhadrod added; Zinzaka spelled ઝીંઝકા").run(async () => {
+    await m.page.getByTestId("Chip Bhadrod").waitFor();
+    await m.page.getByTestId("Chip Zinzaka").waitFor();
+  });
+  const a = await phone(env.url);
+  await loginMain(a.page);
+  await waitScreen(a.page, "directory");
+  await row(S, "Main Admin bottom bar", "Greeting (centre)", "the Main Admin sees Greeting instead of Search").run(async () => {
+    const ids = await a.page.locator('[data-testid="Bottom bar"] button').evaluateAll((els) => els.map((e) => e.getAttribute("data-testid")));
+    assert.ok(ids.includes("Greeting") && !ids.includes("Search") && !ids.includes("Messages"), ids.join(","));
+  });
+  await row(S, "Greeting", "Write + Send to everyone", "floating text box; sent to every member except the Main Admin").run(async () => {
+    await a.page.getByTestId("Greeting").click();
+    await a.page.getByTestId("Greeting composer").waitFor();
+    await shot(a.page, "s12-greeting-composer");
+    await a.page.getByTestId("Greeting text").fill("દિવાળીની શુભકામનાઓ 🪔\nHappy Diwali\nदिवाली की शुभकामनाएं");
+    await a.page.getByTestId("Greeting send").click();
+    await toast(a.page, "3");
+  });
+  await row(S, "Member", "Flash message", "stays until X; Messages badge shows unread").run(async () => {
+    await m.page.reload();
+    await m.page.getByTestId("Flash message").waitFor({ timeout: 10000 });
+    assert.match(await m.page.getByTestId("Flash text").innerText(), /Happy Diwali/);
+    await shot(m.page, "s12-flash");
+    await m.page.waitForTimeout(3000);
+    assert.ok(await m.page.getByTestId("Flash message").isVisible(), "never disappears on its own");
+    await m.page.getByTestId("Flash close").click();
+    await m.page.getByTestId("Flash message").waitFor({ state: "detached" });
+    assert.match(await m.page.getByTestId("Messages").innerText(), /1/);
+  });
+  await row(S, "Message Centre", "Open + Delete", "past messages listed; reading clears the badge; delete removes it").run(async () => {
+    await m.page.getByTestId("Messages").click();
+    await waitScreen(m.page, "messages");
+    await m.page.getByTestId("Message").first().locator("button").first().click();
+    await shot(m.page, "s12-message-centre");
+    await m.page.getByTestId("Message delete").click();
+    await m.page.getByTestId("Confirm yes").click();
+    await m.page.getByTestId("Message").waitFor({ state: "detached" });
+    await back(m.page);
+    await waitScreen(m.page, "directory");
+  });
+  await row(S, "Greeting", "Choose members", "only the picked member receives it").run(async () => {
+    await a.page.getByTestId("Greeting").click();
+    await a.page.getByTestId("Greeting text").fill("Meeting on Sunday");
+    await a.page.getByTestId("Greeting to some").click();
+    await a.page.getByTestId("Greeting search").fill("Bhavesh");
+    await a.page.getByTestId("Greeting pick").first().check();
+    await a.page.getByTestId("Greeting send").click();
+    await toast(a.page, "1");
+    const s1 = await env.client();
+    await s1("login", { mobile: "9811111111" });
+    assert.equal((await s1("state")).messages.length, 0);
+  });
+  await row(S, "My Profile", "Add photo (gallery)", "photo replaces the first letter for everyone").run(async () => {
+    const jpg = await m.page.screenshot({ type: "jpeg", quality: 70, clip: { x: 0, y: 0, width: 200, height: 200 } });
+    await m.page.getByTestId("Profile and settings").click();
+    await waitScreen(m.page, "profile");
+    const chooser = m.page.waitForEvent("filechooser");
+    await m.page.getByTestId("Profile photo").click();
+    await (await chooser).setFiles({ name: "me.jpg", mimeType: "image/jpeg", buffer: jpg });
+    await toast(m.page, "saved");
+    await m.page.locator(".alpha-photo-btn img.alpha-face").waitFor();
+    await shot(m.page, "s12-profile-photo");
+    await a.page.reload();
+    await waitScreen(a.page, "directory");
+    await a.page.locator(".alpha-row", { hasText: "Asha" }).locator("img.alpha-face").waitFor({ timeout: 10000 });
+    await shot(a.page, "s12-directory-photo");
+  });
+  await row(S, "Member page (Main Admin)", "Remove photo", "the admin can remove an unsuitable photo").run(async () => {
+    await a.page.locator(".alpha-row", { hasText: "Asha" }).first().click();
+    await a.page.getByTestId("Remove member photo").click();
+    await a.page.getByTestId("Confirm yes").click();
+    await toast(a.page, "removed");
+    await back(a.page);
+  });
+  await row(S, "Admin → Reports", "Village-wise members (PDF)", "choose a village → PDF of its members").run(async () => {
+    await a.page.evaluate(() => {
+      window.__printed = [];
+      window.mvpmiBridge = Object.assign(window.mvpmiBridge || {}, { printHtml: (t, b64) => window.__printed.push([t, b64.length]) });
+    });
+    await a.page.getByTestId("Admin").click();
+    await waitScreen(a.page, "admin");
+    await a.page.locator(".mvpmi-tile", { hasText: "Reports" }).first().click();
+    await a.page.getByText("Village-wise members", { exact: true }).first().waitFor();
+    await shot(a.page, "s12-reports");
+    const card = a.page.locator("div", { has: a.page.getByText("Village-wise members", { exact: true }) }).filter({ has: a.page.locator("button", { hasText: "PDF" }) }).last();
+    await card.locator("button", { hasText: "PDF" }).click();
+    await a.page.getByTestId("Village report dialog").waitFor();
+    await shot(a.page, "s12-village-report-dialog");
+    await a.page.getByTestId("Village report Thorala").click();
+    await a.page.waitForFunction(() => window.__printed.length === 1);
+    assert.match((await a.page.evaluate(() => window.__printed[0][0])), /Thorala/);
+  });
+  await row(S, "Admin dashboard", "Add member", "Main Admin adds + approves directly; WhatsApp message; member logs in").run(async () => {
+    await back(a.page);
+    await waitScreen(a.page, "admin");
+    await shot(a.page, "s12-admin-home");
+    await a.page.locator(".mvpmi-tile", { hasText: "Add member" }).first().click();
+    await waitScreen(a.page, "addmember");
+    await a.page.getByTestId("Register firstName").fill("Kiran");
+    await a.page.getByTestId("Register surname").fill("Vala");
+    await a.page.getByTestId("Register phone").fill("9833333333");
+    await a.page.getByTestId("Register village").selectOption("ભાદ્રોડ");
+    await a.page.getByTestId("Register consent").check();
+    await shot(a.page, "s12-add-member");
+    await a.page.getByTestId("Register submit").click();
+    await a.page.getByTestId("Member added dialog").waitFor();
+    const href = await a.page.getByTestId("Member added WhatsApp").getAttribute("href");
+    assert.match(href, /^https:\/\/wa\.me\/919833333333\?text=/);
+    const text = decodeURIComponent(href.split("text=")[1]);
+    assert.match(text, /પ્રોફાઇલ બની ગઈ છે/);
+    assert.match(text, /Your profile has been created/);
+    await shot(a.page, "s12-member-added");
+    await a.page.getByTestId("Member added done").click();
+    const k = await phone(env.url);
+    await loginMobile(k.page, "9833333333");
+    await waitScreen(k.page, "directory");
+    await k.ctx.close();
+  });
+  await m.ctx.close();
+  await a.ctx.close();
 });
 
 // Visual review only (run with ALPHA_ONLY=look): Pixel-size screenshots of the
