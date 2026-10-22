@@ -178,7 +178,7 @@ class App(val scenario: ActivityScenario<MainActivity>) {
     }
 
     /** Real tap on a tab of the native bottom bar (nav_profile, nav_admin,
-     *  nav_settings, nav_search, nav_theme, nav_lang). */
+     *  nav_settings, nav_home, nav_messages, nav_help, nav_greeting). */
     fun nav(key: String) {
         passSplash(0)
         if (keyboardShown()) {
@@ -232,7 +232,7 @@ class App(val scenario: ActivityScenario<MainActivity>) {
         var b = box!!
         // A person scrolls a control out from under the floating bottom bar
         // before tapping it; so do we.
-        val barTop = T.device.findObject(By.res("nav_search"))?.let { bar ->
+        val barTop = T.device.findObject(By.res("nav_home"))?.let { bar ->
             T.device.findObject(By.res("nav_profile"))?.visibleBounds?.top ?: bar.visibleBounds.top
         }
         val location = IntArray(2)

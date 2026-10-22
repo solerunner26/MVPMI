@@ -253,6 +253,9 @@ export function ADirectoryScreen({
   offline,
   lastUpdated,
   onRetry,
+  dark,
+  onTheme,
+  onLang,
 }) {
   const ordered = [...members].sort(memberNameOrder(lang));
   const filtered = village ? ordered.filter((m) => m.village === village) : ordered;
@@ -309,7 +312,23 @@ export function ADirectoryScreen({
           { type: "button", className: "alpha-dirlogo-btn", onClick: onSun, "aria-label": t("splash.open", lang), "data-testid": "Sun logo" },
           ah("img", { src: "/brand/sun-logo-96.png", alt: "", width: 38, height: 38, className: "alpha-dirlogo" }),
         ),
-        ah(AOneLine, { className: "alpha-dirname", testId: "Community name", text: t("app.community", lang), max: 20, min: 12 }),
+        ah(AOneLine, { className: "alpha-dirname", testId: "Community name", text: t("app.community", lang), max: 18, min: 11 }),
+        // Quick switches (owner, 22 Oct 2026): dark/light and ગુજરાતી/English,
+        // one tap away on the main screen.
+        onTheme
+          ? ah(
+              "button",
+              { type: "button", className: "alpha-quick", onClick: onTheme, "aria-label": t(dark ? "dir.lightOn" : "dir.darkOn", lang), title: t(dark ? "dir.lightOn" : "dir.darkOn", lang), "data-testid": "Theme toggle" },
+              ah(ANavIcon, { name: dark ? "sun" : "moon" }),
+            )
+          : null,
+        onLang
+          ? ah(
+              "button",
+              { type: "button", className: "alpha-quick alpha-quick-lang", onClick: onLang, "aria-label": t("bar.langLabel", lang), title: t("bar.langLabel", lang), "data-testid": "Language toggle", lang: lang === "gu" ? "en" : "gu" },
+              lang === "gu" ? "A" : "ગુ",
+            )
+          : null,
       ),
       // Line 2: search (the bottom bar's centre button jumps here).
       ah(

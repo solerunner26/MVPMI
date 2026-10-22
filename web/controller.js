@@ -383,13 +383,13 @@ class Component extends DesignComponent {
     const overlay = !!(s.alphaDialog || s.webSplash || s.contact || s.confirm || s.workflowOpen || s.allAdminsOpen || s.createdAdmin || s.memberAdded || s.picker || s.dial);
     const visible = !!(s.loaded && s.account && !s.locked && ["directory", "profile", "settings", "admin", "messages"].includes(s.screen) && !overlay && !this._flashMessage());
     const isMain = role === "MAIN_ADMIN";
-    const active = s.screen === "directory" ? "" : s.screen;
+    const active = s.screen === "directory" ? "home" : s.screen;
     return {
       visible,
       active,
       isAdmin,
       isMain,
-      center: isMain ? "greeting" : "messages",
+      center: "home",
       unread: isMain ? 0 : s.messagesUnread || 0,
       adminBadge: isAdmin ? this.pendingAdminCount() || 0 : 0,
       dark: s.theme === "dark",
@@ -410,6 +410,17 @@ class Component extends DesignComponent {
       case "search":
         if (s.screen !== "directory") this.setState({ screen: "directory" });
         setTimeout(() => window.mvpmiFocusSearch?.(), 60);
+        break;
+      case "home":
+        // Home: the directory; tapped again on it, back to the top with
+        // the search and village filter cleared.
+        if (s.screen === "directory") {
+          this.setState({ query: "", dirVillage: "" });
+          document.querySelector(".alpha-directory .alpha-scroll, .alpha-directory")?.scrollTo?.({ top: 0, behavior: "smooth" });
+        } else this.setState({ screen: "directory" });
+        break;
+      case "help":
+        this.setState({ allAdminsOpen: true });
         break;
       case "profile":
         this.setState({ screen: "profile", profileFrom: "directory" });
@@ -1468,6 +1479,9 @@ class Component extends DesignComponent {
           offline: s.connected === false,
           lastUpdated: s.lastConfirmed,
           onRetry: () => this.refresh(),
+          dark: s.theme === "dark",
+          onTheme: () => this.navGo("theme"),
+          onLang: () => this.navGo("lang"),
         });
       default:
         return null;
@@ -1656,15 +1670,15 @@ class Component extends DesignComponent {
           active: bar.active,
           isAdmin: bar.isAdmin,
           adminBadge: bar.adminBadge,
-          dark: bar.dark,
           onProfile: () => this.navGo("profile"),
           onAdmin: () => this.navGo("admin"),
           onSettings: () => this.navGo("settings"),
-          onCenter: () => this.navGo(bar.center),
+          onHome: () => this.navGo("home"),
+          onMessages: () => this.navGo("messages"),
+          onGreeting: () => this.navGo("greeting"),
+          onHelp: () => this.navGo("help"),
           isMain: bar.isMain,
           unread: bar.unread,
-          onTheme: () => this.navGo("theme"),
-          onLang: () => this.navGo("lang"),
         }),
       );
     if (s.topError)

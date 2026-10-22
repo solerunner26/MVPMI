@@ -9,6 +9,13 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import org.mvpmi.directory.R
+import androidx.compose.ui.res.painterResource
+import androidx.compose.foundation.Image
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.outlined.Groups
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Email
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.outlined.Celebration
@@ -97,25 +104,22 @@ data class BarDestination(
  */
 fun barDestinations(gujarati: Boolean, isAdmin: Boolean, adminBadge: Int, dark: Boolean, isMain: Boolean = false, unread: Int = 0): List<BarDestination> {
     fun l(gu: String, en: String) = if (gujarati) gu else en
-    val second = if (isAdmin)
-        BarDestination("admin", l("એડમિન", "Admin"), l("એડમિન સાધનો", "Admin tools"), Icons.Outlined.AdminPanelSettings, Icons.Filled.AdminPanelSettings, badge = adminBadge)
-    else
-        BarDestination("settings", l("સેટિંગ્સ", "Settings"), l("સેટિંગ્સ", "Settings"), Icons.Outlined.Settings, Icons.Filled.Settings)
-    return listOf(
-        BarDestination("profile", l("પ્રોફાઇલ", "Profile"), l("મારી પ્રોફાઇલ", "My Profile"), Icons.Outlined.AccountCircle, Icons.Filled.AccountCircle),
-        second,
-        // Centre (owner, 21 Oct 2026): Greeting for the Main Admin, Messages
-        // with the unread count for everyone else; Search stays at the top.
-        if (isMain)
-            BarDestination("greeting", l("શુભેચ્છા", "Greeting"), l("શુભેચ્છા સંદેશ મોકલો", "Send a greeting"), Icons.Outlined.Celebration, Icons.Filled.Celebration, center = true)
-        else
-            BarDestination("messages", l("સંદેશ", "Messages"), l("સંદેશ કેન્દ્ર", "Message Centre"), Icons.Outlined.Email, Icons.Filled.Email, center = true, badge = unread),
-        if (dark)
-            BarDestination("theme", l("કલર", "Light"), l("આછો દેખાવ", "Light theme"), Icons.Outlined.LightMode, Icons.Filled.LightMode, toggle = true)
-        else
-            BarDestination("theme", l("કલર", "Dark"), l("ઘેરો દેખાવ", "Dark theme"), Icons.Outlined.DarkMode, Icons.Filled.DarkMode, toggle = true),
-        BarDestination("lang", if (gujarati) "English" else "ગુજરાતી", l("ભાષા: English કરો", "Language: switch to ગુજરાતી"), Icons.Outlined.Translate, Icons.Filled.Translate, toggle = true),
-    )
+    // Owner, 22 Oct 2026: Home (the sun) in the centre for everyone; Dark and
+    // Language moved to the top of the main screen (in the page).
+    //   Member:        Profile · Messages · Home · Admins/Help · Settings
+    //   Village Admin: Profile · Messages · Home · Admin · Settings
+    //   Main Admin:    Profile · Admin · Home · Greeting · Settings
+    val profile = BarDestination("profile", l("પ્રોફાઇલ", "Profile"), l("મારી પ્રોફાઇલ", "My Profile"), Icons.Outlined.AccountCircle, Icons.Filled.AccountCircle)
+    val admin = BarDestination("admin", l("એડમિન", "Admin"), l("એડમિન સાધનો", "Admin tools"), Icons.Outlined.AdminPanelSettings, Icons.Filled.AdminPanelSettings, badge = adminBadge)
+    val messages = BarDestination("messages", l("સંદેશ", "Messages"), l("સંદેશ કેન્દ્ર", "Message Centre"), Icons.Outlined.Email, Icons.Filled.Email, badge = unread)
+    val home = BarDestination("home", l("હોમ", "Home"), l("હોમ: સભ્યોની યાદી", "Home: member directory"), Icons.Outlined.Home, Icons.Filled.Home, center = true)
+    val settings = BarDestination("settings", l("સેટિંગ્સ", "Settings"), l("સેટિંગ્સ", "Settings"), Icons.Outlined.Settings, Icons.Filled.Settings)
+    val fourth = when {
+        isMain -> BarDestination("greeting", l("શુભેચ્છા", "Greeting"), l("શુભેચ્છા સંદેશ મોકલો", "Send a greeting"), Icons.Outlined.Celebration, Icons.Filled.Celebration)
+        isAdmin -> admin
+        else -> BarDestination("help", l("એડમિન/મદદ", "Admins"), l("એડમિન અને મદદ", "Admins and help"), Icons.Outlined.Groups, Icons.Filled.Groups)
+    }
+    return listOf(profile, if (isMain) admin else messages, home, fourth, settings)
 }
 
 /**
@@ -259,9 +263,13 @@ private fun RowScope.CenterSearchItem(d: BarDestination, selected: Boolean, colo
                 .border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.55f), Color.Transparent)), RoundedCornerShape(corner)),
             contentAlignment = Alignment.Center,
         ) {
-            BadgedBox(badge = { if (d.badge > 0) Badge { Text(if (d.badge > 99) "99+" else d.badge.toString()) } }) {
-                Icon(if (selected) d.filled else d.outlined, contentDescription = null, tint = Color.White, modifier = Modifier.size(26.dp))
-            }
+            if (d.key == "home")
+                // The community's sun is the Home button.
+                Image(painterResource(R.drawable.sun_medallion), contentDescription = null, modifier = Modifier.size(36.dp))
+            else
+                BadgedBox(badge = { if (d.badge > 0) Badge { Text(if (d.badge > 99) "99+" else d.badge.toString()) } }) {
+                    Icon(if (selected) d.filled else d.outlined, contentDescription = null, tint = Color.White, modifier = Modifier.size(26.dp))
+                }
         }
         Spacer(Modifier.height(3.dp))
         Text(

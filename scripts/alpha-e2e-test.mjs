@@ -885,11 +885,15 @@ await flow("s8", async (env) => {
     assert.equal(await page.getByTestId("Village filter").count(), 0, "filter icon removed");
     await shot(page, "s8-directory-header");
   });
-  await row(S, "Directory", "(bottom bar)", "My Profile, Settings, Messages (centre), Dark theme, Language; fixed at the bottom").run(async () => {
+  await row(S, "Directory", "(bottom bar)", "My Profile, Messages, Home (sun, centre), Admins/Help, Settings; Dark + Language at the top").run(async () => {
     const ids = await page.locator('[data-testid="Bottom bar"] button').evaluateAll((els) => els.map((e) => e.getAttribute("data-testid")));
-    // v1.4 (owner, 21 Oct 2026): the centre Search duplicated the search box;
-    // members get the Message Centre there, the Main Admin gets Greeting.
-    assert.deepEqual(ids, ["Profile and settings", "Settings tab", "Messages", "Theme toggle", "Language toggle"]);
+    // Owner, 22 Oct 2026: Home in the centre; Dark and Language moved to the top.
+    assert.deepEqual(ids, ["Profile and settings", "Messages", "Home", "Admins help", "Settings tab"]);
+    assert.ok(await page.locator('[data-testid="Home"].is-active').count(), "Home active on the directory");
+    assert.equal(await page.locator('[data-testid="Top bar"] [data-testid="Theme toggle"]').count(), 1, "Dark at the top");
+    assert.equal(await page.locator('[data-testid="Top bar"] [data-testid="Language toggle"]').count(), 1, "Language at the top");
+    const name = await page.getByTestId("Community name").boundingBox();
+    assert.ok(name.height < 34, "community name still on one line");
     const bar = await page.getByTestId("Bottom bar").boundingBox();
     const vh = page.viewportSize().height;
     assert.ok(bar.y + bar.height <= vh + 1 && bar.y + bar.height > vh - 40, "at the bottom");
@@ -965,12 +969,22 @@ await flow("s8", async (env) => {
     assert.notEqual(await page.evaluate(() => document.activeElement?.dataset?.testid || ""), "Search input");
     await page.getByTestId("Directory count").filter({ hasText: "1 found" }).waitFor();
   });
-  await row(S, "Bottom bar", "Messages (centre)", "opens the Message Centre; Back returns to the directory").run(async () => {
+  await row(S, "Bottom bar", "Messages", "opens the Message Centre; Home returns to the directory").run(async () => {
     await page.getByTestId("Messages").click();
     await waitScreen(page, "messages");
     await page.getByTestId("Message centre").waitFor();
-    await back(page);
+    await page.getByTestId("Home").click();
     await waitScreen(page, "directory");
+  });
+  await row(S, "Bottom bar", "Home on the directory", "clears the search and village filter").run(async () => {
+    await page.getByTestId("Search input").fill("Seed");
+    await page.getByTestId("Home").click();
+    assert.equal(await page.getByTestId("Search input").inputValue(), "");
+  });
+  await row(S, "Bottom bar", "Admins/Help", "opens the list of administrators to call").run(async () => {
+    await page.getByTestId("Admins help").click();
+    await page.locator('.admin-row').first().waitFor();
+    await back(page);
   });
   await row(S, "Search", "Clear the box", "everyone is listed again").run(async () => {
     await page.getByTestId("Search input").fill("");
@@ -1059,9 +1073,9 @@ await flow("s8", async (env) => {
   const a = await phone(env.url);
   await loginMain(a.page);
   await waitScreen(a.page, "directory");
-  await row(S, "Directory (Main Admin)", "(bottom bar)", "My Profile, Admin Tools, Greeting, Dark theme, Language").run(async () => {
+  await row(S, "Directory (Main Admin)", "(bottom bar)", "My Profile, Admin, Home, Greeting, Settings").run(async () => {
     const ids = await a.page.locator('[data-testid="Bottom bar"] button').evaluateAll((els) => els.map((e) => e.getAttribute("data-testid")));
-    assert.deepEqual(ids, ["Profile and settings", "Admin", "Greeting", "Theme toggle", "Language toggle"]);
+    assert.deepEqual(ids, ["Profile and settings", "Admin", "Home", "Greeting", "Settings tab"]);
     const admin = await a.page.locator('.alpha-row-name[data-role="me"]').count();
     assert.equal(admin, 1, "own name (even as admin) is the green one");
   });
@@ -1574,7 +1588,7 @@ await flow("s12", async (env) => {
   const a = await phone(env.url);
   await loginMain(a.page);
   await waitScreen(a.page, "directory");
-  await row(S, "Main Admin bottom bar", "Greeting (centre)", "the Main Admin sees Greeting instead of Search").run(async () => {
+  await row(S, "Main Admin bottom bar", "Greeting", "the Main Admin has Greeting; members have Messages").run(async () => {
     const ids = await a.page.locator('[data-testid="Bottom bar"] button').evaluateAll((els) => els.map((e) => e.getAttribute("data-testid")));
     assert.ok(ids.includes("Greeting") && !ids.includes("Search") && !ids.includes("Messages"), ids.join(","));
   });

@@ -1948,3 +1948,40 @@ html.native-nav.has-bottomnav .app .noscroll {
 }
 .app .alpha-msg-body, .app .alpha-msg-text { text-align: start; }
 .app .alpha-msg-text { white-space: pre-line; }
+
+/* ---- Home in the centre + quick switches at the top (22 Oct 2026) ---- */
+.app .alpha-navsun { display: block; width: 34px; height: 34px; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25)); }
+.app .alpha-navitem.is-center:active .alpha-navsun { transform: rotate(-14deg) scale(0.94); }
+.app .alpha-dirbrand .alpha-quick {
+  flex: 0 0 auto;
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-height: 40px;
+  aspect-ratio: 1;
+  line-height: 1 !important;
+  box-sizing: border-box;
+  padding: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: #7a3a26;
+  background: #fff7ee;
+  border: 1px solid rgba(178, 64, 44, 0.25);
+  font: 800 15px/1 inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.app .alpha-quick .alpha-navicon { width: 21px; height: 21px; }
+.app .alpha-quick:active { transform: scale(0.92); }
+.app .alpha-quick:focus-visible { outline: 2px solid #e9a13b; outline-offset: 2px; }
+.app[data-theme="dark"] .alpha-quick { color: #ffd27a; background: #3a2c27; border-color: rgba(255, 210, 122, 0.25); }
+.app.lq .alpha-dirbrand { align-items: center; }
+.app.lq .alpha-dirbrand .alpha-quick + .alpha-quick { margin-left: -2px; }
+@media (max-width: 374px) {
+  .app .alpha-dirbrand .alpha-quick { width: 36px !important; height: 36px !important; max-height: 36px; font-size: 14px; }
+  .app .alpha-quick .alpha-navicon { width: 18px; height: 18px; }
+  .app.lq .alpha-dirbrand { gap: 6px; }
+  .app.lq .alpha-dirbrand .alpha-dirlogo { width: 32px; height: 32px; }
+}

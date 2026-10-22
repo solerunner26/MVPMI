@@ -372,17 +372,18 @@ class NativeShellTest {
             val app = App(scenario)
             app.waitFor(".app", 60000)
             assertTrue("splash shown at start", T.device.wait(Until.hasObject(By.res("splash_enter")), 15000) == true)
-            assertFalse("no bar on the splash", T.device.hasObject(By.res("nav_search")))
+            assertFalse("no bar on the splash", T.device.hasObject(By.res("nav_home")))
             T.shell("screencap -p /sdcard/Download/mvpmi-splash.png")
             assertTrue(app.passSplash())
             app.english()
             app.loginMobile(T.member(2))
-            for (key in listOf("profile", "settings", "search", "theme", "lang"))
+            // Owner, 22 Oct 2026: Profile · Messages · Home (centre) · Admins/Help · Settings.
+            for (key in listOf("profile", "messages", "home", "help", "settings"))
                 assertTrue("tab $key", T.device.wait(Until.hasObject(By.res("nav_$key")), 10000) == true)
-            assertFalse("members get Settings, not Admin", T.device.hasObject(By.res("nav_admin")))
+            assertFalse("members get no Admin tab", T.device.hasObject(By.res("nav_admin")))
             // The bar is a strip at the bottom, never a layer over the page.
             val screenH = T.device.displayHeight
-            for (key in listOf("profile", "search", "lang")) {
+            for (key in listOf("profile", "home", "settings")) {
                 val r = T.device.findObject(By.res("nav_$key")).visibleBounds
                 assertTrue("tab $key is in the bottom quarter (top=${r.top}, screen=$screenH)", r.top > screenH * 3 / 4)
                 assertTrue("tab $key is not taller than a bar (h=${r.height()})", r.height() < screenH / 6)
@@ -394,18 +395,24 @@ class NativeShellTest {
             }
             app.navUntil("profile", "My Profile") { app.screen() == "profile" }
             app.navUntil("settings", "Settings") { app.screen() == "settings" }
-            app.navUntil("search", "directory with the search box focused") { app.screen() == "directory" }
-            app.navUntil("theme", "dark theme") { app.exists(".app[data-theme=\"dark\"]") }
-            app.navUntil("theme", "light theme") { !app.exists(".app[data-theme=\"dark\"]") }
-            app.navUntil("lang", "Gujarati") { app.jsString("return document.querySelector('.app').getAttribute('data-lang')") == "gu" }
-            app.navUntil("lang", "English") { app.jsString("return document.querySelector('.app').getAttribute('data-lang')") == "en" }
+            app.navUntil("messages", "Message Centre") { app.screen() == "messages" }
+            app.navUntil("home", "directory") { app.screen() == "directory" }
+            // Dark and Language are now the two round buttons at the top of the directory.
+            app.tap(tid("Theme toggle"))
+            T.waitUntil(5000, "dark theme") { app.exists(".app[data-theme=\"dark\"]") }
+            app.tap(tid("Theme toggle"))
+            T.waitUntil(5000, "light theme") { !app.exists(".app[data-theme=\"dark\"]") }
+            app.tap(tid("Language toggle"))
+            T.waitUntil(5000, "Gujarati") { app.jsString("return document.querySelector('.app').getAttribute('data-lang')") == "gu" }
+            app.tap(tid("Language toggle"))
+            T.waitUntil(5000, "English") { app.jsString("return document.querySelector('.app').getAttribute('data-lang')") == "en" }
             // Sheets and dialogs hide the bar; it comes back when they close.
             app.tap(".alpha-row-main")
             app.waitFor(tid("Contact details"))
-            T.waitUntil(5000, "bar hidden under a sheet") { !T.device.hasObject(By.res("nav_search")) }
+            T.waitUntil(5000, "bar hidden under a sheet") { !T.device.hasObject(By.res("nav_home")) }
             T.device.pressBack()
             app.waitGone(tid("Contact details"))
-            assertTrue("bar back", T.device.wait(Until.hasObject(By.res("nav_search")), 8000) == true)
+            assertTrue("bar back", T.device.wait(Until.hasObject(By.res("nav_home")), 8000) == true)
         }
     }
 }

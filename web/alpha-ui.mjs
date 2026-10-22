@@ -45,10 +45,14 @@ export function AOneLine({ text, className = "", testId, max = 20, min = 12, as 
 }
 
 // Floating glass bottom bar (browsers; the Android app draws the same bar
-// natively in Jetpack Compose and hides this one). Five tabs, Search in the
-// middle: Profile · Admin tools (Settings for members) · Search · Theme ·
-// Language. Outline icon when inactive, filled icon in a pill when active.
-export function ABottomNav({ lang, active, isAdmin, isMain, unread = 0, adminBadge, dark, onProfile, onAdmin, onSettings, onCenter, onTheme, onLang }) {
+// natively in Jetpack Compose and hides this one). Owner, 22 Oct 2026:
+// Home (the sun) in the centre for everyone; Dark and Language moved to the
+// top of the main screen.
+//   Member:        Profile · Messages · ☀ Home · Admins/Help · Settings
+//   Village Admin: Profile · Messages · ☀ Home · Admin · Settings
+//   Main Admin:    Profile · Admin · ☀ Home · Greeting · Settings
+// Outline icon when inactive, filled icon in a pill when active.
+export function ABottomNav({ lang, active, isAdmin, isMain, unread = 0, adminBadge, onProfile, onAdmin, onSettings, onHome, onMessages, onGreeting, onHelp }) {
   const item = (key, icon, label, onClick, opts = {}) =>
     ah(
       "button",
@@ -64,29 +68,27 @@ export function ABottomNav({ lang, active, isAdmin, isMain, unread = 0, adminBad
       ah(
         "span",
         { className: "alpha-navpill" },
-        ah(ANavIcon, { name: icon, filled: active === key || !!opts.filled }),
+        opts.sun
+          ? ah("img", { src: "/brand/sun-logo-96.png", alt: "", width: 34, height: 34, className: "alpha-navsun" })
+          : ah(ANavIcon, { name: icon, filled: active === key || !!opts.filled }),
         opts.badge ? ah("span", { className: "alpha-badge", "aria-hidden": true }, opts.badge > 99 ? "99+" : String(opts.badge)) : null,
       ),
       ah("span", { className: "alpha-navlabel" }, label),
     );
+  const profile = item("profile", "user-circle", t("bar.profile", lang), onProfile, { testId: "Profile and settings", aria: t("dir.profileBtn", lang) });
+  const admin = item("admin", "shield-check", t("bar.admin", lang), onAdmin, { testId: "Admin", aria: t("nav.adminTools", lang), badge: adminBadge });
+  const messages = item("messages", "envelope-simple", t("bar.messages", lang), onMessages, { testId: "Messages", aria: t("msg.title", lang), badge: unread });
+  const home = item("home", "house", t("bar.home", lang), onHome, { testId: "Home", center: true, sun: true, aria: t("bar.homeLabel", lang) });
+  const settings = item("settings", "gear-six", t("bar.settings", lang), onSettings, { testId: "Settings tab", aria: t("settings.title", lang) });
+  const fourth = isMain
+    ? item("greeting", "confetti", t("bar.greet", lang), onGreeting, { testId: "Greeting", aria: t("greet.title", lang) })
+    : isAdmin
+      ? admin
+      : item("help", "users-three", t("bar.help", lang), onHelp, { testId: "Admins help", aria: t("bar.helpLabel", lang) });
   return ah(
     "nav",
     { className: "alpha-bottomnav", "aria-label": t("bar.label", lang), "data-testid": "Bottom bar" },
-    ah(
-      "div",
-      { className: "alpha-bottomnav-glass" },
-      item("profile", "user-circle", t("bar.profile", lang), onProfile, { testId: "Profile and settings", aria: t("dir.profileBtn", lang) }),
-      isAdmin
-        ? item("admin", "shield-check", t("bar.admin", lang), onAdmin, { testId: "Admin", aria: t("nav.adminTools", lang), badge: adminBadge })
-        : item("settings", "gear-six", t("bar.settings", lang), onSettings, { testId: "Settings tab", aria: t("settings.title", lang) }),
-      // Centre (owner, 21 Oct 2026): Greeting for the Main Admin, Messages
-      // (with the unread count) for everyone else. Search stays at the top.
-      isMain
-        ? item("greeting", "confetti", t("bar.greet", lang), onCenter, { testId: "Greeting", center: true, aria: t("greet.title", lang) })
-        : item("messages", "envelope-simple", t("bar.messages", lang), onCenter, { testId: "Messages", center: true, aria: t("msg.title", lang), badge: unread }),
-      item("theme", dark ? "sun" : "moon", t(dark ? "bar.light" : "bar.dark", lang), onTheme, { testId: "Theme toggle", aria: t(dark ? "dir.lightOn" : "dir.darkOn", lang) }),
-      item("lang", "translate", t("bar.lang", lang), onLang, { testId: "Language toggle", aria: t("bar.langLabel", lang) }),
-    ),
+    ah("div", { className: "alpha-bottomnav-glass" }, profile, isMain ? admin : messages, home, fourth, settings),
   );
 }
 
