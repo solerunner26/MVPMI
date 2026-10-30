@@ -116,6 +116,12 @@ adb shell locksettings clear --old 1111 >/dev/null 2>&1 || true
 
 kill "$WATCHER" 2>/dev/null || true
 adb logcat -d > "$OUT/logcat.txt"
+# App crashes (the crash buffer survives a long run): shown on the run page.
+adb logcat -d -b crash > "$OUT/crashes.txt" 2>/dev/null || true
+if [ -s "$OUT/crashes.txt" ] && [ -n "${GITHUB_ACTIONS:-}" ]; then
+  grep -v "^-----" "$OUT/crashes.txt" | grep -E "FATAL|Exception|Error|	at org\.mvpmi|	at androidx|Caused by|Process:" | head -40 \
+    | python3 -c "import sys; print('::error title=API $API app crash::' + sys.stdin.read().replace('%','%25').replace('\r','').replace('\n','%0A'))"
+fi
 grep -h "MVPMITEST" "$OUT/logcat.txt" | grep "ENV " | tail -1 | sed 's/^.*ENV /App-reported environment: /' >> "$OUT/environment.txt"
 # Screenshots taken by the tests at the moment something timed out.
 for f in $(adb shell ls /sdcard/Download/ 2>/dev/null | tr -d '\r' | grep '^mvpmi-fail-' | head -3); do
