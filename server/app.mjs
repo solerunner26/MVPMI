@@ -32,7 +32,7 @@ import { installPublicPages } from "./public-pages.mjs";
 import { installGreetings, greetingState } from "./greetings.mjs";
 import { installPhotos, photoVersions } from "./photos.mjs";
 import { installDirectAdd } from "./direct-add.mjs";
-import { loginCodeState } from "./second-phone.mjs";
+import { loginCodeState, noteSessionUse } from "./second-phone.mjs";
 import { installRejoin } from "./rejoin.mjs";
 import express from "express";
 import ExcelJS from "exceljs";
@@ -150,6 +150,7 @@ export function createApp({
   app.use("/api", (req, res, next) => {
     try {
       resolveAuth(store, req);
+      noteSessionUse(store, req);
       touchLock(store, req, requireAppLock);
     } catch (e) {
       return next(e);

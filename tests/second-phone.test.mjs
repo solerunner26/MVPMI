@@ -63,3 +63,31 @@ test("five wrong codes end the code; the Main Admin's password login never asks 
   const s = await other("login", { mobile: MAIN.mobile, secret: MAIN.password });
   assert.ok(s.account);
 });
+
+test("a login from the OLD app (before v1.4) never blocks: its app may have been removed during the update", async (t) => {
+  const f = await fixture(t);
+  const url = f.url + "/api/";
+  // The person's old app (build 201) is logged in…
+  const oldApp = async (path, body) => {
+    const r = await fetch(url + path, {
+      method: body === undefined ? "GET" : "POST",
+      headers: { "X-MVPMI-Client": "1", "Content-Type": "application/json", "User-Agent": "Mozilla/5.0 MVPMlAndroid/1.3.1 MVPMlBuild/201", Cookie: oldApp.cookie || "" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    if (r.headers.get("set-cookie")) oldApp.cookie = r.headers.get("set-cookie").split(";")[0];
+    return { status: r.status, body: await r.json() };
+  };
+  const a = f.client();
+  await f.enroll(a, { ...example, phone: "9000000301" });
+  await a("logout", {});
+  assert.equal((await oldApp("login", { mobile: "9000000301" })).status, 200);
+  await oldApp("state");
+  // …then the same phone installs v1.4 fresh: no code needed.
+  const s = await f.client()("login", { mobile: "9000000301" });
+  assert.ok(s.account);
+  // A v1.4 app (build 220) that is logged in DOES ask the next phone for a code.
+  const newApp = f.client();
+  const r = await fetch(url + "login", { method: "POST", headers: { "X-MVPMI-Client": "1", "Content-Type": "application/json", "User-Agent": "MVPMlAndroid/1.4.0 MVPMlBuild/220" }, body: JSON.stringify({ mobile: "9000000301" }) });
+  assert.equal(r.status, 409, "the browser session counts, so a code is asked");
+  void newApp;
+});

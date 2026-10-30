@@ -2046,3 +2046,9 @@ html.native-nav.has-bottomnav .app .noscroll {
 .app .alpha-legacy-card h1 { margin: 0; font-size: 26px; }
 .app .alpha-legacy-steps { text-align: start; display: grid; gap: 6px; padding-left: 0; list-style: none; margin: 6px 0; }
 .app .alpha-legacy-link { user-select: all; color: #b2402c; }
+.app .alpha-legacy-keep { font-weight: 800; color: #9e1f18; background: rgba(178, 64, 44, 0.1); padding: 10px 12px; border-radius: 14px; }
+.app[data-theme="dark"] .alpha-legacy-keep { color: #ffb4a0; }
+.app .alpha-legacy-box { width: 100%; display: grid; gap: 8px; padding: 14px; border-radius: 18px; background: rgba(255, 255, 255, 0.6); border: 1px solid rgba(178, 64, 44, 0.15); }
+.app[data-theme="dark"] .alpha-legacy-box { background: rgba(255, 255, 255, 0.06); }
+.app .alpha-legacy-box h2 { margin: 0; font-size: 18px; }
+.app .alpha-legacy-update .alpha-legacy-link { font-size: 20px; font-weight: 900; user-select: all; margin: 0; }

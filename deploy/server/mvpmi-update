@@ -45,6 +45,12 @@ if [ "$TARGET" = "latest" ]; then
 fi
 cd "$APP"
 current=$(as git describe --tags --exact-match --match 'v*' 2>/dev/null || as git rev-parse --short HEAD)
+# A server already running a NEWER fix (a commit after the latest release)
+# stays on it: the hourly "latest" check never goes back (31 Oct 2026).
+if [ "${1:-latest}" = "latest" ] && as git merge-base --is-ancestor "$TARGET" HEAD 2>/dev/null; then
+  [ "$(cat "$DATA/downloads/VERSION" 2>/dev/null)" != "$TARGET" ] && fetch_apk "$TARGET"
+  exit 0
+fi
 if [ "$current" = "$TARGET" ]; then
   [ "$(cat "$DATA/downloads/VERSION" 2>/dev/null)" != "$TARGET" ] && fetch_apk "$TARGET"
   exit 0

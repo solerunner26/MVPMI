@@ -14,7 +14,7 @@
 //   }
 import bcrypt from "bcryptjs";
 import { randomUUID } from "node:crypto";
-import { otherPhones, requireOwnerCode } from "./second-phone.mjs";
+import { otherPhones, requireOwnerCode, noteSessionUse } from "./second-phone.mjs";
 import { fail, profile, nameParts } from "./store.mjs";
 import {
   ROLES,
@@ -228,6 +228,7 @@ export function installAuth(app, store, { rate, state, alert, knownClient, clien
     save(req);
     store.audit(fresh.id, "login", role);
     resolveAuth(store, req);
+    noteSessionUse(store, req);
   };
 
   app.post("/api/login", (req, res) => {

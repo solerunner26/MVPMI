@@ -1591,7 +1591,30 @@ class Component extends DesignComponent {
     const nodes = [];
     // Old app: the update page covers everything and cannot be closed.
     if (s.legacyUpdate)
-      return h(ALegacyUpdateScreen, { lang, info: s.legacyUpdate, state: s.legacyUpdateState || "", onDownload: () => this.downloadLegacyUpdate() });
+      return h(ALegacyUpdateScreen, {
+        lang,
+        info: s.legacyUpdate,
+        state: s.legacyUpdateState || "",
+        copied: !!s.legacyCopied,
+        onDownload: () => this.downloadLegacyUpdate(),
+        onCopy: () => {
+          const link = location.origin + "/download";
+          const done = () => this.setState({ legacyCopied: true });
+          try {
+            navigator.clipboard.writeText(link).then(done, () => {
+              const ta = document.createElement("textarea");
+              ta.value = link;
+              document.body.appendChild(ta);
+              ta.select();
+              document.execCommand("copy");
+              ta.remove();
+              done();
+            });
+          } catch {
+            done();
+          }
+        },
+      });
     if (s.webSplash) nodes.push(h(AWebSplash, { key: "splash", lang, onEnter: () => this.setState({ webSplash: false }) }));
     if (s.contact)
       nodes.push(

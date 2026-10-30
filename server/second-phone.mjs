@@ -17,10 +17,34 @@ const MAX_TRIES = 5;
 const now = () => Date.now();
 const masked = (p) => String(p || "").slice(0, 2) + "******" + String(p || "").slice(-2);
 
-// Phones (sessions) where this member is logged in right now, except this one.
+// The first app build that updates itself (v1.4.0 = build 220).
+export const SELF_UPDATE_BUILD = 220;
+const RECENT_MS = 30 * 86400000;
+
+// Which app (build number from the Android app's user agent; 0 = a web
+// browser) and when each logged-in session was last used. Written at most
+// once an hour per session.
+export function noteSessionUse(store, req) {
+  if (!req.session?.auth) return;
+  const build = Number((/MVPMlBuild\/(\d+)/.exec(req.get?.("user-agent") || "") || [])[1] || 0);
+  const t = now();
+  if (req.session.appBuild === build && req.session.seenAt && t - req.session.seenAt < 3600000) return;
+  req.session.appBuild = build;
+  req.session.seenAt = t;
+  store.put("sessions", req.session);
+}
+
+// Phones where this member is logged in right now, except this one. Only
+// phones with the self-updating app (v1.4+) or a browser used in the last 30
+// days count: a phone whose OLD app was removed during the v1.4 update (its
+// login stays on the server) must never stop the person from logging in
+// again (owner, 31 Oct 2026).
 export function otherPhones(store, memberId, sessionId) {
   const t = now();
-  return store.all("sessions").filter((s) => s.auth?.memberId === memberId && s.expires > t && s.id !== sessionId && !s.aliasOf);
+  return store
+    .all("sessions")
+    .filter((s) => s.auth?.memberId === memberId && s.expires > t && s.id !== sessionId && !s.aliasOf)
+    .filter((s) => (s.appBuild || 0) >= SELF_UPDATE_BUILD || (s.appBuild === 0 && s.seenAt > t - RECENT_MS));
 }
 
 function liveCodes(store) {
