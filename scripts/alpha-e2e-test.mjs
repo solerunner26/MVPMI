@@ -100,6 +100,7 @@ async function phone(url, { lang = "en", viewport = PHONE } = {}) {
       if (!localStorage.getItem("mvpmi-preferences")) localStorage.setItem("mvpmi-preferences", JSON.stringify({ lang: l }));
     } catch {}
   }, lang);
+  await ctx.addInitScript(TOAST_RECORDER);
   const page = await ctx.newPage();
   page.errors = [];
   page.on("pageerror", (e) => page.errors.push(e.message));
@@ -165,8 +166,36 @@ async function signOut(page) {
   await page.getByTestId("Confirm yes").click();
   await waitScreen(page, "login");
 }
+// Status messages are recorded as they appear (a short toast can come and
+// go between two checks on a slow CI machine); each match is used up.
+const TOAST_RECORDER = () => {
+  if (window.__toastRecorder) return;
+  window.__toastRecorder = true;
+  window.__toasts = [];
+  const seen = new WeakMap();
+  const scan = () =>
+    document.querySelectorAll('[role="status"]').forEach((e) => {
+      const tx = e.textContent.trim();
+      if (tx && seen.get(e) !== tx) {
+        seen.set(e, tx);
+        window.__toasts.push(tx);
+      }
+    });
+  const start = () => new MutationObserver(scan).observe(document.documentElement, { subtree: true, childList: true, characterData: true });
+  if (document.documentElement) start();
+  else document.addEventListener("DOMContentLoaded", start, { once: true });
+};
 async function toast(page, text) {
-  await page.locator('[role="status"]', { hasText: text }).first().waitFor({ timeout: 5000 });
+  await page.evaluate(TOAST_RECORDER).catch(() => {});
+  await page.waitForFunction(
+    (t) => {
+      const i = (window.__toasts || []).findIndex((x) => x.includes(t));
+      if (i >= 0) return window.__toasts.splice(i, 1), true;
+      return [...document.querySelectorAll('[role="status"]')].some((e) => e.textContent.includes(t));
+    },
+    text,
+    { timeout: 10000 },
+  );
 }
 async function shot(page, name) {
   await page.screenshot({ path: "test-results/alpha/" + name + ".png" });
