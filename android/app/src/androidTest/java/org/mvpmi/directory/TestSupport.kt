@@ -109,6 +109,14 @@ object T {
         try { c.inputStream.use { it.readBytes() } } finally { c.disconnect() }
     }
 
+    /** The second-phone code the number's owner sees (test server). */
+    fun ownerCode(mobile: String): String {
+        val c = java.net.URL(BuildConfig.COMMUNITY_URL + "/__test/code?mobile=" + mobile).openConnection() as java.net.HttpURLConnection
+        c.connectTimeout = 10000
+        c.readTimeout = 10000
+        return try { JSONObject(c.inputStream.use { it.readBytes() }.toString(Charsets.UTF_8)).optString("code") } finally { c.disconnect() }
+    }
+
     /** Must-update switch (scripts/android-test-server.mjs): build 0 = off. */
     fun testAppVersion(build: Int) {
         val c = java.net.URL(BuildConfig.COMMUNITY_URL + "/__test/app-version?build=" + build).openConnection() as java.net.HttpURLConnection
@@ -329,6 +337,13 @@ class App(val scenario: ActivityScenario<MainActivity>) {
         waitScreen("login")
         fill("Login mobile", mobile)
         tap(tid("Login submit"))
+        // Already logged in on another phone (an earlier test): type the code
+        // its owner shares — the real second-phone flow (30 Oct 2026).
+        T.waitUntil(30000, "directory or the owner-code box") { screen() == "directory" || exists(tid("Owner code box")) }
+        if (screen() != "directory") {
+            fill("Owner code", T.ownerCode(mobile))
+            tap(tid("Login submit"))
+        }
         waitScreen("directory")
         T.waitUntil(20000, "contact rows") { rows() >= 3 }
     }

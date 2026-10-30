@@ -107,6 +107,8 @@ run RealDiallerTest
 run ExportSaveTest
 run NotificationPermissionTest "" ask
 run DeviceOfflineTest
+run ForceUpdateTest
+adb pull /sdcard/Download/mvpmi-update.png "$OUT/native-update.png" >/dev/null 2>&1 || true
 # Fingerprint last: it sets a screen-lock PIN on the emulator.
 run FingerprintSetup keep
 run BiometricUnlockTest

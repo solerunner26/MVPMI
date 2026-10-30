@@ -43,6 +43,15 @@ const server = createServer((req, res) => {
     res.end(JSON.stringify({ build }));
     return;
   }
+  // GET /__test/code?mobile=N: the second-phone code the number's owner sees
+  // (the tests play the owner who shares it).
+  if (req.url.startsWith("/__test/code")) {
+    const mobile = new URL(req.url, "http://x").searchParams.get("mobile");
+    const m = store.all("members").find((x) => x.phone === mobile);
+    const c = m && store.all("loginCodes").filter((x) => x.memberId === m.id).sort((a, b) => b.at - a.at)[0];
+    res.end(JSON.stringify({ code: c ? c.code : "" }));
+    return;
+  }
   if (outage) return req.socket.destroy();
   app(req, res);
 });
