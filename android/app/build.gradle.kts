@@ -119,7 +119,9 @@ val verifyReleaseReadiness by tasks.registering {
     doLast {
         if (parsedCommunityUrl.host == "example.invalid")
             throw GradleException("Release build needs your hosted address: -PcommunityUrl=https://your-domain")
-        if (keystoreFile == null)
+        // The emulator smoke test of the shrunk build uses the debug key on
+        // purpose (-PsignWithDebug=true); it is never published.
+        if (keystoreFile == null && providers.gradleProperty("signWithDebug").orNull != "true")
             throw GradleException("Release build needs the permanent signing key (MVPMI_KEYSTORE_FILE and passwords). See docs/ANDROID_RELEASE.md.")
     }
 }
