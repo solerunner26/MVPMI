@@ -44,7 +44,7 @@ if [ "$TARGET" = "latest" ]; then
   [ -n "$TARGET" ] || { echo "no GitHub release yet"; exit 0; }
 fi
 cd "$APP"
-current=$(as git describe --tags --exact-match 2>/dev/null || as git rev-parse --short HEAD)
+current=$(as git describe --tags --exact-match --match 'v*' 2>/dev/null || as git rev-parse --short HEAD)
 if [ "$current" = "$TARGET" ]; then
   [ "$(cat "$DATA/downloads/VERSION" 2>/dev/null)" != "$TARGET" ] && fetch_apk "$TARGET"
   exit 0

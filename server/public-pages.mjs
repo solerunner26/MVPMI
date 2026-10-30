@@ -102,7 +102,7 @@ export function installPublicPages(app, store, { env = process.env, downloadDir 
   let serverTag = String(env.APP_TAG || "").trim();
   if (!serverTag && env.NODE_ENV === "production")
     try {
-      serverTag = execFileSync("git", ["describe", "--tags", "--exact-match"], { cwd: appRoot, stdio: ["ignore", "pipe", "ignore"], timeout: 4000 })
+      serverTag = execFileSync("git", ["describe", "--tags", "--exact-match", "--match", "v*"], { cwd: appRoot, stdio: ["ignore", "pipe", "ignore"], timeout: 4000 })
         .toString()
         .trim();
     } catch {}
