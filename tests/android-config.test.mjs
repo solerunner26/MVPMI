@@ -54,8 +54,11 @@ test("Android static source: secure window, narrow bridge, no SSL bypass, no cli
   assert.ok(source.includes('addJavascriptInterface(Bridge(), "mvpmiBridge")'));
   assert.equal(
     (source.match(/@android\.webkit\.JavascriptInterface/g) || []).length,
-    12,
+    13,
   );
+  // v1.4: the page asks whether this app updates itself (hasUpdater, a
+  // constant true; it exposes nothing).
+  assert.ok(source.includes("fun hasUpdater(): Boolean = true"));
   assert.ok(source.includes("fun openSplash("), "the header sun opens the splash");
   assert.ok(source.includes("fun navState("), "the page tells the native bar what to show");
   const shell = read("app/src/main/java/org/mvpmi/directory/ui/AppShell.kt");

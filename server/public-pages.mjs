@@ -175,17 +175,21 @@ ${
   // whose APK this server can actually hand out is announced. A test copy of
   // the server can point its own test app elsewhere (APP_UPDATE_BUILD,
   // APP_UPDATE_URL, APP_UPDATE_VERSION).
-  app.get("/api/app-version", (req, res) => {
-    res.set("Cache-Control", "no-store");
+  const latestApp = () => {
     const overrideBuild = Number(env.APP_UPDATE_BUILD || 0);
     const overrideUrl = String(env.APP_UPDATE_URL || "").trim();
     if (overrideBuild > 0 && (/^https:\/\//.test(overrideUrl) || /^\/[\w./-]+$/.test(overrideUrl)))
-      return res.json({ build: overrideBuild, version: String(env.APP_UPDATE_VERSION || ""), url: overrideUrl });
+      return { build: overrideBuild, version: String(env.APP_UPDATE_VERSION || ""), url: overrideUrl, local: true };
     const info = offered();
     const build = Number(info.build || 0);
     const servable = fresh() || !!serverTag;
-    if (!build || !servable) return res.json({ build: 0, version: info.tag || "", url: "" });
-    res.json({ build, version: info.tag || "", url: "/download/" + apkName(info) });
+    if (!build || !servable) return { build: 0, version: info.tag || "", url: "", local: false };
+    return { build, version: info.tag || "", url: "/download/" + apkName(info), local: fresh() };
+  };
+  app.get("/api/app-version", (req, res) => {
+    res.set("Cache-Control", "no-store");
+    const { local, ...info } = latestApp();
+    res.json(info);
   });
   // The APK is served with the right type so phones offer to install it,
   // under a name that shows the version and build.
@@ -202,4 +206,5 @@ ${
     if (/^https:\/\//.test(String(env.APK_URL || ""))) return res.redirect(302, String(env.APK_URL).trim());
     next();
   });
+  return { latestApp };
 }

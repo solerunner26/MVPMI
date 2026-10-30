@@ -1884,6 +1884,61 @@ await flow("s13", async (env) => {
   await a.ctx.close();
 });
 
+// ---------------------------------------------------------------- Section 14
+// Phones with the OLD app (before v1.4, no self-update): a page they cannot
+// close asks them to install the new version; the file goes through the old
+// app's save sheet (owner, 30 Oct 2026).
+await flow("s14", async () => {
+  const S = "14 Old app update page";
+  const { mkdtempSync, writeFileSync: wf, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const dir = mkdtempSync(join(tmpdir(), "mvpmi-e2e-dl-"));
+  wf(join(dir, "mvpmi.apk"), Buffer.alloc(300000, 7));
+  wf(join(dir, "VERSION"), "v1.4.0\n");
+  wf(join(dir, "BUILD"), "230\n");
+  const { app, store } = createApp({ dbPath: ":memory:", mainAdmin: MAIN, development: true, requireAppLock: false, downloadDir: dir, driveEnv: {} });
+  const srv = app.listen(0, "127.0.0.1");
+  await new Promise((r) => srv.once("listening", r));
+  const url = "http://127.0.0.1:" + srv.address().port;
+  try {
+    for (const [old, expect] of [[true, true], [false, false]])
+      await row(S, old ? "Old app (build 201)" : "New app (has its own updater)", "App opens", expect ? "update page that cannot be closed; Download saves the APK" : "no page (the app updates itself)").run(async () => {
+        const ctx = await browser.newContext({ viewport: PHONE, userAgent: "Mozilla/5.0 (Linux; Android 14) MVPMlAndroid/1.3.1 MVPMlBuild/201" });
+        await ctx.addInitScript((o) => {
+          localStorage.setItem("mvpmi-preferences", JSON.stringify({ lang: "en" }));
+          window.__saved = [];
+          window.mvpmiBridge = { saveFile: (n, m, d) => window.__saved.push([n, m, d.length]), printHtml() {}, notify() {}, setScreenPrivacy() {}, biometricAvailable: () => false };
+          if (!o) window.mvpmiBridge.hasUpdater = () => true;
+        }, old);
+        const p = await ctx.newPage();
+        await p.goto(url);
+        if (expect) {
+          await p.getByTestId("Legacy update").waitFor();
+          await shot(p, "s14-old-app-update");
+          await p.keyboard.press("Escape");
+          await p.evaluate(() => window.mvpmiBack && window.mvpmiBack());
+          assert.ok(await p.getByTestId("Legacy update").isVisible(), "cannot be closed");
+          await p.getByTestId("Legacy update download").click();
+          await p.waitForFunction(() => window.__saved.length === 1);
+          const [name, mime, size] = await p.evaluate(() => window.__saved[0]);
+          assert.equal(name, "vala-samaj-update.apk");
+          assert.equal(mime, "application/vnd.android.package-archive");
+          assert.ok(size > 300000);
+        } else {
+          await p.getByTestId("Login screen").waitFor();
+          await p.waitForTimeout(1500);
+          assert.equal(await p.getByTestId("Legacy update").count(), 0);
+        }
+        await ctx.close();
+      });
+  } finally {
+    await new Promise((r) => srv.close(r));
+    store.db.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 // Visual review only (run with ALPHA_ONLY=look): Pixel-size screenshots of the
 // main screens in Gujarati + English, light + dark. No assertions.
 if (only && only.has("look"))

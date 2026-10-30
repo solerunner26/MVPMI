@@ -903,3 +903,35 @@ export function APhotoCropper({ lang, src, w, h, busy, onCancel, onSave }) {
     ah(AButton, { kind: "primary", disabled: busy, onClick: save, "data-testid": "Crop save" }, ah(AIcon, { name: "check" }), " ", t("crop.save", lang)),
   );
 }
+
+
+// ---- Update page for phones with the OLD app (owner, 30 Oct 2026) --------
+// Apps from before v1.4 cannot update themselves; their pages come from the
+// server, so this page asks them to install the new version. It cannot be
+// closed. The file is saved through the old app's save sheet; Chrome works too.
+export function ALegacyUpdateScreen({ lang, info, onDownload, state }) {
+  const host = location.host;
+  return ah(
+    "div",
+    { className: "alpha-legacy-update", role: "alertdialog", "aria-modal": true, "aria-label": t("upd.title", lang), "data-testid": "Legacy update" },
+    ah(
+      "div",
+      { className: "alpha-legacy-card" },
+      ah("img", { src: "/brand/sun-logo-192.png", alt: "", width: 96, height: 96 }),
+      ah("h1", null, t("upd.title", lang)),
+      ah("p", null, t("upd.body", lang)),
+      info.version ? ah("small", null, (lang === "en" ? "Version " : "આવૃત્તિ ") + String(info.version).replace(/^v/, "") + (info.build ? " · build " + info.build : "")) : null,
+      ah(
+        AButton,
+        { kind: "primary", disabled: state === "busy", onClick: onDownload, "data-testid": "Legacy update download" },
+        ah(AIcon, { name: "download-simple" }),
+        " ",
+        state === "busy" ? t("upd.wait", lang, { mb: info.mb || "3" }) : t("upd.download", lang),
+      ),
+      state === "failed" ? ah(ANotice, { kind: "error" }, t("upd.failed", lang)) : null,
+      state === "saved" ? ah(ANotice, { kind: "info" }, t("upd.saved", lang)) : null,
+      ah("ol", { className: "alpha-legacy-steps" }, ah("li", null, t("upd.step1", lang)), ah("li", null, t("upd.step2", lang)), ah("li", null, t("upd.step3", lang))),
+      ah("p", { className: "alpha-hint" }, t("upd.browser", lang), " ", ah("strong", { className: "alpha-legacy-link", "data-testid": "Legacy update link" }, host + "/download")),
+    ),
+  );
+}

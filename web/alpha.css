@@ -2039,3 +2039,10 @@ html.native-nav.has-bottomnav .app .noscroll {
 .app .alpha-crop img { position: absolute; left: 50%; top: 50%; max-width: none; transform-origin: center; pointer-events: none; }
 .app .alpha-crop-ring { position: absolute; inset: 0; border-radius: 50%; box-shadow: 0 0 0 999px rgba(20, 10, 6, 0.55); border: 3px solid rgba(255, 246, 230, 0.95); pointer-events: none; }
 .app .alpha-crop-zoom span { display: inline-flex; gap: 6px; align-items: center; }
+/* Update page for the old app */
+.app .alpha-legacy-update { position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center; padding: 20px; overflow: auto; background: linear-gradient(180deg, #fff3e2, #fbe6d2); }
+.app[data-theme="dark"] .alpha-legacy-update { background: linear-gradient(180deg, #2a1a14, #140d0a); }
+.app .alpha-legacy-card { max-width: 440px; width: 100%; display: grid; gap: 12px; justify-items: center; text-align: center; }
+.app .alpha-legacy-card h1 { margin: 0; font-size: 26px; }
+.app .alpha-legacy-steps { text-align: start; display: grid; gap: 6px; padding-left: 0; list-style: none; margin: 6px 0; }
+.app .alpha-legacy-link { user-select: all; color: #b2402c; }

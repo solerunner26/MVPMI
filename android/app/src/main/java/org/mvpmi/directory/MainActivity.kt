@@ -56,6 +56,10 @@ class MainActivity : ComponentActivity() {
     /** Web bridge: file saving (phone or Google Drive via the system
      *  picker), printing (Save as PDF anywhere) and local reminders. */
     inner class Bridge {
+        /** This app updates itself (v1.4+); the page then shows no update notice. */
+        @android.webkit.JavascriptInterface
+        fun hasUpdater(): Boolean = true
+
         @android.webkit.JavascriptInterface
         fun saveFile(name: String, mime: String, base64: String) {
             val bytes = Base64.decode(base64, Base64.DEFAULT)

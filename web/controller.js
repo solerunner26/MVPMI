@@ -90,7 +90,36 @@ class Component extends DesignComponent {
     if (androidBridge()) return this.run(() => this.saveDownload(name, data, type));
     return super.download(name, data, type);
   }
+  // Phones with an app from before v1.4 (no self-update): the update page.
+  checkLegacyApp() {
+    const bridge = androidBridge();
+    const build = Number((/MVPMlBuild\/(\d+)/.exec(navigator.userAgent || "") || [])[1] || 0);
+    if (!bridge || typeof bridge.hasUpdater === "function" || !build) return;
+    fetch("/api/app-version", { cache: "no-store", headers: { "X-MVPMI-Client": "1" } })
+      .then((r) => r.json())
+      .then((info) => {
+        if (info && info.build > build && info.url) this.setState({ legacyUpdate: info });
+      })
+      .catch(() => {});
+  }
+  downloadLegacyUpdate() {
+    const info = this.state.legacyUpdate;
+    if (!info || this.state.legacyUpdateState === "busy") return;
+    this.setState({ legacyUpdateState: "busy" });
+    fetch(info.url, { cache: "no-store" })
+      .then((r) => {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.blob();
+      })
+      .then((blob) => {
+        if (blob.size < 100000) throw new Error("too small");
+        return saveFile("vala-samaj-update.apk", "application/vnd.android.package-archive", blob);
+      })
+      .then(() => this.setState({ legacyUpdateState: "saved" }))
+      .catch(() => this.setState({ legacyUpdateState: "failed" }));
+  }
   componentDidMount() {
+    this.checkLegacyApp();
     this._alive = true;
     if (typeof navigator !== "undefined" && navigator.userAgent.includes("MVPMlAndroid"))
       document.documentElement.classList.add("native-host");
@@ -383,7 +412,7 @@ class Component extends DesignComponent {
     const s = this.state;
     const role = s.account?.role;
     const isAdmin = !s.offline && (role === "MAIN_ADMIN" || role === "VILLAGE_ADMIN");
-    const overlay = !!(s.alphaDialog || s.webSplash || s.contact || s.confirm || s.workflowOpen || s.allAdminsOpen || s.createdAdmin || s.memberAdded || s.picker || s.dial);
+    const overlay = !!(s.legacyUpdate || s.alphaDialog || s.webSplash || s.contact || s.confirm || s.workflowOpen || s.allAdminsOpen || s.createdAdmin || s.memberAdded || s.picker || s.dial);
     const visible = !!(s.loaded && s.account && !s.locked && ["directory", "profile", "settings", "admin", "messages"].includes(s.screen) && !overlay && !this._flashMessage());
     const isMain = role === "MAIN_ADMIN";
     const active = s.screen === "directory" ? "home" : s.screen;
@@ -1560,6 +1589,9 @@ class Component extends DesignComponent {
     const d = s.alphaDialog;
     const close = () => this.setState({ alphaDialog: null });
     const nodes = [];
+    // Old app: the update page covers everything and cannot be closed.
+    if (s.legacyUpdate)
+      return h(ALegacyUpdateScreen, { lang, info: s.legacyUpdate, state: s.legacyUpdateState || "", onDownload: () => this.downloadLegacyUpdate() });
     if (s.webSplash) nodes.push(h(AWebSplash, { key: "splash", lang, onEnter: () => this.setState({ webSplash: false }) }));
     if (s.contact)
       nodes.push(

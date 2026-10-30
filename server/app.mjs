@@ -1166,7 +1166,33 @@ export function createApp({
     res.send("\uFEFF" + lines.map((r) => r.map(csvCell).join(",")).join("\r\n"));
   });
   // Public pages first: they include /api/app-version (no login needed).
-  installPublicPages(app, store, { env: driveEnv, ...(options.downloadDir ? { downloadDir: options.downloadDir } : {}) });
+  const pages = installPublicPages(app, store, { env: driveEnv, ...(options.downloadDir ? { downloadDir: options.downloadDir } : {}) });
+  // A new app version (owner, 30 Oct 2026): once its APK is ready on THIS
+  // server, every member's phone gets ONE system notification "New update
+  // available"; tapping it opens the app, which shows the update page.
+  const announceUpdate = () => {
+    try {
+      const app = pages.latestApp();
+      if (!app.build || !app.local) return;
+      const done = store.get("config", "update-announced");
+      if (done && done.build >= app.build) return;
+      const owners = [...new Set(store.all("members").map((m) => m.owner).filter(Boolean))].map((o) => "owner:" + o);
+      notifier.notify(owners, {
+        kind: "update",
+        titleGu: "નવું અપડેટ ઉપલબ્ધ છે",
+        titleEn: "New app update available",
+        bodyGu: "નવી સુવિધાઓ માટે એપ અપડેટ કરો. અહીં દબાવો.",
+        bodyEn: "Tap to update the app and get the new features.",
+      });
+      store.put("config", { id: "update-announced", build: app.build, at: Date.now(), count: owners.length });
+      store.audit("system", "app.update-announced", app.build + " · " + owners.length);
+    } catch (e) {
+      console.error("update announcement failed: " + e.message);
+    }
+  };
+  setTimeout(announceUpdate, 15000).unref?.();
+  setInterval(announceUpdate, 5 * 60000).unref?.();
+  app.locals.announceUpdate = announceUpdate;
   app.use("/api", (req, res) => res.status(404).json({ error: "Not found" }));
   // The service worker must be able to control the whole site.
   app.get("/sw.js", (req, res, next) => {

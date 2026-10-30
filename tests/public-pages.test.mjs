@@ -100,3 +100,24 @@ test("must-update: a test copy of the server can point its test app at another A
   assert.equal(r.build, 305);
   assert.match(r.url, /^https:\/\/github\.com\//);
 });
+
+test("a new app version is announced ONCE to every member's phone when its APK is on this server", async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "mvpmi-ann-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const { createApp: make } = await import("../server/app.mjs");
+  const { app, store } = make({ dbPath: ":memory:", mainAdmin: MAIN, driveEnv: {}, downloadDir: dir });
+  t.after(() => store.db.close());
+  const notes = () => store.all("notifications").filter((n) => n.kind === "update");
+  app.locals.announceUpdate();
+  assert.equal(notes().length, 0, "no APK yet: nothing announced");
+  writeFileSync(join(dir, "mvpmi.apk"), Buffer.alloc(200000, 1));
+  writeFileSync(join(dir, "VERSION"), "v1.4.0\n");
+  writeFileSync(join(dir, "BUILD"), "220\n");
+  app.locals.announceUpdate();
+  assert.ok(notes().length >= 1, "announced");
+  assert.ok(notes().every((n) => n.to.startsWith("owner:")));
+  const n = notes().length;
+  app.locals.announceUpdate();
+  assert.equal(notes().length, n, "not again for the same build");
+  assert.equal(store.get("config", "update-announced").build, 220);
+});
