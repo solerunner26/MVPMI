@@ -95,6 +95,11 @@ fun UpdateScreen(ui: UpdateUi, gujarati: Boolean, colors: ShellColors, onUpdate:
                     (if (gu) "ડાઉનલોડ થાય છે" else "Downloading") + if (p >= 0f) " · ${(p * 100).toInt()}%" else "…",
                     color = colors.ink2, fontSize = 15.sp,
                 )
+                Text(
+                    if (gu) "તમે એપ નાની (minimise) કરી શકો છો — ડાઉનલોડ ચાલુ રહેશે અને તૈયાર થાય ત્યારે સૂચના આવશે."
+                    else "You can minimise the app — the download continues and you will be notified when it is ready.",
+                    color = colors.ink2, fontSize = 14.sp, textAlign = TextAlign.Center, lineHeight = 20.sp,
+                )
             } else {
                 if (ui.failed)
                     Text(

@@ -218,6 +218,11 @@ jobs:
           set +e
           gradle -p android :app:assembleDebug :app:assembleDebugAndroidTest -PcommunityDebugUrl=http://10.0.2.2:3900 "-PversionCode=$(( ${{ github.run_number }} + 100 ))" --console=plain 2>&1 | tee device-build.log
           result=${PIPESTATUS[0]}
+          # The shrunk (R8) release build, for the smoke test at the end.
+          if [ "$result" -eq 0 ]; then
+            gradle -p android :app:assembleRelease -PcommunityUrl=https://test.samaj.kavigsv.com -PsignWithDebug=true -PappIdSuffix=.smoke -PupdateCheck=false "-PversionCode=$(( ${{ github.run_number }} + 100 ))" --console=plain 2>&1 | tee -a device-build.log
+            result=${PIPESTATUS[0]}
+          fi
           if [ "$result" -ne 0 ]; then
             grep -E "^e: |error:|FAILURE|What went wrong" -A3 device-build.log | head -60 | python3 -c "import sys; print('::error title=Device test build failed::' + sys.stdin.read().replace('%','%25').replace('\r','').replace('\n','%0A'))"
           fi

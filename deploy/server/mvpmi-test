@@ -56,21 +56,34 @@ SQL
 }
 
 test_app_info() {
-  # The newest test app (built by GitHub for feature/ branches).
-  local info build
+  # The newest test app (built by GitHub for feature/ branches) is copied to
+  # this server once, and phones download it from here (faster than GitHub).
+  local info build domain tmp
   info=$(curl -fsSL "$TEST_RELEASE/BUILD-INFO.txt" 2>/dev/null || true)
   build=$(printf '%s\n' "$info" | sed -n 's/^Build: *//p' | head -1)
+  domain=$(cat /opt/mvpmi-test/DOMAIN 2>/dev/null || true)
   sed -i '/^APP_UPDATE_/d' "$ENVF"
-  if [ -n "$build" ]; then
-    {
-      echo "APP_UPDATE_BUILD=$build"
-      echo "APP_UPDATE_VERSION=test-$build"
-      echo "APP_UPDATE_URL=$TEST_RELEASE/mvpmi-test.apk"
-    } >> "$ENVF"
-    echo "test app: build $build ($TEST_RELEASE/mvpmi-test.apk)"
-  else
-    echo "test app: not built yet"
+  if [ -z "$build" ]; then echo "test app: not built yet"; return; fi
+  mkdir -p "$DATA/downloads"
+  if [ "$(cat "$DATA/downloads/BUILD" 2>/dev/null)" != "$build" ]; then
+    tmp=$(mktemp -p "$DATA/downloads" .apk.XXXXXX)
+    if curl -fsSL "$TEST_RELEASE/mvpmi-test.apk" -o "$tmp"; then
+      mv -f "$tmp" "$DATA/downloads/mvpmi.apk"
+      echo "$build" > "$DATA/downloads/BUILD"
+      echo "test-$build" > "$DATA/downloads/VERSION"
+    else
+      rm -f "$tmp"
+    fi
   fi
+  chown -R mvpmi:mvpmi "$DATA/downloads"
+  local url="$TEST_RELEASE/mvpmi-test.apk"
+  [ -n "$domain" ] && [ "$(cat "$DATA/downloads/BUILD" 2>/dev/null)" = "$build" ] && url="https://$domain/download/mvpmi.apk"
+  {
+    echo "APP_UPDATE_BUILD=$build"
+    echo "APP_UPDATE_VERSION=test-$build"
+    echo "APP_UPDATE_URL=$url"
+  } >> "$ENVF"
+  echo "test app: build $build ($url, $(( $(stat -c %s "$DATA/downloads/mvpmi.apk" 2>/dev/null || echo 0) / 1024 )) KB)"
 }
 
 build_code() {

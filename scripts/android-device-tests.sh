@@ -114,6 +114,42 @@ run FingerprintSetup keep
 run BiometricUnlockTest
 adb shell locksettings clear --old 1111 >/dev/null 2>&1 || true
 
+# Smoke test of the SHRUNK (R8) release build that members install: it
+# starts, shows the splash, opens the login page and does not crash.
+RAPK=android/app/build/outputs/apk/release/app-release.apk
+SMOKE_OK=1
+if [ -f "$RAPK" ]; then
+  SPKG=org.mvpmi.directory.smoke
+  adb logcat -b crash -c 2>/dev/null || true
+  adb install -r "$RAPK" >/dev/null || SMOKE_OK=0
+  adb shell am start -n "$SPKG/org.mvpmi.directory.MainActivity" >/dev/null
+  dump() { adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb shell cat /sdcard/ui.xml 2>/dev/null; }
+  found=""
+  for i in $(seq 1 30); do sleep 2; ui=$(dump); echo "$ui" | grep -q 'splash_enter' && { found=1; break; }; done
+  if [ -n "$found" ]; then
+    bounds=$(echo "$ui" | tr '>' '\n' | grep 'resource-id="splash_enter"' | grep -o 'bounds="[^"]*"' | head -1)
+    set -- $(echo "$bounds" | grep -o '[0-9]\+')
+    adb shell input tap $(( ($1 + $3) / 2 )) $(( ($2 + $4) / 2 ))
+    login=""
+    for i in $(seq 1 30); do sleep 2; ui=$(dump); echo "$ui" | grep -qE 'Log in|લોગિન' && { login=1; break; }; done
+    [ -n "$login" ] || SMOKE_OK=0
+  else SMOKE_OK=0; fi
+  crashes=$(adb logcat -d -b crash 2>/dev/null | grep -c "$SPKG" || true)
+  [ "${crashes:-0}" -eq 0 ] || SMOKE_OK=0
+  adb shell screencap -p /sdcard/Download/mvpmi-release-smoke.png
+  adb pull /sdcard/Download/mvpmi-release-smoke.png "$OUT/release-smoke.png" >/dev/null 2>&1 || true
+  {
+    echo "## Shrunk release build (R8) smoke test"
+    echo "APK size: $(( $(stat -c %s "$RAPK") / 1024 )) KB"
+    [ "$SMOKE_OK" = 1 ] && echo "Result: starts, splash, login page, no crash — PASS" || echo "Result: FAIL (splash=${found:-no} login=${login:-no} crashes=$crashes)"
+  } > "$OUT/release-smoke.md"
+  cat "$OUT/release-smoke.md"
+  adb uninstall "$SPKG" >/dev/null 2>&1 || true
+  if [ "$SMOKE_OK" != 1 ] && [ -n "${GITHUB_ACTIONS:-}" ]; then
+    echo "::error title=API $API release smoke test::$(tr '\n' ' ' < "$OUT/release-smoke.md")"
+  fi
+fi
+
 kill "$WATCHER" 2>/dev/null || true
 adb logcat -d > "$OUT/logcat.txt"
 # App crashes (the crash buffer survives a long run): shown on the run page.
@@ -128,7 +164,9 @@ for f in $(adb shell ls /sdcard/Download/ 2>/dev/null | tr -d '\r' | grep '^mvpm
   adb pull "/sdcard/Download/$f" "$OUT/${f%.png}.png" >/dev/null 2>&1 || true
 done
 python3 scripts/instrument-summary.py "$API" "$OUT"
-RESULT=$?   # the test result decides the job, not the previews below
+RESULT=$?
+[ "$SMOKE_OK" = 1 ] || RESULT=1
+if [ -f "$OUT/release-smoke.md" ] && [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::notice title=API $API release smoke::$(tr '\n' ' ' < "$OUT/release-smoke.md")"; fi   # the test result decides the job, not the previews below
 # Small previews of the native splash and glass bar in the run annotations
 # (the artifacts hold the full-size screenshots).
 if [ -n "${GITHUB_ACTIONS:-}" ]; then

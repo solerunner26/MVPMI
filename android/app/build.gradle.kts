@@ -73,8 +73,15 @@ android {
         getByName("release") {
             buildConfigField("String", "COMMUNITY_URL", quoted(communityUrl))
             isDebuggable = false
-            isMinifyEnabled = false
+            // Shrink with R8: removes unused library code (most of it from the
+            // Material icon set) so the APK downloads fast (30 Oct 2026).
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // CI smoke test of the shrunk build on the emulator: signed with the
+            // debug key when no release key is given (-PsignWithDebug=true).
             if (keystoreFile != null) signingConfig = signingConfigs.getByName("release")
+            else if (providers.gradleProperty("signWithDebug").orNull == "true") signingConfig = signingConfigs.getByName("debug")
         }
     }
     buildFeatures { buildConfig = true; compose = true }

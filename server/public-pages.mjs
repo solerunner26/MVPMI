@@ -179,7 +179,7 @@ ${
     res.set("Cache-Control", "no-store");
     const overrideBuild = Number(env.APP_UPDATE_BUILD || 0);
     const overrideUrl = String(env.APP_UPDATE_URL || "").trim();
-    if (overrideBuild > 0 && /^https:\/\//.test(overrideUrl))
+    if (overrideBuild > 0 && (/^https:\/\//.test(overrideUrl) || /^\/[\w./-]+$/.test(overrideUrl)))
       return res.json({ build: overrideBuild, version: String(env.APP_UPDATE_VERSION || ""), url: overrideUrl });
     const info = offered();
     const build = Number(info.build || 0);

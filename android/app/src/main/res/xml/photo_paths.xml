@@ -4,4 +4,6 @@
     <cache-path name="photos" path="photos/" />
     <!-- Must-update: the downloaded new version, handed to the installer. -->
     <cache-path name="updates" path="updates/" />
+    <!-- Must-update: the new version downloaded by Android's download service. -->
+    <external-files-path name="update-downloads" path="Download/" />
 </paths>

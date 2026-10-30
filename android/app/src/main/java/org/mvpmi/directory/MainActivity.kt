@@ -222,6 +222,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        // "Update ready" notification: install (the poll does it on resume).
+        if (intent.getBooleanExtra(Updater.EXTRA_INSTALL, false)) update = update?.copy(ready = false)
         intent.getStringExtra(Notifications.EXTRA_OPEN)?.let { target ->
             if (navUi.visible) webNav(target) else pendingOpen = target
         }
@@ -510,6 +512,7 @@ class MainActivity : ComponentActivity() {
     }
     override fun onResume() {
         super.onResume()
+        resumed = true
         web.onResume()
         // Deliver anything that arrived while the app was closed.
         pullSoon()
@@ -518,6 +521,30 @@ class MainActivity : ComponentActivity() {
 
     // ---- Must-update ---------------------------------------------------
     // Checked at every open and return to the app (at most once a minute).
+    // The download runs in Android's download service, so it continues when
+    // the app is minimised; this page only shows its progress.
+    private val updateHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var resumed = false
+    private val updatePoll = object : Runnable {
+        override fun run() {
+            val info = updateInfo ?: return
+            val u = update ?: return
+            val s = Updater.status(this@MainActivity, info.build)
+            when (s.state) {
+                Updater.RUNNING -> update = u.copy(progress = s.progress, failed = false)
+                Updater.DONE -> {
+                    update = u.copy(progress = 1f, ready = true, failed = false)
+                    Updater.clearNotification(this@MainActivity, Updater.NOTE_READY)
+                    if (resumed && !u.ready) installNow()
+                    return
+                }
+                Updater.FAILED -> { update = u.copy(progress = null, failed = true); return }
+                else -> if (u.progress != null) { update = u.copy(progress = null, failed = true); return }
+            }
+            updateHandler.postDelayed(this, 500)
+        }
+    }
+
     private fun checkForUpdate(force: Boolean = false) {
         if (!BuildConfig.UPDATE_CHECK) return
         val u = update
@@ -526,6 +553,11 @@ class MainActivity : ComponentActivity() {
             update = u.copy(needsPermission = false)
             if (u.ready) installNow() else startUpdate()
             return
+        }
+        // Back in the app while a download runs (or has finished): follow it.
+        if (u != null) {
+            updateHandler.removeCallbacks(updatePoll)
+            updateHandler.post(updatePoll)
         }
         val now = System.currentTimeMillis()
         if (checking || (!force && now - lastUpdateCheck < 60_000)) return
@@ -538,7 +570,14 @@ class MainActivity : ComponentActivity() {
                 if (info != null && (updateInfo == null || info.build != updateInfo?.build)) {
                     updateInfo = info
                     update = org.mvpmi.directory.ui.UpdateUi(version = info.version, build = info.build)
-                }
+                    // A download started earlier (perhaps finished while the
+                    // app was closed) is picked up again.
+                    val st = Updater.status(this, info.build).state
+                    if (st == Updater.RUNNING || st == Updater.DONE) {
+                        update = update?.copy(progress = -1f)
+                        updateHandler.post(updatePoll)
+                    }
+                } else if (info == null && update == null) Updater.cleanUp(this)
             }
         }.start()
     }
@@ -548,35 +587,37 @@ class MainActivity : ComponentActivity() {
         val u = update ?: return
         if (u.ready) return installNow()
         if (u.progress != null && !u.failed) return
-        update = u.copy(progress = -1f, failed = false)
-        Thread {
-            try {
-                var last = 0L
-                Updater.download(this, info) { p ->
-                    val t = System.currentTimeMillis()
-                    if (t - last > 150) { last = t; runOnUiThread { update = update?.copy(progress = p) } }
-                }
-                runOnUiThread { update = update?.copy(progress = 1f, ready = true); installNow() }
-            } catch (_: Exception) {
-                runOnUiThread { update = update?.copy(progress = null, failed = true) }
-            }
-        }.start()
+        try {
+            Updater.start(this, info)
+            update = u.copy(progress = -1f, failed = false)
+            updateHandler.removeCallbacks(updatePoll)
+            updateHandler.post(updatePoll)
+        } catch (_: Exception) {
+            update = u.copy(progress = null, failed = true)
+        }
     }
 
     private fun installNow() {
+        val info = updateInfo ?: return
+        val file = Updater.status(this, info.build).file
+        if (file == null) {
+            update = update?.copy(ready = false, progress = null, failed = true)
+            return
+        }
         if (!Updater.canInstall(this)) {
             update = update?.copy(needsPermission = true)
             try { Updater.openInstallPermission(this) } catch (_: Exception) {}
             return
         }
         try {
-            Updater.install(this, Updater.apkFile(this))
+            Updater.install(this, file)
         } catch (_: Exception) {
             update = update?.copy(ready = false, progress = null, failed = true)
         }
     }
     // Lets the page know it is in the background (starts the 30-second lock).
     override fun onPause() {
+        resumed = false
         web.onPause()
         // Save the login cookie now: WebView writes cookies to disk only now
         // and then, so a login followed by the app being closed or killed
@@ -584,5 +625,5 @@ class MainActivity : ComponentActivity() {
         CookieManager.getInstance().flush()
         super.onPause()
     }
-    override fun onDestroy() { upload?.onReceiveValue(null); (web.parent as? android.view.ViewGroup)?.removeView(web); web.destroy(); super.onDestroy() }
+    override fun onDestroy() { updateHandler.removeCallbacksAndMessages(null); upload?.onReceiveValue(null); (web.parent as? android.view.ViewGroup)?.removeView(web); web.destroy(); super.onDestroy() }
 }

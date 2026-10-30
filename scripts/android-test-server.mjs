@@ -36,9 +36,14 @@ const server = createServer((req, res) => {
   }
   // GET /__test/app-version?build=N announces a newer app (must-update
   // test); build=0 turns it off. The download address is unreachable.
+  if (req.url.startsWith("/__test/missing.apk")) {
+    res.statusCode = 404;
+    res.end("no such file");
+    return;
+  }
   if (req.url.startsWith("/__test/app-version")) {
     const build = Number(new URL(req.url, "http://x").searchParams.get("build") || 0);
-    if (build > 0) Object.assign(testEnv, { APP_UPDATE_BUILD: String(build), APP_UPDATE_VERSION: "test-" + build, APP_UPDATE_URL: "https://example.invalid/mvpmi.apk" });
+    if (build > 0) Object.assign(testEnv, { APP_UPDATE_BUILD: String(build), APP_UPDATE_VERSION: "test-" + build, APP_UPDATE_URL: "/__test/missing.apk" });
     else for (const k of ["APP_UPDATE_BUILD", "APP_UPDATE_VERSION", "APP_UPDATE_URL"]) delete testEnv[k];
     res.end(JSON.stringify({ build }));
     return;
