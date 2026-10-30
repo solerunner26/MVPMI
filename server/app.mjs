@@ -32,6 +32,8 @@ import { installPublicPages } from "./public-pages.mjs";
 import { installGreetings, greetingState } from "./greetings.mjs";
 import { installPhotos, photoVersions } from "./photos.mjs";
 import { installDirectAdd } from "./direct-add.mjs";
+import { loginCodeState } from "./second-phone.mjs";
+import { installRejoin } from "./rejoin.mjs";
 import express from "express";
 import ExcelJS from "exceljs";
 import { randomUUID } from "node:crypto";
@@ -297,6 +299,7 @@ export function createApp({
       ...lock,
       latestNotificationAt: notifier.latestAt(req.session),
       ...greetingState(store, req),
+      ...loginCodeState(store, req),
       newRequests: req.isAdmin
         ? visible
             .filter((r) => r.kind === "new")
@@ -358,6 +361,8 @@ export function createApp({
       messages: [],
       messagesUnread: 0,
       greetingsSent: [],
+      loginCodes: [],
+      loginCodeRequests: [],
       reviewQueue: [],
       villageProposals: [],
       villageAssignments: [],
@@ -374,10 +379,11 @@ export function createApp({
   const baseState = state;
   const lockedState = (req) => hideWhenLocked(req, baseState(req));
   installAppLock(app, store, { required: requireAppLock });
-  installAuth(app, store, { rate, state: lockedState, alert, knownClient, clientKey });
+  installAuth(app, store, { rate, state: lockedState, alert, knownClient, clientKey, notify });
   installNotificationRoutes(app, store, notifier, { rate });
   installDirectAdd(app, store, { admin, rate, state: (req) => lockedState(req), notify });
-  installGreetings(app, store, { notifier, rate, state: (req) => lockedState(req), mainAdminId });
+  installRejoin(app, store, { admin, state: (req) => lockedState(req) });
+  installGreetings(app, store, { notifier, rate, state: (req) => lockedState(req), mainAdminId, locked: (req) => !!lockFor(req).locked });
   installPhotos(app, store, { rate, state: (req) => lockedState(req), locked: (req) => !!lockFor(req).locked });
   installVillageApproval(app, store, {
     admin,

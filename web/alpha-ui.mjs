@@ -709,3 +709,197 @@ export function pickPhoto() {
     input.click();
   });
 }
+
+// ---- Second-phone login codes (owner, 30 Oct 2026) ------------------------
+// Shown on the phone(s) already logged in with the number: the code another
+// phone needs. The owner decides whether to share it.
+export function ALoginCodeAlert({ lang, item, onClose }) {
+  const min = Math.max(1, Math.ceil((item.expires - Date.now()) / 60000));
+  return ah(
+    "div",
+    { className: "alpha-flash-scrim" },
+    ah(
+      "section",
+      { className: "alpha-flash alpha-codealert", role: "alertdialog", "aria-modal": true, "aria-label": t("lc.title", lang), "data-testid": "Login code alert" },
+      ah("div", { className: "alpha-codealert-icon", "aria-hidden": true }, ah(AIcon, { name: "shield-warning" })),
+      ah("h2", null, t("lc.title", lang)),
+      ah("p", null, t("lc.body", lang)),
+      ah("div", { className: "alpha-codealert-code", "data-testid": "Login code value" }, item.code.slice(0, 3) + " " + item.code.slice(3)),
+      ah("small", null, t("lc.expires", lang, { min })),
+      ah(
+        "div",
+        { className: "alpha-actions" },
+        ah(AButton, { kind: "primary", onClick: onClose, "data-testid": "Login code ok" }, t("lc.ok", lang)),
+        ah(AButton, { kind: "text", onClick: onClose, "data-testid": "Login code ignore" }, t("lc.ignore", lang)),
+      ),
+    ),
+  );
+}
+
+// Main Admin: every code waiting, to give by phone when the owner's phone is
+// not available.
+export function ALoginCodesDialog({ lang, items, onClose }) {
+  return ah(
+    ASheet,
+    { title: t("lc.adminTitle", lang), onClose, closeLabel: t("common.close", lang), testId: "Login codes dialog" },
+    ah("p", { className: "alpha-hint" }, t("lc.adminBody", lang)),
+    items.length
+      ? ah(
+          "ul",
+          { className: "alpha-greet-people" },
+          ...items.map((c) =>
+            ah(
+              "li",
+              { key: c.id, "data-testid": "Login code row" },
+              ah("span", null, nameFor(c, lang), ah("small", null, villageName(c.village, lang) + " · " + formatMobile(c.phone))),
+              ah("strong", { className: "alpha-codealert-small" }, c.code),
+            ),
+          ),
+        )
+      : ah("p", { className: "alpha-hint" }, t("lc.none", lang)),
+  );
+}
+
+// ---- Profile picture: pick, then move / zoom / turn to fit the face ------
+// (owner, 30 Oct 2026). Everyone's picture is cut the same way: a square
+// with the face in the round frame, 480 × 480 JPEG.
+export function pickImageFile() {
+  return new Promise((resolve, reject) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.style.display = "none";
+    document.body.appendChild(input);
+    input.onchange = () => {
+      const file = input.files && input.files[0];
+      input.remove();
+      if (!file) return resolve(null);
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => resolve({ url, w: img.naturalWidth, h: img.naturalHeight });
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(Object.assign(new Error("This file is not a picture"), { code: "PHOTO_BAD" }));
+      };
+      img.src = url;
+    };
+    input.click();
+  });
+}
+
+export function APhotoCropper({ lang, src, w, h, busy, onCancel, onSave }) {
+  const FRAME = 260;
+  const [rot, setRot] = React.useState(0); // 0, 90, 180, 270
+  const sideways = rot % 180 !== 0;
+  const iw = sideways ? h : w, ih = sideways ? w : h;
+  const base = FRAME / Math.min(iw, ih); // the picture always covers the frame
+  const [zoom, setZoom] = React.useState(1);
+  const [pos, setPos] = React.useState({ x: 0, y: 0 }); // offset of the picture's centre (px)
+  const drag = React.useRef(null);
+  const pinch = React.useRef(null);
+  const pointers = React.useRef(new Map());
+  const scale = base * zoom;
+  const clamp = (p, z = zoom) => {
+    const s = base * z;
+    const mx = Math.max(0, (iw * s - FRAME) / 2), my = Math.max(0, (ih * s - FRAME) / 2);
+    return { x: Math.min(mx, Math.max(-mx, p.x)), y: Math.min(my, Math.max(-my, p.y)) };
+  };
+  React.useEffect(() => setPos((p) => clamp(p)), [zoom, rot]);
+  const down = (e) => {
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.current.size === 2) {
+      const [a, b] = [...pointers.current.values()];
+      pinch.current = { d: Math.hypot(a.x - b.x, a.y - b.y), z: zoom };
+      drag.current = null;
+    } else drag.current = { x: e.clientX, y: e.clientY, p: pos };
+  };
+  const move = (e) => {
+    if (!pointers.current.has(e.pointerId)) return;
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch.current && pointers.current.size >= 2) {
+      const [a, b] = [...pointers.current.values()];
+      const z = Math.min(4, Math.max(1, (pinch.current.z * Math.hypot(a.x - b.x, a.y - b.y)) / pinch.current.d));
+      setZoom(z);
+    } else if (drag.current) {
+      setPos(clamp({ x: drag.current.p.x + e.clientX - drag.current.x, y: drag.current.p.y + e.clientY - drag.current.y }));
+    }
+  };
+  const up = (e) => {
+    pointers.current.delete(e.pointerId);
+    if (pointers.current.size < 2) pinch.current = null;
+    if (!pointers.current.size) drag.current = null;
+  };
+  const save = () => {
+    const img = new Image();
+    img.onload = () => {
+      const OUT = 480;
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = OUT;
+      const c = canvas.getContext("2d");
+      c.fillStyle = "#fff";
+      c.fillRect(0, 0, OUT, OUT);
+      const k = OUT / FRAME;
+      c.translate(OUT / 2 + pos.x * k, OUT / 2 + pos.y * k);
+      c.rotate((rot * Math.PI) / 180);
+      const s = scale * k;
+      c.drawImage(img, (-w * s) / 2, (-h * s) / 2, w * s, h * s);
+      onSave(canvas.toDataURL("image/jpeg", 0.85));
+    };
+    img.src = src;
+  };
+  const keys = (e) => {
+    const step = e.shiftKey ? 20 : 6;
+    const d = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
+    if (d) {
+      e.preventDefault();
+      setPos((p) => clamp({ x: p.x + d[0], y: p.y + d[1] }));
+    }
+  };
+  return ah(
+    ASheet,
+    { title: t("crop.title", lang), onClose: onCancel, closeLabel: t("common.cancel", lang), testId: "Photo cropper" },
+    ah("p", { className: "alpha-hint" }, t("crop.hint", lang)),
+    ah(
+      "div",
+      {
+        className: "alpha-crop",
+        style: { width: FRAME + "px", height: FRAME + "px" },
+        onPointerDown: down,
+        onPointerMove: move,
+        onPointerUp: up,
+        onPointerCancel: up,
+        onWheel: (e) => setZoom((z) => Math.min(4, Math.max(1, z - e.deltaY / 500))),
+        onKeyDown: keys,
+        tabIndex: 0,
+        role: "application",
+        "aria-label": t("crop.area", lang),
+        "data-testid": "Crop area",
+      },
+      ah("img", {
+        src,
+        alt: "",
+        draggable: false,
+        style: {
+          width: w + "px",
+          height: h + "px",
+          transform: "translate(-50%, -50%) translate(" + pos.x + "px," + pos.y + "px) rotate(" + rot + "deg) scale(" + scale + ")",
+        },
+      }),
+      ah("div", { className: "alpha-crop-ring", "aria-hidden": true }),
+    ),
+    ah(
+      "label",
+      { className: "alpha-range alpha-crop-zoom" },
+      ah("span", null, ah(AIcon, { name: "magnifying-glass-minus" }), " ", t("crop.zoom", lang), " ", ah(AIcon, { name: "magnifying-glass-plus" })),
+      ah("input", { type: "range", min: 1, max: 4, step: 0.01, value: zoom, onChange: (e) => setZoom(Number(e.target.value)), "aria-label": t("crop.zoom", lang), "data-testid": "Crop zoom" }),
+    ),
+    ah(
+      "div",
+      { className: "alpha-actions" },
+      ah(AButton, { onClick: () => setRot((r) => (r + 90) % 360), "data-testid": "Crop rotate" }, ah(AIcon, { name: "arrow-clockwise" }), " ", t("crop.rotate", lang)),
+      ah(AButton, { onClick: () => (setZoom(1), setPos({ x: 0, y: 0 }), setRot(0)), "data-testid": "Crop reset" }, ah(AIcon, { name: "arrow-counter-clockwise" }), " ", t("crop.reset", lang)),
+    ),
+    ah(AButton, { kind: "primary", disabled: busy, onClick: save, "data-testid": "Crop save" }, ah(AIcon, { name: "check" }), " ", t("crop.save", lang)),
+  );
+}

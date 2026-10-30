@@ -344,7 +344,10 @@ class Component extends DesignComponent {
         this.leaveEdit();
         return true;
       case "addmember":
-        this.setState({ screen: "admin", memberAdded: null });
+        this.setState({ screen: s.addMemberFrom || "admin", memberAdded: null, addMemberInitial: null });
+        return true;
+      case "rejoin":
+        this.setState({ screen: "settings" });
         return true;
       case "messages":
         this.set("screen", ["profile", "settings", "admin"].includes(s.messagesFrom) ? s.messagesFrom : "directory");
@@ -655,7 +658,7 @@ class Component extends DesignComponent {
     if (a.mustSetPin) return screen === "setpin";
     if (data.locked) return screen === "lock";
     if (screen === "admin" || screen === "adminedit") return data.role === "admin";
-    if (screen === "addmember") return data.role === "admin" && a.role === "MAIN_ADMIN";
+    if (screen === "addmember" || screen === "rejoin") return data.role === "admin" && a.role === "MAIN_ADMIN";
     return ["directory", "settings", "profile", "edit", "messages"].includes(screen);
   }
   apply(data, initial = false, screen) {
@@ -934,22 +937,27 @@ class Component extends DesignComponent {
   flashKey(key, vars) {
     this.flash(t(key, "gu", vars), t(key, "en", vars));
   }
+  // Add member (Main Admin), optionally pre-filled for "Correct & add".
+  openAddMember(initial = null, from) {
+    const s = this.state;
+    this.setState({
+      screen: "addmember",
+      memberAdded: null,
+      addMemberInitial: initial,
+      addMemberFrom: from || (s.screen === "rejoin" ? "rejoin" : s.screen === "settings" ? "settings" : "admin"),
+      addMemberKey: (s.addMemberKey || 0) + 1,
+    });
+  }
   // A red "are you sure?" dialog above everything (also above the member page).
   askDanger(titleKey, bodyKey, yesKey, onYes) {
     const lang = this.state.lang;
     this.setState({ alphaDialog: { type: "confirm", title: t(titleKey, lang), body: t(bodyKey, lang), yes: t(yesKey, lang), danger: true, onYes } });
   }
   // Profile picture: camera or gallery, made small on the phone, then saved.
+  // Pick (camera or gallery), then move / zoom / turn it in the cropper.
   changePhoto() {
-    pickPhoto()
-      .then((data) => {
-        if (!data) return;
-        this.flashKey("photo.saving");
-        return this.run(async () => {
-          this.apply(await this.api("profile/photo", { data }));
-          this.flashKey("photo.saved");
-        });
-      })
+    pickImageFile()
+      .then((file) => file && this.setState({ alphaDialog: { type: "crop", ...file } }))
       .catch((e) => this.setState({ topError: e }));
   }
   // Greetings: the newest message not yet closed or read is the flash card.
@@ -963,7 +971,13 @@ class Component extends DesignComponent {
     this.setState((st) => ({
       messages: (st.messages || [])
         .filter((m) => !(action === "delete" && m.id === id))
-        .map((m) => (m.id !== id ? m : { ...m, closed: true, read: m.read || action === "read" })),
+        .map((m) =>
+          m.id !== id
+            ? m
+            : action === "like" || action === "unlike"
+              ? { ...m, closed: true, read: true, liked: action === "like", likes: Math.max(0, (m.likes || 0) + (action === "like" ? (m.liked ? 0 : 1) : m.liked ? -1 : 0)) }
+              : { ...m, closed: true, read: m.read || action === "read" },
+        ),
       messagesUnread: (st.messages || []).filter((m) => m.id !== id && !m.read).length + (action === "close" && (st.messages || []).some((m) => m.id === id && !m.read) ? 1 : 0),
     }));
     this.api("messages/" + encodeURIComponent(id) + "/" + action, {})
@@ -1373,6 +1387,47 @@ class Component extends DesignComponent {
           onRequestRemoval: () => this.askRemovalRequest(),
           onAdmins: goAdmins,
           onSignOut: () => this.signOutOfPhone(),
+          ...(s.account?.role === "MAIN_ADMIN" && s.role === "admin"
+            ? {
+                onAddMember: () => this.openAddMember(),
+                onRejoin: () => this.setState({ screen: "rejoin", rejoinFrom: "settings" }),
+                blockedCount: blockedNumbers(s).length,
+              }
+            : {}),
+        });
+      case "rejoin":
+        return h(ARejoinScreen, {
+          key: "rejoin",
+          lang,
+          rows: blockedNumbers(s),
+          busy: !!s.busy,
+          onBack: () => this.handleBack(),
+          onAllow: (r) =>
+            this.run(async () => {
+              this.apply(await this.api((r.kind === "rejected" ? "admin/rejections/" : "admin/archive/") + encodeURIComponent(r.id) + "/allow-rejoin", {}));
+              this.flashKey("rejoin.done");
+            }),
+          onAllowAll: () =>
+            this.askDanger("rj.allowAllQ", "rj.allowAllBody", "rj.allowAllYes", () =>
+              this.run(async () => {
+                const data = await this.api("admin/rejoin/allow-all", {});
+                this.apply(data);
+                this.flashKey("rj.allowedAll", { n: data.allowed || 0 });
+              }),
+            ),
+          onCorrect: (r) => {
+            const p = r.profile || {};
+            this.openAddMember({
+              firstName: p.firstName || "",
+              middleName: p.middleName || "",
+              surname: p.surname || "",
+              phone: r.phone || p.phone || "",
+              phone2: p.phone2 || "",
+              label2: p.label2 || "work",
+              village: p.village || r.village || "",
+              currentLocation: p.currentLocation || "",
+            });
+          },
         });
       case "messages":
         return h(AMessageCentre, {
@@ -1381,6 +1436,14 @@ class Component extends DesignComponent {
           messages: s.messages || [],
           onBack: () => this.handleBack(),
           onRead: (id) => this.messageAction(id, "read"),
+          onLike: (id, like) => this.messageAction(id, like ? "like" : "unlike"),
+          onSave: (m) =>
+            this.run(async () => {
+              const r = await this.request("greetings/" + encodeURIComponent(m.id) + "/image");
+              if (!r.ok) throw new Error("Could not load the picture");
+              await saveFile("vala-samaj-" + new Date(m.at).toISOString().slice(0, 10) + ".jpg", "image/jpeg", await r.blob());
+              this.flashKey("msg.saved");
+            }),
           onDelete: (id) => this.askDanger("msg.deleteQ", "msg.deleteBody", "msg.delete", () => this.messageAction(id, "delete")),
         });
       case "profile":
@@ -1418,6 +1481,8 @@ class Component extends DesignComponent {
           onLang,
           api,
           direct: true,
+          initial: s.addMemberInitial || null,
+          allowBlocked: !!s.addMemberInitial,
           villages: s.villages || VILLAGE_LIST,
           onBack: () => this.handleBack(),
           onSubmitted: (data) => {
@@ -1554,12 +1619,14 @@ class Component extends DesignComponent {
     if (d?.type === "greeting")
       nodes.push(
         h(AGreetingComposer, {
-          key: "greeting",
+          key: "greeting" + (d.editing ? "-" + d.editing.id : ""),
           lang,
           members: (s.members || []).filter((m) => m.id !== s.account?.id).sort(memberNameOrder(lang)),
           sent: s.greetingsSent || [],
           busy: !!s.busy,
-          onClose: close,
+          editing: d.editing || null,
+          onClose: d.editing ? () => this.setState({ alphaDialog: { type: "greeting" } }) : close,
+          onError: (e) => this.setState({ topError: e }),
           onSend: (body) =>
             this.run(async () => {
               const data = await this.api("admin/greetings", body);
@@ -1567,6 +1634,58 @@ class Component extends DesignComponent {
               this.apply(data);
               this.flashKey("greet.done", { n: data.sent?.count ?? 0 });
             }),
+          onSaveEdit: (body) =>
+            this.run(async () => {
+              const data = await this.api("admin/greetings/" + encodeURIComponent(d.editing.id) + "/edit", body);
+              this.apply(data);
+              this.setState({ alphaDialog: { type: "greeting" } });
+              this.flashKey("greet.saved");
+            }),
+          onEdit: (g) => this.setState({ alphaDialog: { type: "greeting", editing: g } }),
+          onStats: (g) =>
+            this.run(async () => {
+              const stats = await this.api("admin/greetings/" + encodeURIComponent(g.id) + "/stats");
+              this.setState({ alphaDialog: { type: "greetingStats", stats } });
+            }),
+          onRemove: (g) =>
+            this.askDanger("greet.removeQ", "greet.removeBody", "greet.remove", () =>
+              this.run(async () => {
+                this.apply(await this.api("admin/greetings/" + encodeURIComponent(g.id) + "/delete", {}));
+                this.setState({ alphaDialog: { type: "greeting" } });
+                this.flashKey("greet.removed");
+              }),
+            ),
+        }),
+      );
+    if (d?.type === "crop")
+      nodes.push(
+        h(APhotoCropper, {
+          key: "crop",
+          lang,
+          src: d.url,
+          w: d.w,
+          h: d.h,
+          busy: !!s.busy,
+          onCancel: () => {
+            URL.revokeObjectURL(d.url);
+            close();
+          },
+          onSave: (data) =>
+            this.run(async () => {
+              this.apply(await this.api("profile/photo", { data }));
+              URL.revokeObjectURL(d.url);
+              close();
+              this.flashKey("photo.saved");
+            }),
+        }),
+      );
+    if (d?.type === "greetingStats")
+      nodes.push(
+        h(AGreetingStats, {
+          key: "greetingStats",
+          lang,
+          stats: d.stats,
+          onClose: () => this.setState({ alphaDialog: { type: "greeting" } }),
         }),
       );
     if (d?.type === "villageReport")
@@ -1640,13 +1759,26 @@ class Component extends DesignComponent {
           key: "member-added",
           added: s.memberAdded,
           lang,
-          onClose: () => this.setState({ memberAdded: null, screen: "admin" }),
-          onAnother: () => this.setState({ memberAdded: null, addMemberKey: (s.addMemberKey || 0) + 1 }),
+          onClose: () => this.setState({ memberAdded: null, screen: s.addMemberFrom || "admin", addMemberInitial: null }),
+          onAnother: () => this.setState({ memberAdded: null, addMemberInitial: null, addMemberKey: (s.addMemberKey || 0) + 1 }),
         }),
       );
     if (s.createdAdmin)
       nodes.push(h(AVillageAdminCreatedDialog, { key: "created", issued: s.createdAdmin, lang, onClose: () => this.setState({ createdAdmin: null }) }));
-    const flashMsg = !s.alphaDialog && !s.contact && !s.confirm ? this._flashMessage() : null;
+    // Second-phone login code for this number's owner (owner, 30 Oct 2026).
+    const codeAlert = s.account && !s.locked ? (s.loginCodes || []).find((c) => !(s.seenCodes || []).includes(c.id)) : null;
+    if (codeAlert)
+      nodes.push(
+        h(ALoginCodeAlert, {
+          key: "code-" + codeAlert.id,
+          lang,
+          item: codeAlert,
+          onClose: () => this.setState((st) => ({ seenCodes: [...(st.seenCodes || []), codeAlert.id] })),
+        }),
+      );
+    if (d?.type === "loginCodes")
+      nodes.push(h(ALoginCodesDialog, { key: "loginCodes", lang, items: s.loginCodeRequests || [], onClose: close }));
+    const flashMsg = !codeAlert && !s.alphaDialog && !s.contact && !s.confirm ? this._flashMessage() : null;
     if (flashMsg)
       nodes.push(
         h(AFlashMessage, {
@@ -1804,7 +1936,14 @@ class Component extends DesignComponent {
               en: STR["add.tile"][1],
               count: 0,
               hint: this.P(STR["add.tileHint"][0], STR["add.tileHint"][1]),
-              onClick: () => this.setState({ screen: "addmember", memberAdded: null, addMemberKey: (s.addMemberKey || 0) + 1 }),
+              onClick: () => this.openAddMember(null, "admin"),
+            },
+            {
+              gu: STR["lc.adminTile"][0],
+              en: STR["lc.adminTile"][1],
+              count: (s.loginCodeRequests || []).length,
+              hint: this.P(STR["lc.adminHint"][0], STR["lc.adminHint"][1]),
+              onClick: () => this.setState({ alphaDialog: { type: "loginCodes" } }),
             },
           ]
         : []),

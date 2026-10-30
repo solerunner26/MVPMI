@@ -34,21 +34,37 @@ export function ALoginScreen({ lang, onLang, api, onLoggedIn, onRegister, onAdmi
   const [withPassword, setWithPassword] = React.useState(false);
   const [error, setError] = React.useState(null);
   const [busy, setBusy] = React.useState(false);
+  // Second phone (owner, 30 Oct 2026): the code from the phone already using
+  // this number.
+  const [needCode, setNeedCode] = React.useState(false);
+  const [code, setCode] = React.useState("");
+  const [info, setInfo] = React.useState("");
   const wait = useCountdown(error?.code === "LOCKED_OUT" ? error.until : 0);
-  const submit = async () => {
+  const submit = async (resend = false) => {
     if (busy) return;
     if (!validMobile(mobile)) return setError({ code: "MOBILE_FORMAT", field: "mobile" });
     if (withPassword && !secret) return setError({ code: "PASSWORD_REQUIRED", field: "secret" });
+    if (needCode && !resend && code.length !== 6) return setError({ code: "OWNER_CODE_WRONG", field: "code" });
     setBusy(true);
     setError(null);
+    setInfo("");
     try {
-      const data = await api("login", withPassword ? { mobile, secret } : { mobile });
+      const data = await api(
+        "login",
+        withPassword ? { mobile, secret } : needCode ? (resend ? { mobile, resend: true } : { mobile, code }) : { mobile },
+      );
       const used = secret;
       setSecret("");
       onLoggedIn(data, used);
     } catch (e) {
       // The Main Admin's number asks for the password: show the field.
       if (e.code === "PASSWORD_REQUIRED") setWithPassword(true);
+      if (e.code === "OWNER_CODE_SENT") {
+        setNeedCode(true);
+        setCode("");
+        if (resend) setInfo(t("login.resent", lang));
+        return;
+      }
       setError({ code: e.code || (e.network ? "NETWORK" : undefined), field: e.code === "PASSWORD_REQUIRED" ? "secret" : e.field, left: e.left, until: e.until, message: e.message, network: e.network });
     } finally {
       setBusy(false);
@@ -94,10 +110,40 @@ export function ALoginScreen({ lang, onLang, api, onLoggedIn, onRegister, onAdmi
           "aria-invalid": error?.field === "mobile" ? "true" : undefined,
           onChange: (e) => {
             setMobile(digitsOnly(e.target.value));
+            setNeedCode(false);
             if (error?.field === "mobile") setError(null);
           },
         }),
       ),
+      needCode
+        ? ah(
+            "div",
+            { className: "alpha-code-box", "data-testid": "Owner code box" },
+            ah("h3", null, t("login.codeTitle", lang)),
+            ah("p", { className: "alpha-hint" }, t("login.codeHint", lang)),
+            ah(
+              AField,
+              { label: t("login.code", lang), invalid: error?.field === "code" },
+              ah("input", {
+                value: code,
+                type: "text",
+                inputMode: "numeric",
+                autoComplete: "one-time-code",
+                maxLength: 6,
+                autoFocus: true,
+                className: "alpha-code-input",
+                "data-testid": "Owner code",
+                "aria-invalid": error?.field === "code" ? "true" : undefined,
+                onChange: (e) => {
+                  setCode(digitsOnly(e.target.value).slice(0, 6));
+                  if (error?.field === "code") setError(null);
+                },
+              }),
+            ),
+            info ? ah(ANotice, { kind: "info" }, info) : null,
+            ah(AButton, { kind: "text", onClick: () => submit(true), "data-testid": "Owner code resend" }, ah(AIcon, { name: "arrow-clockwise" }), " ", t("login.resend", lang)),
+          )
+        : null,
       withPassword
         ? ah(
             AField,

@@ -38,7 +38,7 @@ async function server(keepFirstPassword = false) {
   // Plain API client for set-up steps that are not under test.
   const client = () => {
     let cookie = "";
-    return async (path, body) => {
+    const call = async (path, body) => {
       const r = await fetch(url + "/api/" + path, {
         method: body === undefined ? "GET" : "POST",
         headers: { Cookie: cookie, "X-MVPMI-Client": "1", "Content-Type": "application/json" },
@@ -46,9 +46,13 @@ async function server(keepFirstPassword = false) {
       });
       if (r.headers.get("set-cookie")) cookie = r.headers.get("set-cookie").split(";")[0];
       const j = await r.json();
+      // A number already logged in elsewhere: use the owner's code, as the
+      // person would after asking for it (second-phone login, 30 Oct 2026).
+      if (!r.ok && j.code === "OWNER_CODE_SENT" && path === "login" && !body.code) return call(path, { ...body, code: ownerCode(store, body.mobile) });
       if (!r.ok) throw new Error(path + ": " + (j.code || j.error));
       return j;
     };
+    return call;
   };
   const admin = client();
   // In flow s2 the browser does the Main Admin's very first login itself.
@@ -110,6 +114,18 @@ const back = (page) => page.evaluate(() => window.mvpmiBack());
 async function waitScreen(page, name, timeout = 10000) {
   await page.waitForFunction((n) => document.querySelector(".app")?.getAttribute("data-screen") === n, name, { timeout });
 }
+// The newest second-phone code for a number (what its owner sees).
+function ownerCode(store, mobile) {
+  const m = store.all("members").find((x) => x.phone === mobile);
+  const c = store.all("loginCodes").filter((x) => x.memberId === m.id).sort((a, b) => b.at - a.at)[0];
+  return c && c.code;
+}
+let currentStore = null;
+// Ends every login of a number (as if each phone signed out).
+function signOutEverywhere(store, mobile) {
+  const m = store.all("members").find((x) => x.phone === mobile);
+  for (const x of store.all("sessions")) if (x.auth?.memberId === m.id) store.del("sessions", x.id);
+}
 async function loginMain(page, password = MAIN.password) {
   await page.getByTestId("Login screen").waitFor();
   await page.getByTestId("Toggle password mode").click();
@@ -122,6 +138,17 @@ async function loginMobile(page, mobile) {
   await page.getByTestId("Login screen").waitFor();
   await page.getByTestId("Login mobile").fill(mobile);
   await page.getByTestId("Login submit").click();
+  // Already logged in on another phone: type the owner's code.
+  const box = page.getByTestId("Owner code box");
+  const seen = await Promise.race([
+    box.waitFor({ timeout: 4000 }).then(() => "code"),
+    page.waitForFunction(() => document.querySelector(".app")?.getAttribute("data-screen") !== "login", null, { timeout: 4000 }).then(() => "in"),
+    page.getByTestId("Login error").waitFor({ timeout: 4000 }).then(() => "error"),
+  ]).catch(() => "none");
+  if (seen === "code") {
+    await page.getByTestId("Owner code").fill(ownerCode(currentStore, mobile));
+    await page.getByTestId("Login submit").click();
+  }
 }
 // Opens Settings the way a person does: My Profile icon → Settings.
 async function openSettings(page) {
@@ -161,6 +188,7 @@ let lastPage = null;
 async function flow(name, fn) {
   if (only && !only.has(name)) return;
   const env = await server(name === "s2");
+  currentStore = env.store;
   try {
     await fn(env);
   } catch (e) {
@@ -1393,6 +1421,7 @@ await flow("s11", async (env) => {
           await ctx.addInitScript((p) => localStorage.setItem("mvpmi-preferences", JSON.stringify(p)), { lang, fsPct, theme });
           const page = await ctx.newPage();
           await page.goto(env.url);
+          signOutEverywhere(env.store, va.mobile); // each layout check is a fresh phone
           await loginMobile(page, va.mobile);
           await page.getByTestId("Contact row").nth(4).waitFor();
           const o = await rowOverlap(page), h = await headerFit(page);
@@ -1641,6 +1670,10 @@ await flow("s12", async (env) => {
     const chooser = m.page.waitForEvent("filechooser");
     await m.page.getByTestId("Profile photo").click();
     await (await chooser).setFiles({ name: "me.jpg", mimeType: "image/jpeg", buffer: jpg });
+    // Move and zoom so the face is in the circle (30 Oct 2026), then save.
+    await m.page.getByTestId("Photo cropper").waitFor();
+    await m.page.getByTestId("Crop zoom").fill("1.6");
+    await m.page.getByTestId("Crop save").click();
     await toast(m.page, "saved");
     await m.page.locator(".alpha-photo-btn img.alpha-face").waitFor();
     await shot(m.page, "s12-profile-photo");
@@ -1704,6 +1737,153 @@ await flow("s12", async (env) => {
   await a.ctx.close();
 });
 
+// ---------------------------------------------------------------- Section 13
+// 30 Oct 2026: second-phone login code, picture greetings (like, save, who
+// saw/liked, edit, remove), rejected numbers (allow all, correct & add),
+// Add member from Settings.
+await flow("s13", async (env) => {
+  const S = "13 Oct-30 features";
+  await env.ensureVA("થોરાળા", "9800000010");
+  await env.approvedMember("9831000001", "થોરાળા", "Ramesh Vala");
+  await env.approvedMember("9831000002", "થોરાળા", "Suresh Vala");
+  const father = await phone(env.url);
+  await loginMobile(father.page, "9831000001");
+  await waitScreen(father.page, "directory");
+  await row(S, "Login (2nd phone)", "Same number on another phone", "asks for the 6-digit code; the 1st phone shows it; the code logs in").run(async () => {
+    const son = await phone(env.url);
+    await son.page.getByTestId("Login mobile").fill("9831000001");
+    await son.page.getByTestId("Login submit").click();
+    await son.page.getByTestId("Owner code box").waitFor();
+    await shot(son.page, "s13-owner-code-asked");
+    // The father's app shows the code within a few seconds.
+    await father.page.getByTestId("Login code alert").waitFor({ timeout: 20000 });
+    await shot(father.page, "s13-owner-code-shown");
+    const code = (await father.page.getByTestId("Login code value").innerText()).replace(/\D/g, "");
+    assert.equal(code.length, 6);
+    await son.page.getByTestId("Owner code").fill(code === "000000" ? "111111" : "000000");
+    await son.page.getByTestId("Login submit").click();
+    await son.page.getByTestId("Login error").waitFor();
+    await son.page.getByTestId("Owner code").fill(code);
+    await son.page.getByTestId("Login submit").click();
+    await waitScreen(son.page, "directory");
+    await father.page.getByTestId("Login code ok").click();
+    await father.page.getByTestId("Login code alert").waitFor({ state: "detached" });
+    // Both phones stay logged in.
+    assert.equal(await screenOf(father.page), "directory");
+    await son.ctx.close();
+  });
+  const a = await phone(env.url);
+  await loginMain(a.page);
+  await waitScreen(a.page, "directory");
+  const jpg = await a.page.screenshot({ type: "jpeg", quality: 70, clip: { x: 0, y: 0, width: 300, height: 220 } });
+  await row(S, "Greeting", "Text + picture to everyone", "one picture stored; members get a notification").run(async () => {
+    await a.page.getByTestId("Greeting").click();
+    await a.page.getByTestId("Greeting composer").waitFor();
+    await a.page.getByTestId("Greeting text").fill("નવા વર્ષની શુભકામના\nHappy New Year");
+    const chooser = a.page.waitForEvent("filechooser");
+    await a.page.getByTestId("Greeting photo add").click();
+    await (await chooser).setFiles({ name: "greeting.jpg", mimeType: "image/jpeg", buffer: jpg });
+    await a.page.getByTestId("Greeting photo preview").waitFor();
+    await shot(a.page, "s13-greeting-with-photo");
+    await a.page.getByTestId("Greeting send").click();
+    await toast(a.page, "Sent to");
+    assert.equal(env.store.all("greetingImages").length, 1);
+    assert.ok(env.store.all("notifications").some((n) => n.kind === "greeting"));
+  });
+  await row(S, "Member", "Flash card + Message Centre", "the picture shows only in the Message Centre; Like shows the count; Save downloads it").run(async () => {
+    await father.page.getByTestId("Flash message").waitFor({ timeout: 20000 });
+    await father.page.getByTestId("Flash photo note").waitFor();
+    await father.page.getByTestId("Flash open centre").click();
+    await waitScreen(father.page, "messages");
+    await father.page.getByTestId("Message photo").waitFor();
+    await father.page.waitForFunction(() => document.querySelector('[data-testid="Message photo"]').naturalWidth > 0);
+    await father.page.getByTestId("Message like").click();
+    await father.page.getByTestId("Message likes").filter({ hasText: "1" }).waitFor();
+    await shot(father.page, "s13-message-centre-photo");
+    const dl = father.page.waitForEvent("download");
+    await father.page.getByTestId("Message save").click();
+    assert.match((await dl).suggestedFilename(), /\.jpg$/);
+  });
+  await row(S, "Greeting (Main Admin)", "Seen / liked counts + Who saw it", "counts on the sent list; names on demand, no notification").run(async () => {
+    const before = env.store.all("notifications").length;
+    await a.page.reload();
+    await waitScreen(a.page, "directory");
+    await a.page.getByTestId("Greeting").click();
+    await a.page.getByTestId("Sent greeting counts").first().filter({ hasText: /1 liked/ }).waitFor({ timeout: 15000 });
+    await a.page.getByTestId("Sent greeting details").first().click();
+    await a.page.getByTestId("Greeting stats").waitFor();
+    assert.match(await a.page.getByTestId("Greeting liked list").innerText(), /Ramesh/);
+    await shot(a.page, "s13-greeting-stats");
+    assert.equal(env.store.all("notifications").length, before, "likes never notify");
+    await a.page.getByTestId("Greeting stats").getByRole("button", { name: /Close/ }).first().click();
+  });
+  await row(S, "Greeting (Main Admin)", "Edit, then Remove", "members see the new text; Remove takes it away from everyone").run(async () => {
+    await a.page.getByTestId("Sent greeting edit").first().click();
+    await a.page.getByTestId("Greeting editor").waitFor();
+    await a.page.getByTestId("Greeting text").fill("Happy New Year 2027");
+    await a.page.getByTestId("Greeting save").click();
+    await toast(a.page, "updated");
+    await father.page.reload();
+    await waitScreen(father.page, "directory");
+    await father.page.getByTestId("Messages").click();
+    await waitScreen(father.page, "messages");
+    await father.page.locator(".alpha-msg-text", { hasText: "Happy New Year 2027" }).waitFor();
+    await a.page.getByTestId("Sent greeting remove").first().click();
+    await a.page.getByTestId("Confirm yes").click();
+    await toast(a.page, "removed");
+    await father.page.reload();
+    await waitScreen(father.page, "directory");
+    await father.page.getByTestId("Messages").click();
+    await waitScreen(father.page, "messages");
+    await father.page.getByText("No messages yet").waitFor();
+  });
+  await row(S, "Settings (Main Admin)", "Add member", "opens the Add member form from Settings").run(async () => {
+    await a.page.keyboard.press("Escape").catch(() => {});
+    await a.page.reload();
+    await waitScreen(a.page, "directory");
+    await a.page.getByTestId("Settings tab").click();
+    await waitScreen(a.page, "settings");
+    await a.page.getByTestId("Settings add member").click();
+    await waitScreen(a.page, "addmember");
+    await back(a.page);
+    await waitScreen(a.page, "settings");
+  });
+  await row(S, "Settings → Rejected / removed numbers", "Correct & add, Allow all", "a rejected number is corrected and added; all others can register again").run(async () => {
+    // Two rejected applications (wrong names).
+    const va = await env.ensureVA("થોરાળા");
+    for (const [phone, first] of [["9831000011", "Wrng"], ["9831000012", "Bad"]]) {
+      const r = await env.client()("enrollment", { firstName: first, surname: "Nm", phone, village: "થોરાળા", consent: true });
+      await env.admin("admin/requests/" + r.myRequest.id + "/reject", { reason: "Wrong name", category: "insufficient" });
+    }
+    await a.page.reload();
+    await waitScreen(a.page, "directory");
+    await a.page.getByTestId("Settings tab").click();
+    await waitScreen(a.page, "settings");
+    await a.page.getByTestId("Settings rejoin").click();
+    await waitScreen(a.page, "rejoin");
+    await a.page.getByTestId("Rejoin row").nth(1).waitFor();
+    await shot(a.page, "s13-rejoin");
+    await a.page.getByTestId("Rejoin row").filter({ hasText: "98310 00011" }).getByTestId("Rejoin correct").click();
+    await waitScreen(a.page, "addmember");
+    assert.equal(await a.page.getByTestId("Register phone").inputValue(), "9831000011");
+    await a.page.getByTestId("Register firstName").fill("Vijay");
+    await a.page.getByTestId("Register surname").fill("Vala");
+    await a.page.getByTestId("Register consent").check();
+    await a.page.getByTestId("Register submit").click();
+    await a.page.getByTestId("Member added dialog").waitFor();
+    await a.page.getByTestId("Member added done").click();
+    await waitScreen(a.page, "rejoin");
+    await a.page.getByTestId("Rejoin allow all").click();
+    await a.page.getByTestId("Confirm yes").click();
+    await a.page.getByText("No number is blocked").waitFor();
+    await env.client()("enrollment", { firstName: "Bharat", surname: "Vala", phone: "9831000012", village: "થોરાળા", consent: true });
+    assert.ok(env.store.all("members").some((m) => m.phone === "9831000011" && m.name.startsWith("Vijay")));
+  });
+  await screenAudit(a.page, S, "Rejected numbers");
+  await father.ctx.close();
+  await a.ctx.close();
+});
+
 // Visual review only (run with ALPHA_ONLY=look): Pixel-size screenshots of the
 // main screens in Gujarati + English, light + dark. No assertions.
 if (only && only.has("look"))
@@ -1718,6 +1898,7 @@ if (only && only.has("look"))
       await page.goto(env.url);
       await page.waitForTimeout(600);
       await page.screenshot({ path: `test-results/look/${lang}-${theme}-1-login.png` });
+      signOutEverywhere(env.store, va.mobile); // each layout check is a fresh phone
       await loginMobile(page, va.mobile);
       await page.getByTestId("Contact row").nth(4).waitFor();
       await page.waitForTimeout(400);

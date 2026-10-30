@@ -148,3 +148,50 @@ export function AManageVillageAdmins({ lang, data, act, flash }) {
       : null,
   );
 }
+
+
+// Rejected and removed numbers (owner, 30 Oct 2026): allow one, allow all,
+// or correct the details and add the person directly.
+export function blockedNumbers(data) {
+  const rows = [];
+  for (const r of data.rejectedApplications || []) {
+    const last = (r.events || [])[r.events.length - 1];
+    if (last?.action !== "reject") continue;
+    rows.push({ key: "r:" + r.id, kind: "rejected", id: r.id, name: r.name, phone: r.phone, village: r.village, reason: last.reason, at: last.at, profile: last.snapshot || {} });
+  }
+  for (const a of data.archive || []) {
+    if (a.rejoinAllowed) continue;
+    rows.push({ key: "a:" + a.id, kind: "removed", id: a.id, name: a.name, phone: a.phone, village: a.village, reason: a.status, at: a.archivedAt, profile: a });
+  }
+  return rows.sort((x, y) => (y.at || 0) - (x.at || 0));
+}
+export function ARejoinScreen({ lang, rows, busy, onBack, onAllow, onAllowAll, onCorrect }) {
+  return ah(
+    "main",
+    { className: "alpha-screen", "data-testid": "Rejoin screen" },
+    ah(ATopBar, { title: t("rj.title", lang), onBack, backLabel: t("common.back", lang) }),
+    ah(
+      "div",
+      { className: "alpha-scroll" },
+      ah("p", { className: "alpha-intro" }, t("rj.intro", lang)),
+      rows.length
+        ? ah(AButton, { kind: "primary", disabled: busy, onClick: onAllowAll, "data-testid": "Rejoin allow all" }, ah(AIcon, { name: "check-circle" }), " ", t("rj.allowAll", lang, { n: rows.length }))
+        : ah("p", { className: "alpha-hint" }, t("rj.none", lang)),
+      ...rows.map((r) =>
+        ah(
+          "article",
+          { key: r.key, className: "alpha-card lq-glass alpha-rejoin-row", "data-testid": "Rejoin row" },
+          ah("strong", null, r.name || r.phone),
+          ah("small", null, t(r.kind === "rejected" ? "rj.rejected" : "rj.removed", lang) + " · " + formatMobile(r.phone) + (r.village ? " · " + villageName(r.village, lang) : "")),
+          r.reason ? ah("p", { className: "alpha-hint" }, r.reason) : null,
+          ah(
+            "div",
+            { className: "alpha-actions" },
+            ah(AButton, { disabled: busy, onClick: () => onAllow(r), "data-testid": "Rejoin allow" }, ah(AIcon, { name: "arrow-u-up-left" }), " ", t("rejoin.allow", lang)),
+            ah(AButton, { kind: "secondary", disabled: busy, onClick: () => onCorrect(r), "data-testid": "Rejoin correct" }, ah(AIcon, { name: "pencil-simple" }), " ", t("rj.correct", lang)),
+          ),
+        ),
+      ),
+    ),
+  );
+}

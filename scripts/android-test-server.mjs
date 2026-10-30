@@ -16,7 +16,9 @@ import { createServer } from "node:http";
 
 const port = Number(process.argv[2] || process.env.PORT || 3900);
 const MAIN = { name: "Test Main Admin", mobile: "9913000001", village: "Thorala", location: "Thorala", password: "Testing@26" };
-const { app, store } = createApp({ dbPath: ":memory:", mainAdmin: MAIN, development: true, requireAppLock: true });
+// Test-only settings the switches below can change while the server runs.
+const testEnv = {};
+const { app, store } = createApp({ dbPath: ":memory:", mainAdmin: MAIN, development: true, requireAppLock: true, driveEnv: testEnv });
 // The first-login password change is tested in the browser suite.
 const m = store.get("members", mainAdminId(store));
 delete m.cred.initial;
@@ -30,6 +32,15 @@ const server = createServer((req, res) => {
   if (req.url.startsWith("/__test/outage")) {
     outage = /on=1/.test(req.url);
     res.end(JSON.stringify({ outage }));
+    return;
+  }
+  // GET /__test/app-version?build=N announces a newer app (must-update
+  // test); build=0 turns it off. The download address is unreachable.
+  if (req.url.startsWith("/__test/app-version")) {
+    const build = Number(new URL(req.url, "http://x").searchParams.get("build") || 0);
+    if (build > 0) Object.assign(testEnv, { APP_UPDATE_BUILD: String(build), APP_UPDATE_VERSION: "test-" + build, APP_UPDATE_URL: "https://example.invalid/mvpmi.apk" });
+    else for (const k of ["APP_UPDATE_BUILD", "APP_UPDATE_VERSION", "APP_UPDATE_URL"]) delete testEnv[k];
+    res.end(JSON.stringify({ build }));
     return;
   }
   if (outage) return req.socket.destroy();

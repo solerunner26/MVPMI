@@ -241,6 +241,10 @@ const tables = new Set([
   "inbox",
   // Profile pictures: one small JPEG per member (Oct 2026).
   "photos",
+  // Greeting pictures: ONE copy per greeting, shared by every recipient.
+  "greetingImages",
+  // Second-phone login codes for the number's owner (Oct 2026).
+  "loginCodes",
 ]);
 const table = (t) => {
   if (!tables.has(t)) throw new Error("Unknown database table");

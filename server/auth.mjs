@@ -14,6 +14,7 @@
 //   }
 import bcrypt from "bcryptjs";
 import { randomUUID } from "node:crypto";
+import { otherPhones, requireOwnerCode } from "./second-phone.mjs";
 import { fail, profile, nameParts } from "./store.mjs";
 import {
   ROLES,
@@ -202,7 +203,7 @@ export function numberStatus(store, mobile) {
   return null;
 }
 
-export function installAuth(app, store, { rate, state, alert, knownClient, clientKey }) {
+export function installAuth(app, store, { rate, state, alert, knownClient, clientKey, notify = () => {} }) {
   const save = (req) => store.put("sessions", req.session);
   const signedIn = (req) => {
     if (!req.me) fail("Please log in", 401, "SESSION");
@@ -256,6 +257,9 @@ export function installAuth(app, store, { rate, state, alert, knownClient, clien
         throw e;
       }
     }
+    // Already logged in on another phone: this phone needs the code the
+    // owner sees on that phone (owner, 30 Oct 2026).
+    if (!main && otherPhones(store, m.id, req.session.id).length) requireOwnerCode(store, req, m, { notify, rate });
     const fresh = store.get("members", m.id);
     startSession(req, fresh, role, main && !!fresh.cred?.initial);
     res.json(state(req));

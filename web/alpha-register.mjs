@@ -23,7 +23,7 @@ function registrationErrors(f) {
 }
 
 // direct: the Main Admin adds an approved member (owner, 21 Oct 2026).
-export function ARegisterScreen({ lang, onLang, villages, api, initial, editing, direct, onBack, onSubmitted, onGoLogin }) {
+export function ARegisterScreen({ lang, onLang, villages, api, initial, editing, direct, allowBlocked, onBack, onSubmitted, onGoLogin }) {
   const [form, setForm] = React.useState(() => ({ ...emptyRegistration(), ...(initial || {}) }));
   const [consent, setConsent] = React.useState(!!editing);
   const [showPhone2, setShowPhone2] = React.useState(!!initial?.phone2);
@@ -45,7 +45,7 @@ export function ARegisterScreen({ lang, onLang, villages, api, initial, editing,
     setBusy(true);
     setServerError(null);
     try {
-      const data = await api(direct ? "admin/members/add" : "enrollment", { ...form, phone2: showPhone2 ? form.phone2 : "", consent: true });
+      const data = await api(direct ? "admin/members/add" : "enrollment", { ...form, phone2: showPhone2 ? form.phone2 : "", consent: true, ...(direct && allowBlocked ? { allowBlocked: true } : {}) });
       onSubmitted(data);
     } catch (err) {
       setServerError({ code: err.code || (err.network ? "NETWORK" : undefined), field: err.field, message: err.message, network: err.network });

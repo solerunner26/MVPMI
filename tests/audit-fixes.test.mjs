@@ -56,7 +56,7 @@ test("a Village Admin's number changed by the Main Admin moves their login with 
     village: "Thorala",
   });
   const c = f.client();
-  await c("login", { mobile: "7990009999" });
+  await f.firstLogin(c, "7990009999");
   assert.equal((await c("state")).villageAdmin, true);
 });
 
@@ -73,7 +73,7 @@ test("village-admin proposals survive backup and restore; a member on a new phon
     (await f.client()("enrollment", member("9000000001", "Some Member Test"), 409)).code,
     "STATUS_APPROVED",
   );
-  await f.client()("login", { mobile: "9000000001" });
+  await f.firstLogin(f.client(), "9000000001");
   const backup = await f.admin("admin/backup");
   const preview = await f.admin("admin/restore/validate", backup);
   await f.admin("admin/restore", {
@@ -84,7 +84,7 @@ test("village-admin proposals survive backup and restore; a member on a new phon
   assert.equal((await f.admin("state")).deleteRequests.length, 1);
   // The Village Admin keeps their PIN after the restore…
   const c = f.client();
-  await c("login", { mobile: vaPhone(f.store) });
+  await f.firstLogin(c, vaPhone(f.store));
   assert.equal((await c("state")).villageAdmin, true);
   // …but phones logged in before the restore must log in again.
   assert.equal((await f.va(G)("state")).villageAdmin, false);
@@ -133,7 +133,7 @@ test("a Village Admin needs no PIN; a disabled or replaced admin loses the tools
   const f = await setup(t);
   assert.equal((await f.va(G)("state")).villageAdmin, true);
   const c = f.client();
-  const s = await c("login", { mobile: vaPhone(f.store) });
+  const s = await f.firstLogin(c, vaPhone(f.store));
   assert.equal(s.account.role, "VILLAGE_ADMIN");
   assert.equal(s.account.mustSetPin, false);
   assert.equal(s.villageAdmin, true, "the admin tools are open straight after login");
@@ -147,7 +147,7 @@ test("wrong Main Admin passwords lock only that account, and a lockout never blo
   for (let i = 0; i < 4; i++) await spam("login", { mobile: MAIN.mobile, secret: "wrong" + i + "xx" }, 401);
   assert.equal((await spam("login", { mobile: MAIN.mobile, secret: "wrong5xxx" }, 429)).code, "LOCKED_OUT");
   // A Village Admin (no secret at all) is unaffected.
-  assert.equal((await f.client()("login", { mobile: vaPhone(f.store) })).account.role, "VILLAGE_ADMIN");
+  assert.equal((await f.firstLogin(f.client(), vaPhone(f.store))).account.role, "VILLAGE_ADMIN");
 });
 
 test("withdrawn or replaced applications are not flagged as 'rejected before'", async (t) => {

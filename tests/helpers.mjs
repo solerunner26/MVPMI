@@ -62,7 +62,7 @@ export async function fixture(t, options = {}) {
       const result = response.headers.get("content-type")?.includes("json")
         ? await response.json()
         : Buffer.from(await response.arrayBuffer());
-      assert.equal(
+      if (status !== null) assert.equal(
         response.status,
         status,
         `${path}: expected ${status}, got ${response.status} ${JSON.stringify(result.error || "")}`,
@@ -80,7 +80,18 @@ export async function fixture(t, options = {}) {
   };
   // Members and Village Admins log in with their mobile number only.
   // (The extra arguments are ignored; older tests still pass them.)
-  const firstLogin = async (c, mobile) => c("login", { mobile });
+  // A number already logged in on another phone needs the owner's code
+  // (owner, 30 Oct 2026); tests read it from the store like the owner would.
+  const firstLogin = async (c, mobile) => {
+    const r = await c("login", { mobile }, null);
+    if (r.code !== "OWNER_CODE_SENT") {
+      assert.ok(r.account, "login " + mobile + ": " + JSON.stringify(r.error || r.code));
+      return r;
+    }
+    const m = store.all("members").find((x) => x.phone === mobile);
+    const code = store.all("loginCodes").filter((x) => x.memberId === m.id).sort((a, b) => b.at - a.at)[0].code;
+    return c("login", { mobile, code });
+  };
   const ensureAdmin = async (village) => {
     const record = store
       .all("villages")

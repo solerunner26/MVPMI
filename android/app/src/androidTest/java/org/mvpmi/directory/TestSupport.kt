@@ -109,6 +109,14 @@ object T {
         try { c.inputStream.use { it.readBytes() } } finally { c.disconnect() }
     }
 
+    /** Must-update switch (scripts/android-test-server.mjs): build 0 = off. */
+    fun testAppVersion(build: Int) {
+        val c = java.net.URL(BuildConfig.COMMUNITY_URL + "/__test/app-version?build=" + build).openConnection() as java.net.HttpURLConnection
+        c.connectTimeout = 10000
+        c.readTimeout = 10000
+        try { c.inputStream.use { it.readBytes() } } finally { c.disconnect() }
+    }
+
     /** True while Android reports a usable network. */
     fun online(): Boolean {
         val cm = instr.targetContext.getSystemService(android.net.ConnectivityManager::class.java)

@@ -416,3 +416,40 @@ class NativeShellTest {
         }
     }
 }
+
+/** Must-update (owner, 21 + 30 Oct 2026): when the server announces a newer
+ *  build, the app shows a full-screen page with ONE action (Update) that
+ *  cannot be dismissed; the app underneath cannot be used. */
+@RunWith(AndroidJUnit4::class)
+class ForceUpdateTest {
+    @After
+    fun reset() = T.testAppVersion(0)
+
+    @Test
+    fun aNewerBuildBlocksTheAppUntilItIsInstalled() {
+        T.testAppVersion(99999)
+        ActivityScenario.launch(MainActivity::class.java).use {
+            assertTrue("update page at start", T.device.wait(Until.hasObject(By.res("update_screen")), 30000) == true)
+            assertTrue("one Update button", T.device.hasObject(By.res("update_now")))
+            assertFalse("no bottom bar behind it", T.device.hasObject(By.res("nav_home")))
+            T.shell("screencap -p /sdcard/Download/mvpmi-update.png")
+            // Tapping outside the button does nothing; the page stays.
+            T.device.click(T.device.displayWidth / 2, T.device.displayHeight / 8)
+            assertTrue(T.device.hasObject(By.res("update_screen")))
+            // The download address is unreachable here: "Try again" appears
+            // and the app stays blocked.
+            T.device.findObject(By.res("update_now")).click()
+            assertTrue(
+                "try again after a failed download",
+                T.device.wait(Until.hasObject(By.text(Pattern.compile("Try again|ફરી પ્રયાસ કરો"))), 45000) == true,
+            )
+            assertTrue("still blocked", T.device.hasObject(By.res("update_screen")))
+        }
+        // Up to date again: the app opens normally.
+        T.testAppVersion(0)
+        ActivityScenario.launch(MainActivity::class.java).use {
+            assertTrue(T.device.wait(Until.hasObject(By.res("splash_enter")), 30000) == true)
+            assertFalse(T.device.hasObject(By.res("update_screen")))
+        }
+    }
+}

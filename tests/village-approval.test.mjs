@@ -30,7 +30,7 @@ test("Village Admins log in with their mobile number; powers exist only in admin
   await applicant("enrollment", { ...example, phone: "9000000002" });
   const r = f.store.all("requests")[0];
   assert.equal((await anyone("login", { mobile: "8000000000" }, 404)).code, "NOT_REGISTERED");
-  let s = await anyone("login", { mobile: vaMember.phone });
+  let s = await f.firstLogin(anyone, vaMember.phone);
   assert.equal(s.villageAdmin, true);
   assert.equal(s.account.role, "VILLAGE_ADMIN");
   assert.match(s.villageAdminNameEn, /^Administrator/);
@@ -276,7 +276,7 @@ test("a member on a new phone logs in with the same PIN; there is no second regi
   const fresh = f.client();
   assert.equal((await fresh("enrollment", example, 409)).code, "STATUS_APPROVED");
   assert.deepEqual((await fresh("state")).members, []);
-  const s = await fresh("login", { mobile: example.phone });
+  const s = await f.firstLogin(fresh, example.phone);
   assert.equal(s.role, "member");
   assert.equal((await old("state")).role, "member", "both phones stay logged in");
 });

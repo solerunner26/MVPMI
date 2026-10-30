@@ -55,6 +55,15 @@ export function ASettingsScreen(p) {
           ? null
           : ah(AMenuItem, { icon: "user-minus", label: t("profile.requestRemoval", lang), detail: p.pendingRemoval ? t("profile.pendingRemoval", lang) : "", onClick: p.onRequestRemoval, testId: "Settings request removal" }),
       ),
+      // Main Admin: add members directly; rejected/removed numbers (30 Oct 2026).
+      main && p.onAddMember
+        ? ah(
+            ASection,
+            { title: t("settings.members", lang) },
+            ah(AMenuItem, { icon: "user-plus", label: t("add.title", lang), detail: t("add.tileHint", lang), onClick: p.onAddMember, testId: "Settings add member" }),
+            ah(AMenuItem, { icon: "user-switch", label: t("rj.menu", lang), detail: t("rj.menuDetail", lang, { n: p.blockedCount || 0 }), onClick: p.onRejoin, testId: "Settings rejoin" }),
+          )
+        : null,
       ah(
         ASection,
         { title: t("settings.display", lang) },
